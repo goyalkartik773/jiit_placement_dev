@@ -1,0 +1,6 @@
+@JIITPlacement_HostAddress = http://localhost:5104
+
+GET {{JIITPlacement_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
