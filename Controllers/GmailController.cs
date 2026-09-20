@@ -11,15 +11,18 @@ namespace JIITPlacement.Controllers
     public class GmailController : ControllerBase
     {
         private readonly IGmailService _gmailService;
+        private readonly IPlacementExtractionService _placementExtractor;
         private readonly DataEntity _dataEntity;
         private readonly ILogger<GmailController> _logger;
 
         public GmailController(
             IGmailService gmailService,
+            IPlacementExtractionService placementExtractor,
             DataEntity dataEntity,
             ILogger<GmailController> logger)
         {
             _gmailService = gmailService;
+            _placementExtractor = placementExtractor;
             _dataEntity = dataEntity;
             _logger = logger;
         }
@@ -420,5 +423,375 @@ namespace JIITPlacement.Controllers
                     </body></html>", "text/html");
             }
         }
+
+        /// <summary>
+        /// Full sync: Fetch ALL unfetched messages from both groups, process them, and extract placements.
+        /// This is the comprehensive sync that covers ALL messages in the groups.
+        /// </summary>
+        [HttpPost("gmail/admin/full-sync")]
+        [ProducesResponseType(typeof(Common.ReturnResponse), 200)]
+        public async Task<ActionResult> FullSync(
+            [FromQuery] int maxPerGroup = 500,
+            [FromQuery] bool extractPlacements = true)
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                _logger.LogInformation("Full Gmail sync requested - MaxPerGroup: {Max}, ExtractPlacements: {Extract}",
+                    maxPerGroup, extractPlacements);
+
+                // Step 1: Fetch ALL messages from both groups (no date filter)
+                var syncRequest = new GmailSyncRequest
+                {
+                    MaxResults = maxPerGroup,
+                    Query = "" // No filter - get everything
+                };
+                var syncResult = await _gmailService.SyncAllAsync(syncRequest);
+
+                var placementResults = new List<PlacementSyncResult>();
+
+                // Step 2: Extract placements from processed messages
+                if (extractPlacements)
+                {
+                    // Get all processed messages that haven't been placement-extracted yet
+                    DataTable unprocessedDt = _dataEntity.ExecuteDataTableFN(
+                        "fn_api_select_gmailmessages_v1", 1, 10000, "", "PROCESSED", "");
+
+                    if (unprocessedDt.Rows.Count > 0)
+                    {
+                        string unprocessedJson = unprocessedDt.Rows[0][0].ToString() ?? "{}";
+                        var unprocessedResult = Common.ParseJson(unprocessedJson);
+
+                        if (unprocessedResult.TryGetProperty("items", out var itemsArray))
+                        {
+                            foreach (var msgElement in itemsArray.EnumerateArray())
+                            {
+                                try
+                                {
+                                    var messageUuid = msgElement.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+                                    var gmailMessageId = msgElement.TryGetProperty("gmailmessageid", out var midEl) ? midEl.GetString() ?? "" : "";
+                                    var subject = msgElement.TryGetProperty("subject", out var subjEl) ? subjEl.GetString() ?? "" : "";
+                                    var bodyText = msgElement.TryGetProperty("bodytext", out var bodyEl) ? bodyEl.GetString() ?? "" : "";
+                                    var sourceGroup = msgElement.TryGetProperty("sourcegroup", out var sgEl) ? sgEl.GetString() ?? "" : "";
+                                    var sourceGroupEmail = msgElement.TryGetProperty("sourcegroupemail", out var sgeEl) ? sgeEl.GetString() ?? "" : "";
+
+                                    // Check if placements already extracted for this message
+                                    bool alreadyExtracted = false;
+                                    DataTable existingPlacements = _dataEntity.ExecuteDataTableFN(
+                                        "fn_api_select_studentplacements_v001", 1, 100, gmailMessageId, "", "", "", "");
+                                    if (existingPlacements.Rows.Count > 0)
+                                    {
+                                        string epJson = existingPlacements.Rows[0][0].ToString() ?? "{}";
+                                        var epResult = Common.ParseJson(epJson);
+                                        if (epResult.TryGetProperty("total", out var totalEl) && totalEl.GetInt32() > 0)
+                                            alreadyExtracted = true;
+                                    }
+
+                                    if (alreadyExtracted) continue;
+
+                                    // Extract placements from this message
+                                    var placements = await _placementExtractor.ExtractPlacementsAsync(
+                                        bodyText, subject);
+
+                                    foreach (var placement in placements)
+                                    {
+                                        // Try to match company to existing job
+                                        string matchedJobUuid = await FindMatchingJobAsync(
+                                            placement.CompanyName, placement.JobProfile);
+
+                                        // If no match found, create a new job
+                                        if (string.IsNullOrEmpty(matchedJobUuid) && !string.IsNullOrEmpty(placement.CompanyName))
+                                        {
+                                            matchedJobUuid = await CreateJobFromPlacementAsync(placement);
+                                        }
+
+                                        // Save the student placement
+                                        DataTable saveDt = _dataEntity.ExecuteDataTableFNParam(
+                                            "fn_api_insert_studentplacement_v001",
+                                            ("_gmailmessageid", (object)gmailMessageId),
+                                            ("_gmailmessageuuid", (object)messageUuid),
+                                            ("_sourcegroup", (object)sourceGroup),
+                                            ("_sourcegroupemail", (object)sourceGroupEmail),
+                                            ("_studentname", (object)placement.StudentName),
+                                            ("_studentemail", (object)placement.StudentEmail),
+                                            ("_companyname", (object)placement.CompanyName),
+                                            ("_jobprofile", (object)placement.JobProfile),
+                                            ("_package", (object)placement.Package),
+                                            ("_location", (object)placement.Location),
+                                            ("_batch", (object)placement.Batch),
+                                            ("_placementtype", (object)placement.PlacementType),
+                                            ("_jobuuid", (object)matchedJobUuid),
+                                            ("_notes", (object)$"Confidence: {placement.Confidence:F2}")
+                                        );
+
+                                        if (saveDt.Rows.Count > 0)
+                                        {
+                                            string saveJson = saveDt.Rows[0][0].ToString() ?? "";
+                                            var saveResult = Common.ParseJson(saveJson);
+                                            var saveStatus = saveResult.TryGetProperty("status", out var stEl) ? stEl.GetString() : "";
+                                            if (saveStatus == "SUCCESS")
+                                            {
+                                                placementResults.Add(new PlacementSyncResult
+                                                {
+                                                    StudentName = placement.StudentName,
+                                                    CompanyName = placement.CompanyName,
+                                                    JobProfile = placement.JobProfile,
+                                                    MatchedJobUuid = matchedJobUuid,
+                                                    Confidence = placement.Confidence
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Failed to extract placements from message");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                response.status = true;
+                response.Message = "Full sync and placement extraction completed.";
+                response.Data = new
+                {
+                    SyncResult = syncResult,
+                    PlacementsExtracted = placementResults.Count,
+                    Placements = placementResults
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Full sync failed");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        /// <summary>
+        /// Get all student placements with optional filters.
+        /// </summary>
+        [HttpGet("gmail/placements")]
+        [ProducesResponseType(typeof(Common.ReturnResponse), 200)]
+        public ActionResult GetPlacements(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string company = "",
+            [FromQuery] string student = "",
+            [FromQuery] string sourceGroup = "",
+            [FromQuery] string batch = "",
+            [FromQuery] string status = "")
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                pageSize = Math.Min(pageSize, 200);
+                DataEntity dataEntity = _dataEntity;
+                DataTable dt = dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_studentplacements_v001",
+                    page, pageSize, company, student, sourceGroup, batch, status
+                );
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Placements fetched successfully";
+                    response.Data = result;
+                }
+                else
+                {
+                    response.status = true;
+                    response.Message = "No placements found";
+                    response.Data = null;
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch placements");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        /// <summary>
+        /// Get placement summary by company.
+        /// </summary>
+        [HttpGet("gmail/placements/summary")]
+        [ProducesResponseType(typeof(Common.ReturnResponse), 200)]
+        public ActionResult GetPlacementSummary()
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                DataEntity dataEntity = _dataEntity;
+                DataTable dt = dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_placementsummary_v001"
+                );
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Placement summary fetched";
+                    response.Data = result;
+                }
+                else
+                {
+                    response.status = true;
+                    response.Message = "No summary available";
+                    response.Data = null;
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch placement summary");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        /// <summary>
+        /// Get overall placement statistics.
+        /// </summary>
+        [HttpGet("gmail/placements/stats")]
+        [ProducesResponseType(typeof(Common.ReturnResponse), 200)]
+        public ActionResult GetPlacementStats()
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                DataEntity dataEntity = _dataEntity;
+                DataTable dt = dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_placementstats_v001"
+                );
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Placement stats fetched";
+                    response.Data = result;
+                }
+                else
+                {
+                    response.status = true;
+                    response.Message = "No stats available";
+                    response.Data = null;
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch placement stats");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        // ---- Helper methods ----
+
+        private async Task<string> FindMatchingJobAsync(string companyName, string jobProfile)
+        {
+            if (string.IsNullOrWhiteSpace(companyName)) return "";
+
+            try
+            {
+                // Try exact company match first
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_jobs_v1", 1, 100, companyName, "");
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString() ?? "{}";
+                    var result = Common.ParseJson(json);
+                    if (result.TryGetProperty("items", out var items))
+                    {
+                        foreach (var item in items.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("id", out var idEl))
+                            {
+                                return idEl.GetString() ?? "";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to find matching job for {Company}", companyName);
+            }
+
+            return "";
+        }
+
+        private async Task<string> CreateJobFromPlacementAsync(PlacementInfo placement)
+        {
+            try
+            {
+                // Create a job entry for a company found in congratulations but not in SuperSet
+                var jobId = Guid.NewGuid().ToString();
+                var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_post_job_v001",
+                    jobId,
+                    $"CONGRATULATIONS-{Guid.NewGuid().ToString()[..8]}",
+                    placement.CompanyName,
+                    placement.JobProfile ?? "Placed",
+                    "PLACEMENT",
+                    "PLACEMENT",
+                    $"Auto-created from congratulations email. Student: {placement.StudentName}",
+                    now,
+                    now,
+                    placement.Location ?? "",
+                    decimal.TryParse(placement.Package, out var pkg) ? pkg : 0,
+                    placement.Package ?? "",
+                    $"Placed via {placement.CompanyName}",
+                    placement.PlacementType ?? "FULL_TIME"
+                );
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString() ?? "";
+                    var result = Common.ParseJson(json);
+                    if (result.TryGetProperty("status", out var stEl) && stEl.GetString() == "SUCCESS")
+                    {
+                        _logger.LogInformation("Created new job for {Company}: {Profile}", placement.CompanyName, placement.JobProfile);
+                        return result.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create job for {Company}", placement.CompanyName);
+            }
+
+            return "";
+        }
+    }
+
+    public class PlacementSyncResult
+    {
+        public string StudentName { get; set; } = "";
+        public string CompanyName { get; set; } = "";
+        public string JobProfile { get; set; } = "";
+        public string MatchedJobUuid { get; set; } = "";
+        public double Confidence { get; set; }
     }
 }

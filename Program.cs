@@ -58,6 +58,7 @@ builder.Services.AddScoped<IEmailPreprocessor, EmailPreprocessor>();
 builder.Services.AddScoped<IAttachmentProcessor, AttachmentProcessor>();
 builder.Services.AddScoped<IEmailExtractionService, EmailExtractionService>();
 builder.Services.AddScoped<IEmailValidationService, EmailValidationService>();
+builder.Services.AddScoped<IPlacementExtractionService, PlacementExtractionService>();
 
 // Configure Controllers with JSON options
 builder.Services.AddControllers()
