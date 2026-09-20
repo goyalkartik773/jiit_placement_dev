@@ -20,15 +20,19 @@ namespace JIITPlacement.Models
     }
 
     // ================================================================
-    // Sync Schedule Options (config from appsettings.json)
+    // Admin Sync Request
     // ================================================================
-    public class SyncScheduleOptions
+    public class SuperSetSyncRequest
     {
-        public const string SectionName = "SyncSchedule";
-        public int NoticeSyncIntervalMinutes { get; set; } = 30;
-        public int JobSyncIntervalMinutes { get; set; } = 60;
-        public bool SyncOnStartup { get; set; } = true;
-        public bool Enabled { get; set; } = true;
+        /// <summary>
+        /// Sync jobs from SuperSet. Set to true to fetch and upsert job listings.
+        /// </summary>
+        public bool SyncJobs { get; set; } = true;
+
+        /// <summary>
+        /// Sync notices from SuperSet. Set to true to fetch and upsert notices.
+        /// </summary>
+        public bool SyncNotices { get; set; } = true;
     }
 
     // ================================================================

@@ -6,5 +6,6 @@ namespace JIITPlacement.Services
     {
         Task<SyncResult> SyncNoticesAsync();
         Task<SyncResult> SyncJobsAsync();
+        Task<SyncResult> SyncAllAsync(bool syncJobs, bool syncNotices);
     }
 }

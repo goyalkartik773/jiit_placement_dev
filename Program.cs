@@ -15,8 +15,6 @@ if (builder.Environment.IsDevelopment())
 // Configure strongly-typed options
 builder.Services.Configure<SuperSetOptions>(
     builder.Configuration.GetSection(SuperSetOptions.SectionName));
-builder.Services.Configure<SyncScheduleOptions>(
-    builder.Configuration.GetSection(SyncScheduleOptions.SectionName));
 
 // Register DataEntity (database access layer) - replaces EF Core DbContext
 builder.Services.AddScoped<DataEntity>();
@@ -33,9 +31,6 @@ builder.Services.AddHttpClient("SuperSet", client =>
 // Register application services
 builder.Services.AddScoped<ISuperSetService, SuperSetService>();
 builder.Services.AddScoped<ISuperSetSyncService, SuperSetSyncService>();
-
-// Register background sync service
-builder.Services.AddHostedService<SuperSetSyncBackgroundService>();
 
 // Configure Controllers with JSON options
 builder.Services.AddControllers()

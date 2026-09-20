@@ -1,4 +1,5 @@
 using System.Data;
+using System.Diagnostics;
 using System.Text.Json;
 using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
@@ -25,6 +26,84 @@ namespace JIITPlacement.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Admin endpoint: sync both jobs and notices with a single SuperSet login.
+        /// </summary>
+        public async Task<SyncResult> SyncAllAsync(bool syncJobs, bool syncNotices)
+        {
+            if (!syncJobs && !syncNotices)
+            {
+                return new SyncResult
+                {
+                    Success = false,
+                    Message = "At least one of syncJobs or syncNotices must be true"
+                };
+            }
+
+            _logger.LogInformation(
+                "Admin sync started - SyncJobs: {SyncJobs}, SyncNotices: {SyncNotices}",
+                syncJobs, syncNotices);
+
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                // Single login for both sync operations
+                _logger.LogInformation("Authenticating with SuperSet...");
+                var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
+                _logger.LogInformation("SuperSet authentication successful");
+
+                var combinedResult = new SyncResult();
+
+                if (syncNotices)
+                {
+                    _logger.LogInformation("Starting notices synchronization...");
+                    var noticeResult = await SyncNoticesInternalAsync(loginResponse);
+                    combinedResult.Fetched += noticeResult.Fetched;
+                    combinedResult.Inserted += noticeResult.Inserted;
+                    combinedResult.Updated += noticeResult.Updated;
+                    combinedResult.Failed += noticeResult.Failed;
+                    _logger.LogInformation(
+                        "Notices sync completed: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed",
+                        noticeResult.Fetched, noticeResult.Inserted, noticeResult.Updated, noticeResult.Failed);
+                }
+
+                if (syncJobs)
+                {
+                    _logger.LogInformation("Starting jobs synchronization...");
+                    var jobResult = await SyncJobsInternalAsync(loginResponse);
+                    combinedResult.Fetched += jobResult.Fetched;
+                    combinedResult.Inserted += jobResult.Inserted;
+                    combinedResult.Updated += jobResult.Updated;
+                    combinedResult.Failed += jobResult.Failed;
+                    _logger.LogInformation(
+                        "Jobs sync completed: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed",
+                        jobResult.Fetched, jobResult.Inserted, jobResult.Updated, jobResult.Failed);
+                }
+
+                stopwatch.Stop();
+                combinedResult.Success = true;
+                combinedResult.Message = $"Sync completed in {stopwatch.Elapsed.TotalSeconds:F1}s";
+
+                _logger.LogInformation(
+                    "Admin sync finished - Total: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed, Duration: {Duration:F1}s",
+                    combinedResult.Fetched, combinedResult.Inserted, combinedResult.Updated, combinedResult.Failed,
+                    stopwatch.Elapsed.TotalSeconds);
+
+                return combinedResult;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Admin sync failed after {Duration:F1}s", stopwatch.Elapsed.TotalSeconds);
+                return new SyncResult
+                {
+                    Success = false,
+                    Message = $"Sync failed after {stopwatch.Elapsed.TotalSeconds:F1}s: {ex.Message}"
+                };
+            }
+        }
+
         public async Task<SyncResult> SyncNoticesAsync()
         {
             _logger.LogInformation("Starting notices synchronization");
@@ -32,57 +111,7 @@ namespace JIITPlacement.Services
             try
             {
                 var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-                var superSetNotices = await _superSetService.GetNoticesAsync(loginResponse.Uuid, loginResponse.SessionKey);
-
-                var result = new SyncResult { Fetched = superSetNotices.Count };
-
-                foreach (var notice in superSetNotices)
-                {
-                    try
-                    {
-                        string createdAt = notice.PublishedAt.HasValue
-                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.PublishedAt.Value).UtcDateTime.ToString("o")
-                            : string.Empty;
-                        string updatedAt = notice.LastModifiedOn.HasValue
-                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.LastModifiedOn.Value).UtcDateTime.ToString("o")
-                            : string.Empty;
-
-                        DataTable dt = _dataEntity.ExecuteDataTableFN(
-                            "fn_api_post_notice_v001",
-                            notice.Identifier,
-                            notice.Title,
-                            notice.Content,
-                            notice.LastModifiedByUserName,
-                            createdAt,
-                            updatedAt,
-                            _options.Username
-                        );
-
-                        string fnResult = dt.Rows[0][0].ToString();
-                        var json = Common.ParseJson(fnResult);
-                        if (json.TryGetProperty("status", out var s) && s.GetString() == "SUCCESS")
-                        {
-                            if (fnResult.Contains("created"))
-                                result.Inserted++;
-                            else
-                                result.Updated++;
-                        }
-                        else
-                        {
-                            result.Failed++;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error processing notice {Identifier}", notice.Identifier);
-                        result.Failed++;
-                    }
-                }
-
-                result.Success = true;
-                result.Message = $"Notices sync completed: {result.Inserted} inserted, {result.Updated} updated, {result.Failed} failed";
-                _logger.LogInformation(result.Message);
-                return result;
+                return await SyncNoticesInternalAsync(loginResponse);
             }
             catch (Exception ex)
             {
@@ -98,49 +127,122 @@ namespace JIITPlacement.Services
             try
             {
                 var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-                var basicJobs = await _superSetService.GetJobListingsBasicAsync(loginResponse.Uuid, loginResponse.SessionKey);
-
-                var result = new SyncResult { Fetched = basicJobs.Count };
-
-                foreach (var basicJob in basicJobs)
-                {
-                    try
-                    {
-                        var jobDetail = await _superSetService.GetJobDetailsAsync(
-                            loginResponse.Uuid, loginResponse.SessionKey, basicJob.JobProfileIdentifier);
-
-                        var structuredJob = StructureJob(basicJob, jobDetail);
-
-                        foreach (var doc in structuredJob.Documents)
-                        {
-                            if (!string.IsNullOrEmpty(doc.Identifier))
-                            {
-                                doc.Url = await _superSetService.GetDocumentUrlAsync(
-                                    loginResponse.Uuid, loginResponse.SessionKey,
-                                    structuredJob.Id, doc.Identifier);
-                            }
-                        }
-
-                        await SaveJobViaFunctionAsync(structuredJob);
-                        result.Inserted++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error processing job {JobId}", basicJob.JobProfileIdentifier);
-                        result.Failed++;
-                    }
-                }
-
-                result.Success = true;
-                result.Message = $"Jobs sync completed: {result.Inserted} inserted, {result.Failed} failed";
-                _logger.LogInformation(result.Message);
-                return result;
+                return await SyncJobsInternalAsync(loginResponse);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Jobs synchronization failed");
                 return new SyncResult { Success = false, Message = $"Jobs sync failed: {ex.Message}" };
             }
+        }
+
+        private async Task<SyncResult> SyncNoticesInternalAsync(SuperSetLoginResponse loginResponse)
+        {
+            _logger.LogInformation("Fetching notices from SuperSet...");
+
+            var superSetNotices = await _superSetService.GetNoticesAsync(loginResponse.Uuid, loginResponse.SessionKey);
+            var result = new SyncResult { Fetched = superSetNotices.Count };
+
+            _logger.LogInformation("Fetched {Count} notices from SuperSet", superSetNotices.Count);
+
+            foreach (var notice in superSetNotices)
+            {
+                try
+                {
+                    _logger.LogDebug("Processing notice: {Identifier} - {Title}", notice.Identifier, notice.Title);
+
+                    string createdAt = notice.PublishedAt.HasValue
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(notice.PublishedAt.Value).UtcDateTime.ToString("o")
+                        : string.Empty;
+                    string updatedAt = notice.LastModifiedOn.HasValue
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(notice.LastModifiedOn.Value).UtcDateTime.ToString("o")
+                        : string.Empty;
+
+                    DataTable dt = _dataEntity.ExecuteDataTableFN(
+                        "fn_api_post_notice_v001",
+                        notice.Identifier,
+                        notice.Title,
+                        notice.Content,
+                        notice.LastModifiedByUserName,
+                        createdAt,
+                        updatedAt,
+                        _options.Username
+                    );
+
+                    string fnResult = dt.Rows[0][0].ToString();
+                    var json = Common.ParseJson(fnResult);
+                    if (json.TryGetProperty("status", out var s) && s.GetString() == "SUCCESS")
+                    {
+                        if (fnResult.Contains("created"))
+                            result.Inserted++;
+                        else
+                            result.Updated++;
+                    }
+                    else
+                    {
+                        result.Failed++;
+                        _logger.LogWarning("Notice {Identifier} save returned non-success: {Result}", notice.Identifier, fnResult);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error processing notice {Identifier}", notice.Identifier);
+                    result.Failed++;
+                }
+            }
+
+            return result;
+        }
+
+        private async Task<SyncResult> SyncJobsInternalAsync(SuperSetLoginResponse loginResponse)
+        {
+            _logger.LogInformation("Fetching job listings from SuperSet...");
+
+            var basicJobs = await _superSetService.GetJobListingsBasicAsync(loginResponse.Uuid, loginResponse.SessionKey);
+            var result = new SyncResult { Fetched = basicJobs.Count };
+
+            _logger.LogInformation("Fetched {Count} job listings from SuperSet", basicJobs.Count);
+
+            int processedCount = 0;
+            foreach (var basicJob in basicJobs)
+            {
+                processedCount++;
+                try
+                {
+                    _logger.LogInformation(
+                        "Processing job {Current}/{Total}: {JobId} - {Company} - {Title}",
+                        processedCount, basicJobs.Count,
+                        basicJob.JobProfileIdentifier, basicJob.CompanyName, basicJob.JobProfileTitle);
+
+                    var jobDetail = await _superSetService.GetJobDetailsAsync(
+                        loginResponse.Uuid, loginResponse.SessionKey, basicJob.JobProfileIdentifier);
+
+                    var structuredJob = StructureJob(basicJob, jobDetail);
+
+                    foreach (var doc in structuredJob.Documents)
+                    {
+                        if (!string.IsNullOrEmpty(doc.Identifier))
+                        {
+                            doc.Url = await _superSetService.GetDocumentUrlAsync(
+                                loginResponse.Uuid, loginResponse.SessionKey,
+                                structuredJob.Id, doc.Identifier);
+                        }
+                    }
+
+                    var jobSaveResult = await SaveJobViaFunctionAsync(structuredJob);
+                    if (jobSaveResult == "created")
+                        result.Inserted++;
+                    else
+                        result.Updated++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error processing job {JobId}", basicJob.JobProfileIdentifier);
+                    result.Failed++;
+                }
+            }
+
+            return result;
         }
 
         private StructuredJob StructureJob(SuperSetJobBasicDto basicJob, SuperSetJobDetailDto? jobDetail)
@@ -234,7 +336,7 @@ namespace JIITPlacement.Services
             return structured;
         }
 
-        private async Task SaveJobViaFunctionAsync(StructuredJob job)
+        private async Task<string> SaveJobViaFunctionAsync(StructuredJob job)
         {
             // 1. Save main job
             DataTable jobDt = await _dataEntity.ExecuteDataTableFNAsync(
@@ -260,9 +362,10 @@ namespace JIITPlacement.Services
             if (!jobJson.TryGetProperty("id", out var idProp))
             {
                 _logger.LogWarning("Failed to get job ID from function result: {Result}", jobResult);
-                return;
+                return "failed";
             }
             string jobUuid = idProp.GetString() ?? string.Empty;
+            string action = jobResult.Contains("created") ? "created" : "updated";
 
             // 2. Save eligibility marks
             foreach (var mark in job.EligibilityMarks)
@@ -320,6 +423,8 @@ namespace JIITPlacement.Services
                     jobUuid, doc.Identifier, doc.Name, doc.Url ?? string.Empty
                 );
             }
+
+            return action;
         }
     }
 }
