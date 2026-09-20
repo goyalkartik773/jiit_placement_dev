@@ -16,6 +16,8 @@ if (builder.Environment.IsDevelopment())
 // Configure strongly-typed options
 builder.Services.Configure<SuperSetOptions>(
     builder.Configuration.GetSection(SuperSetOptions.SectionName));
+builder.Services.Configure<SyncScheduleOptions>(
+    builder.Configuration.GetSection(SyncScheduleOptions.SectionName));
 
 // Configure PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -33,6 +35,9 @@ builder.Services.AddHttpClient("SuperSet", client =>
 // Register application services
 builder.Services.AddScoped<ISuperSetService, SuperSetService>();
 builder.Services.AddScoped<ISuperSetSyncService, SuperSetSyncService>();
+
+// Register background sync service
+builder.Services.AddHostedService<SuperSetSyncBackgroundService>();
 
 // Configure Controllers with JSON options
 builder.Services.AddControllers()
