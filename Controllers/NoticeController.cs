@@ -22,14 +22,6 @@ public class NoticeController : ControllerBase
     /// <summary>
     /// Get notices from local PostgreSQL database
     /// </summary>
-    /// <remarks>
-    /// Returns paginated notices stored in PostgreSQL.
-    /// </remarks>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Page size (default: 20, max: 100)</param>
-    /// <param name="search">Search in title/content (optional)</param>
-    /// <returns>Paginated notice list</returns>
-    /// <response code="200">Notices retrieved successfully</response>
     [HttpGet("notices")]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<NoticeResponse>>), 200)]
     public async Task<ActionResult<ApiResponse<PaginatedResponse<NoticeResponse>>>> GetNotices(
@@ -38,18 +30,18 @@ public class NoticeController : ControllerBase
         [FromQuery] string? search = null)
     {
         pageSize = Math.Min(pageSize, 100);
-        
+
         var query = _dbContext.Notices.AsQueryable();
-        
+
         if (!string.IsNullOrEmpty(search))
         {
-            query = query.Where(n => 
-                n.Title.Contains(search) || 
+            query = query.Where(n =>
+                n.Title.Contains(search) ||
                 n.Content.Contains(search));
         }
-        
+
         var totalCount = await query.CountAsync();
-        
+
         var notices = await query
             .OrderByDescending(n => n.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -63,11 +55,12 @@ public class NoticeController : ControllerBase
                 Author = n.Author,
                 CreatedAt = n.CreatedAt,
                 UpdatedAt = n.UpdatedAt,
-                CreatedOn = n.CreatedOn,
-                UpdatedOn = n.UpdatedOn
+                Status = n.Status,
+                posteddatetime = n.posteddatetime,
+                updateddatetime = n.updateddatetime
             })
             .ToListAsync();
-        
+
         var response = new PaginatedResponse<NoticeResponse>
         {
             Items = notices,
@@ -75,7 +68,7 @@ public class NoticeController : ControllerBase
             Page = page,
             PageSize = pageSize
         };
-        
+
         return Ok(ApiResponse<PaginatedResponse<NoticeResponse>>.Ok(response));
     }
 }

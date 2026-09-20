@@ -22,14 +22,6 @@ public class JobController : ControllerBase
     /// <summary>
     /// Get jobs from local PostgreSQL database
     /// </summary>
-    /// <remarks>
-    /// Returns paginated jobs stored in PostgreSQL.
-    /// </remarks>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Page size (default: 20, max: 100)</param>
-    /// <param name="company">Filter by company name (optional)</param>
-    /// <returns>Paginated job list</returns>
-    /// <response code="200">Jobs retrieved successfully</response>
     [HttpGet("jobs")]
     [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<JobResponse>>), 200)]
     public async Task<ActionResult<ApiResponse<PaginatedResponse<JobResponse>>>> GetJobs(
@@ -38,24 +30,53 @@ public class JobController : ControllerBase
         [FromQuery] string? company = null)
     {
         pageSize = Math.Min(pageSize, 100);
-        
-        var query = _dbContext.Jobs
-            .Include(j => j.EligibilityMarks)
-            .Include(j => j.Documents)
-            .AsQueryable();
-        
+
+        var query = _dbContext.Jobs.AsQueryable();
+
         if (!string.IsNullOrEmpty(company))
         {
             query = query.Where(j => j.Company.Contains(company));
         }
-        
+
         var totalCount = await query.CountAsync();
-        
+
         var jobs = await query
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(j => new JobResponse
+            .ToListAsync();
+
+        // Get job IDs for batch loading child data
+        var jobIds = jobs.Select(j => j.Id).ToList();
+
+        // Load child data in batches
+        var eligibilities = await _dbContext.JobEligibilities
+            .Where(e => jobIds.Contains(e.SysJobUuid))
+            .ToListAsync();
+
+        var courses = await _dbContext.JobEligibilityCourses
+            .Where(c => jobIds.Contains(c.SysJobUuid))
+            .ToListAsync();
+
+        var genders = await _dbContext.JobGenders
+            .Where(g => jobIds.Contains(g.SysJobUuid))
+            .ToListAsync();
+
+        var skills = await _dbContext.JobSkills
+            .Where(s => jobIds.Contains(s.SysJobUuid))
+            .ToListAsync();
+
+        var hiringFlows = await _dbContext.JobHiringFlows
+            .Where(h => jobIds.Contains(h.SysJobUuid))
+            .ToListAsync();
+
+        var documents = await _dbContext.JobDocuments
+            .Where(d => jobIds.Contains(d.SysJobUuid))
+            .ToListAsync();
+
+        var response = new PaginatedResponse<JobResponse>
+        {
+            Items = jobs.Select(j => new JobResponse
             {
                 Id = j.Id,
                 SuperSetJobIdentifier = j.SuperSetJobIdentifier,
@@ -71,57 +92,74 @@ public class JobController : ControllerBase
                 PackageInfo = j.PackageInfo,
                 JobDescription = j.JobDescription,
                 PlacementType = j.PlacementType,
-                CreatedOn = j.CreatedOn,
-                UpdatedOn = j.UpdatedOn,
-                EligibilityMarks = j.EligibilityMarks.Select(e => new JobEligibilityResponse
-                {
-                    Level = e.Level,
-                    Criteria = e.Criteria
-                }).ToList(),
-                Documents = j.Documents.Select(d => new JobDocumentResponse
-                {
-                    DocumentIdentifier = d.DocumentIdentifier,
-                    DocumentName = d.DocumentName,
-                    DocumentUrl = d.DocumentUrl
-                }).ToList()
-            })
-            .ToListAsync();
-        
-        var response = new PaginatedResponse<JobResponse>
-        {
-            Items = jobs,
+                Status = j.Status,
+                posteddatetime = j.posteddatetime,
+                updateddatetime = j.updateddatetime,
+                EligibilityMarks = eligibilities
+                    .Where(e => e.SysJobUuid == j.Id)
+                    .Select(e => new JobEligibilityResponse
+                    {
+                        Level = e.Level,
+                        Criteria = e.Criteria
+                    }).ToList(),
+                Documents = documents
+                    .Where(d => d.SysJobUuid == j.Id)
+                    .Select(d => new JobDocumentResponse
+                    {
+                        DocumentIdentifier = d.DocumentIdentifier,
+                        DocumentName = d.DocumentName,
+                        DocumentUrl = d.DocumentUrl
+                    }).ToList()
+            }).ToList(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
         };
-        
+
         return Ok(ApiResponse<PaginatedResponse<JobResponse>>.Ok(response));
     }
 
     /// <summary>
-    /// Get a specific job by ID
+    /// Get a specific job by ID (UUID string or SuperSet identifier)
     /// </summary>
-    /// <param name="id">Job ID</param>
-    /// <returns>Job details</returns>
-    /// <response code="200">Job found</response>
-    /// <response code="404">Job not found</response>
-    [HttpGet("jobs/{id:int}")]
+    [HttpGet("jobs/{id}")]
     [ProducesResponseType(typeof(ApiResponse<JobResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<JobResponse>), 404)]
-    public async Task<ActionResult<ApiResponse<JobResponse>>> GetJob(int id)
+    public async Task<ActionResult<ApiResponse<JobResponse>>> GetJob(string id)
     {
         var job = await _dbContext.Jobs
-            .Include(j => j.EligibilityMarks)
-            .Include(j => j.EligibilityCourses)
-            .Include(j => j.AllowedGenders)
-            .Include(j => j.RequiredSkills)
-            .Include(j => j.HiringFlow)
-            .Include(j => j.Documents)
-            .FirstOrDefaultAsync(j => j.Id == id);
-        
+            .FirstOrDefaultAsync(j => j.Id == id || j.SuperSetJobIdentifier == id);
+
         if (job == null)
             return NotFound(ApiResponse<JobResponse>.Fail("Job not found"));
-        
+
+        // Load all child data via SysJobUuid
+        var jobId = job.Id;
+
+        var eligibilityMarks = await _dbContext.JobEligibilities
+            .Where(e => e.SysJobUuid == jobId)
+            .ToListAsync();
+
+        var eligibilityCourses = await _dbContext.JobEligibilityCourses
+            .Where(c => c.SysJobUuid == jobId)
+            .ToListAsync();
+
+        var allowedGenders = await _dbContext.JobGenders
+            .Where(g => g.SysJobUuid == jobId)
+            .ToListAsync();
+
+        var requiredSkills = await _dbContext.JobSkills
+            .Where(s => s.SysJobUuid == jobId)
+            .ToListAsync();
+
+        var hiringFlow = await _dbContext.JobHiringFlows
+            .Where(h => h.SysJobUuid == jobId)
+            .ToListAsync();
+
+        var jobDocuments = await _dbContext.JobDocuments
+            .Where(d => d.SysJobUuid == jobId)
+            .ToListAsync();
+
         var response = new JobResponse
         {
             Id = job.Id,
@@ -138,25 +176,26 @@ public class JobController : ControllerBase
             PackageInfo = job.PackageInfo,
             JobDescription = job.JobDescription,
             PlacementType = job.PlacementType,
-            CreatedOn = job.CreatedOn,
-            UpdatedOn = job.UpdatedOn,
-            EligibilityMarks = job.EligibilityMarks.Select(e => new JobEligibilityResponse
+            Status = job.Status,
+            posteddatetime = job.posteddatetime,
+            updateddatetime = job.updateddatetime,
+            EligibilityMarks = eligibilityMarks.Select(e => new JobEligibilityResponse
             {
                 Level = e.Level,
                 Criteria = e.Criteria
             }).ToList(),
-            EligibilityCourses = job.EligibilityCourses.Select(e => e.CourseName).ToList(),
-            AllowedGenders = job.AllowedGenders.Select(g => g.Gender).ToList(),
-            RequiredSkills = job.RequiredSkills.Select(s => s.SkillName).ToList(),
-            HiringFlow = job.HiringFlow.OrderBy(h => h.Sequence).Select(h => h.StageName).ToList(),
-            Documents = job.Documents.Select(d => new JobDocumentResponse
+            EligibilityCourses = eligibilityCourses.Select(e => e.CourseName).ToList(),
+            AllowedGenders = allowedGenders.Select(g => g.Gender).ToList(),
+            RequiredSkills = requiredSkills.Select(s => s.SkillName).ToList(),
+            HiringFlow = hiringFlow.OrderBy(h => h.Sequence).Select(h => h.StageName).ToList(),
+            Documents = jobDocuments.Select(d => new JobDocumentResponse
             {
                 DocumentIdentifier = d.DocumentIdentifier,
                 DocumentName = d.DocumentName,
                 DocumentUrl = d.DocumentUrl
             }).ToList()
         };
-        
+
         return Ok(ApiResponse<JobResponse>.Ok(response));
     }
 }
