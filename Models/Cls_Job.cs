@@ -52,7 +52,9 @@ namespace JIITPlacement.Models
         {
             public string DocumentIdentifier { get; set; } = string.Empty;
             public string DocumentName { get; set; } = string.Empty;
-            public string DocumentUrl { get; set; } = string.Empty;
+            public string DocumentPath { get; set; } = string.Empty;
+            public string ContentType { get; set; } = "application/octet-stream";
+            public long FileSize { get; set; }
         }
     }
 }

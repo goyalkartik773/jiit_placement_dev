@@ -3,6 +3,15 @@ using System.Text.Json.Serialization;
 namespace JIITPlacement.Models
 {
     // ================================================================
+    // File Storage Options (config from appsettings.json)
+    // ================================================================
+    public class FileStorageOptions
+    {
+        public const string SectionName = "FileStorage";
+        public string RootPath { get; set; } = string.Empty;
+    }
+
+    // ================================================================
     // SuperSet Options (config from appsettings.json)
     // ================================================================
     public class SuperSetOptions
@@ -301,6 +310,9 @@ namespace JIITPlacement.Models
         public string Name { get; set; } = string.Empty;
         public string Identifier { get; set; } = string.Empty;
         public string? Url { get; set; }
+        public string? LocalPath { get; set; }
+        public string? ContentType { get; set; }
+        public long FileSize { get; set; }
     }
 
     // ================================================================
@@ -315,5 +327,9 @@ namespace JIITPlacement.Models
         public int Updated { get; set; }
         public int Skipped { get; set; }
         public int Failed { get; set; }
+        public int DocumentsFound { get; set; }
+        public int DocumentsDownloaded { get; set; }
+        public int DocumentsSkipped { get; set; }
+        public int DocumentsFailed { get; set; }
     }
 }

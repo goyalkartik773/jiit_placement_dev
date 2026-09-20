@@ -10,17 +10,20 @@ namespace JIITPlacement.Services
     public class SuperSetSyncService : ISuperSetSyncService
     {
         private readonly ISuperSetService _superSetService;
+        private readonly IFileStorageService _fileStorageService;
         private readonly DataEntity _dataEntity;
         private readonly SuperSetOptions _options;
         private readonly ILogger<SuperSetSyncService> _logger;
 
         public SuperSetSyncService(
             ISuperSetService superSetService,
+            IFileStorageService fileStorageService,
             DataEntity dataEntity,
             IOptions<SuperSetOptions> options,
             ILogger<SuperSetSyncService> logger)
         {
             _superSetService = superSetService;
+            _fileStorageService = fileStorageService;
             _dataEntity = dataEntity;
             _options = options.Value;
             _logger = logger;
@@ -76,9 +79,14 @@ namespace JIITPlacement.Services
                     combinedResult.Inserted += jobResult.Inserted;
                     combinedResult.Updated += jobResult.Updated;
                     combinedResult.Failed += jobResult.Failed;
+                    combinedResult.DocumentsFound += jobResult.DocumentsFound;
+                    combinedResult.DocumentsDownloaded += jobResult.DocumentsDownloaded;
+                    combinedResult.DocumentsSkipped += jobResult.DocumentsSkipped;
+                    combinedResult.DocumentsFailed += jobResult.DocumentsFailed;
                     _logger.LogInformation(
-                        "Jobs sync completed: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed",
-                        jobResult.Fetched, jobResult.Inserted, jobResult.Updated, jobResult.Failed);
+                        "Jobs sync completed: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed, Docs: {DocsFound} found, {DocsDl} downloaded, {DocsSkip} skipped, {DocsFail} failed",
+                        jobResult.Fetched, jobResult.Inserted, jobResult.Updated, jobResult.Failed,
+                        jobResult.DocumentsFound, jobResult.DocumentsDownloaded, jobResult.DocumentsSkipped, jobResult.DocumentsFailed);
                 }
 
                 stopwatch.Stop();
@@ -86,8 +94,9 @@ namespace JIITPlacement.Services
                 combinedResult.Message = $"Sync completed in {stopwatch.Elapsed.TotalSeconds:F1}s";
 
                 _logger.LogInformation(
-                    "Admin sync finished - Total: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Failed} failed, Duration: {Duration:F1}s",
+                    "Admin sync finished - Jobs: {Fetched} fetched, {Inserted} ins, {Updated} upd, {Failed} fail | Docs: {DocsFound} found, {DocsDl} dl, {DocsSkip} skip, {DocsFail} fail | Duration: {Duration:F1}s",
                     combinedResult.Fetched, combinedResult.Inserted, combinedResult.Updated, combinedResult.Failed,
+                    combinedResult.DocumentsFound, combinedResult.DocumentsDownloaded, combinedResult.DocumentsSkipped, combinedResult.DocumentsFailed,
                     stopwatch.Elapsed.TotalSeconds);
 
                 return combinedResult;
@@ -219,13 +228,58 @@ namespace JIITPlacement.Services
 
                     var structuredJob = StructureJob(basicJob, jobDetail);
 
+                    // Download documents to local storage
                     foreach (var doc in structuredJob.Documents)
                     {
-                        if (!string.IsNullOrEmpty(doc.Identifier))
+                        if (string.IsNullOrEmpty(doc.Identifier)) continue;
+
+                        result.DocumentsFound++;
+
+                        try
                         {
-                            doc.Url = await _superSetService.GetDocumentUrlAsync(
+                            // Get fresh temporary signed URL
+                            var temporaryUrl = await _superSetService.GetDocumentUrlAsync(
                                 loginResponse.Uuid, loginResponse.SessionKey,
                                 structuredJob.Id, doc.Identifier);
+
+                            if (string.IsNullOrEmpty(temporaryUrl))
+                            {
+                                _logger.LogWarning("No URL returned for document {DocId} in job {JobId}", doc.Identifier, structuredJob.Id);
+                                result.DocumentsFailed++;
+                                continue;
+                            }
+
+                            // Check if already downloaded
+                            if (_fileStorageService.DocumentExists(structuredJob.Id, doc.Identifier))
+                            {
+                                _logger.LogInformation("Document already exists locally, skipping: {DocName}", doc.Name);
+                                var existingPath = $"Jobs\\{structuredJob.Id}\\Documents\\{FileStorageService.SanitizeFileName(doc.Name)}";
+                                doc.LocalPath = existingPath;
+                                doc.ContentType = _fileStorageService.GetContentType(doc.Name);
+                                result.DocumentsSkipped++;
+                                continue;
+                            }
+
+                            // Download the document
+                            var downloadResult = await _fileStorageService.DownloadDocumentAsync(
+                                temporaryUrl, structuredJob.Id, doc.Identifier, doc.Name);
+
+                            if (downloadResult.HasValue)
+                            {
+                                doc.LocalPath = downloadResult.Value.relativePath;
+                                doc.ContentType = downloadResult.Value.contentType;
+                                doc.FileSize = downloadResult.Value.fileSize;
+                                result.DocumentsDownloaded++;
+                            }
+                            else
+                            {
+                                result.DocumentsFailed++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error downloading document {DocId} for job {JobId}", doc.Identifier, structuredJob.Id);
+                            result.DocumentsFailed++;
                         }
                     }
 
@@ -415,12 +469,17 @@ namespace JIITPlacement.Services
                 }
             }
 
-            // 7. Save documents
+            // 7. Save documents (with local paths)
             foreach (var doc in job.Documents)
             {
                 await _dataEntity.ExecuteDataTableFNAsync(
                     "fn_api_post_jobdocument_v001",
-                    jobUuid, doc.Identifier, doc.Name, doc.Url ?? string.Empty
+                    jobUuid,
+                    doc.Identifier,
+                    doc.Name,
+                    doc.LocalPath ?? string.Empty,
+                    doc.ContentType ?? "application/octet-stream",
+                    doc.FileSize.ToString()
                 );
             }
 

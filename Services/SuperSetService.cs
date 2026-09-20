@@ -203,11 +203,10 @@ namespace JIITPlacement.Services
             }
         }
 
-                private static string EncryptPassword(string password)
+        private static string EncryptPassword(string password)
         {
             var keyPath = Path.Combine(AppContext.BaseDirectory, "rsa_public_key.txt");
             var fullKey = File.ReadAllText(keyPath).Trim();
-
             using var rsa = RSA.Create();
             var keyBytes = Convert.FromBase64String(fullKey);
             rsa.ImportSubjectPublicKeyInfo(keyBytes, out _);
