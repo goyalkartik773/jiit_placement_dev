@@ -16,6 +16,10 @@ obj/
 ## User Secrets (contains sensitive data)
 **/secrets.json
 
+## Config with credentials (contains sensitive data)
+/appsettings.json
+!/appsettings.example.json
+
 ## Environment files
 .env
 .env.local
