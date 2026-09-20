@@ -1,201 +1,228 @@
+using System.Data;
+using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
-using JIITPlacement.Models.Jobs;
-using JIITPlacement.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace JIITPlacement.Controllers;
-
-[ApiController]
-[Route("api")]
-public class JobController : ControllerBase
+namespace JIITPlacement.Controllers
 {
-    private readonly AppDbContext _dbContext;
-    private readonly ILogger<JobController> _logger;
-
-    public JobController(AppDbContext dbContext, ILogger<JobController> logger)
+    [ApiController]
+    [Route("api")]
+    public class JobController : ControllerBase
     {
-        _dbContext = dbContext;
-        _logger = logger;
-    }
+        private readonly DataEntity _dataEntity;
 
-    /// <summary>
-    /// Get jobs from local PostgreSQL database
-    /// </summary>
-    [HttpGet("jobs")]
-    [ProducesResponseType(typeof(ApiResponse<PaginatedResponse<JobResponse>>), 200)]
-    public async Task<ActionResult<ApiResponse<PaginatedResponse<JobResponse>>>> GetJobs(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? company = null)
-    {
-        pageSize = Math.Min(pageSize, 100);
-
-        var query = _dbContext.Jobs.AsQueryable();
-
-        if (!string.IsNullOrEmpty(company))
+        public JobController(DataEntity dataEntity)
         {
-            query = query.Where(j => j.Company.Contains(company));
+            _dataEntity = dataEntity;
         }
 
-        var totalCount = await query.CountAsync();
-
-        var jobs = await query
-            .OrderByDescending(j => j.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        // Get job IDs for batch loading child data
-        var jobIds = jobs.Select(j => j.Id).ToList();
-
-        // Load child data in batches
-        var eligibilities = await _dbContext.JobEligibilities
-            .Where(e => jobIds.Contains(e.SysJobUuid))
-            .ToListAsync();
-
-        var courses = await _dbContext.JobEligibilityCourses
-            .Where(c => jobIds.Contains(c.SysJobUuid))
-            .ToListAsync();
-
-        var genders = await _dbContext.JobGenders
-            .Where(g => jobIds.Contains(g.SysJobUuid))
-            .ToListAsync();
-
-        var skills = await _dbContext.JobSkills
-            .Where(s => jobIds.Contains(s.SysJobUuid))
-            .ToListAsync();
-
-        var hiringFlows = await _dbContext.JobHiringFlows
-            .Where(h => jobIds.Contains(h.SysJobUuid))
-            .ToListAsync();
-
-        var documents = await _dbContext.JobDocuments
-            .Where(d => jobIds.Contains(d.SysJobUuid))
-            .ToListAsync();
-
-        var response = new PaginatedResponse<JobResponse>
+        [HttpGet("jobs")]
+        public ActionResult GetJobs(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string company = "",
+            [FromQuery] string search = "")
         {
-            Items = jobs.Select(j => new JobResponse
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
             {
-                Id = j.Id,
-                SuperSetJobIdentifier = j.SuperSetJobIdentifier,
-                Company = j.Company,
-                JobProfile = j.JobProfile,
-                PlacementCategory = j.PlacementCategory,
-                PlacementCategoryCode = j.PlacementCategoryCode,
-                Content = j.Content,
-                CreatedAt = j.CreatedAt,
-                Deadline = j.Deadline,
-                Location = j.Location,
-                Package = j.Package,
-                PackageInfo = j.PackageInfo,
-                JobDescription = j.JobDescription,
-                PlacementType = j.PlacementType,
-                Status = j.Status,
-                posteddatetime = j.posteddatetime,
-                updateddatetime = j.updateddatetime,
-                EligibilityMarks = eligibilities
-                    .Where(e => e.SysJobUuid == j.Id)
-                    .Select(e => new JobEligibilityResponse
-                    {
-                        Level = e.Level,
-                        Criteria = e.Criteria
-                    }).ToList(),
-                Documents = documents
-                    .Where(d => d.SysJobUuid == j.Id)
-                    .Select(d => new JobDocumentResponse
-                    {
-                        DocumentIdentifier = d.DocumentIdentifier,
-                        DocumentName = d.DocumentName,
-                        DocumentUrl = d.DocumentUrl
-                    }).ToList()
-            }).ToList(),
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
+                pageSize = Math.Min(pageSize, 100);
 
-        return Ok(ApiResponse<PaginatedResponse<JobResponse>>.Ok(response));
-    }
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_jobs_v1",
+                    page, pageSize, company, search
+                );
 
-    /// <summary>
-    /// Get a specific job by ID (UUID string or SuperSet identifier)
-    /// </summary>
-    [HttpGet("jobs/{id}")]
-    [ProducesResponseType(typeof(ApiResponse<JobResponse>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<JobResponse>), 404)]
-    public async Task<ActionResult<ApiResponse<JobResponse>>> GetJob(string id)
-    {
-        var job = await _dbContext.Jobs
-            .FirstOrDefaultAsync(j => j.Id == id || j.SuperSetJobIdentifier == id);
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Jobs fetched successfully";
+                    response.Data = result;
+                }
+                else
+                {
+                    response.status = true;
+                    response.Message = "No jobs found";
+                    response.Data = null;
+                }
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
 
-        if (job == null)
-            return NotFound(ApiResponse<JobResponse>.Fail("Job not found"));
-
-        // Load all child data via SysJobUuid
-        var jobId = job.Id;
-
-        var eligibilityMarks = await _dbContext.JobEligibilities
-            .Where(e => e.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var eligibilityCourses = await _dbContext.JobEligibilityCourses
-            .Where(c => c.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var allowedGenders = await _dbContext.JobGenders
-            .Where(g => g.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var requiredSkills = await _dbContext.JobSkills
-            .Where(s => s.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var hiringFlow = await _dbContext.JobHiringFlows
-            .Where(h => h.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var jobDocuments = await _dbContext.JobDocuments
-            .Where(d => d.SysJobUuid == jobId)
-            .ToListAsync();
-
-        var response = new JobResponse
+        [HttpGet("jobs/{id}")]
+        public ActionResult GetJob(string id)
         {
-            Id = job.Id,
-            SuperSetJobIdentifier = job.SuperSetJobIdentifier,
-            Company = job.Company,
-            JobProfile = job.JobProfile,
-            PlacementCategory = job.PlacementCategory,
-            PlacementCategoryCode = job.PlacementCategoryCode,
-            Content = job.Content,
-            CreatedAt = job.CreatedAt,
-            Deadline = job.Deadline,
-            Location = job.Location,
-            Package = job.Package,
-            PackageInfo = job.PackageInfo,
-            JobDescription = job.JobDescription,
-            PlacementType = job.PlacementType,
-            Status = job.Status,
-            posteddatetime = job.posteddatetime,
-            updateddatetime = job.updateddatetime,
-            EligibilityMarks = eligibilityMarks.Select(e => new JobEligibilityResponse
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
             {
-                Level = e.Level,
-                Criteria = e.Criteria
-            }).ToList(),
-            EligibilityCourses = eligibilityCourses.Select(e => e.CourseName).ToList(),
-            AllowedGenders = allowedGenders.Select(g => g.Gender).ToList(),
-            RequiredSkills = requiredSkills.Select(s => s.SkillName).ToList(),
-            HiringFlow = hiringFlow.OrderBy(h => h.Sequence).Select(h => h.StageName).ToList(),
-            Documents = jobDocuments.Select(d => new JobDocumentResponse
-            {
-                DocumentIdentifier = d.DocumentIdentifier,
-                DocumentName = d.DocumentName,
-                DocumentUrl = d.DocumentUrl
-            }).ToList()
-        };
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_jobdetail_v1",
+                    id
+                );
 
-        return Ok(ApiResponse<JobResponse>.Ok(response));
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    bool success = result.TryGetProperty("status", out var s) && s.GetString() == "SUCCESS";
+
+                    if (!success)
+                    {
+                        response.status = false;
+                        response.Message = result.TryGetProperty("message", out var m) ? m.GetString() ?? "Not found" : "Not found";
+                        return NotFound(response);
+                    }
+
+                    response.status = true;
+                    response.Message = "Job fetched successfully";
+                    response.Data = result;
+                    return Ok(response);
+                }
+
+                response.status = false;
+                response.Message = "Job not found";
+                return NotFound(response);
+            }
+            catch (Exception ex)
+            {
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        [HttpPost("jobs")]
+        public ActionResult PostJob([FromBody] Cls_Job.JobRequest request)
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                // 1. Save main job record
+                DataTable jobDt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_post_job_v001",
+                    request.SysJobUuid,
+                    request.SuperSetJobIdentifier,
+                    request.Company,
+                    request.JobProfile,
+                    request.PlacementCategory,
+                    request.PlacementCategoryCode,
+                    request.Content,
+                    request.CreatedAt,
+                    request.Deadline,
+                    request.Location,
+                    request.Package,
+                    request.PackageInfo,
+                    request.JobDescription,
+                    request.PlacementType
+                );
+
+                string jobResult = jobDt.Rows[0][0].ToString();
+                var jobJson = Common.ParseJson(jobResult);
+                bool jobSuccess = jobJson.TryGetProperty("status", out var js) && js.GetString() == "SUCCESS";
+
+                if (!jobSuccess)
+                {
+                    response.status = false;
+                    response.Message = jobJson.TryGetProperty("message", out var jm) ? jm.GetString() ?? "Failed" : "Failed";
+                    return BadRequest(response);
+                }
+
+                // Get the job UUID
+                string jobUuid = string.Empty;
+                if (jobJson.TryGetProperty("id", out var idProp))
+                    jobUuid = idProp.GetString() ?? string.Empty;
+
+                // 2. Save eligibility marks
+                if (request.EligibilityMarks != null && request.EligibilityMarks.Count > 0)
+                {
+                    foreach (var mark in request.EligibilityMarks)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobeligibility_v001",
+                            jobUuid, mark.Level, mark.Criteria.ToString()
+                        );
+                    }
+                }
+
+                // 3. Save eligibility courses
+                if (request.EligibilityCourses != null)
+                {
+                    foreach (var course in request.EligibilityCourses)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobeligibilitycourse_v001",
+                            jobUuid, course
+                        );
+                    }
+                }
+
+                // 4. Save genders
+                if (request.AllowedGenders != null)
+                {
+                    foreach (var gender in request.AllowedGenders)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobgender_v001",
+                            jobUuid, gender
+                        );
+                    }
+                }
+
+                // 5. Save skills
+                if (request.RequiredSkills != null)
+                {
+                    foreach (var skill in request.RequiredSkills)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobskill_v001",
+                            jobUuid, skill
+                        );
+                    }
+                }
+
+                // 6. Save hiring flow
+                if (request.HiringFlow != null)
+                {
+                    foreach (var stage in request.HiringFlow)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobhiringflow_v001",
+                            jobUuid, stage.Sequence.ToString(), stage.StageName
+                        );
+                    }
+                }
+
+                // 7. Save documents
+                if (request.Documents != null)
+                {
+                    foreach (var doc in request.Documents)
+                    {
+                        _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_jobdocument_v001",
+                            jobUuid, doc.DocumentIdentifier, doc.DocumentName, doc.DocumentUrl
+                        );
+                    }
+                }
+
+                response.status = true;
+                response.Message = "Job saved successfully";
+                response.Data = jobJson;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
     }
 }

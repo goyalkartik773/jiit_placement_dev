@@ -1,4 +1,4 @@
-using JIITPlacement.Models.SuperSet;
+using JIITPlacement.Models;
 using Microsoft.Extensions.Options;
 
 namespace JIITPlacement.Services;

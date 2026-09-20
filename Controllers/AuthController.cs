@@ -1,75 +1,69 @@
+using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
-using JIITPlacement.Models.SuperSet;
 using JIITPlacement.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace JIITPlacement.Controllers;
-
-[ApiController]
-[Route("api/superset")]
-public class AuthController : ControllerBase
+namespace JIITPlacement.Controllers
 {
-    private readonly ISuperSetService _superSetService;
-    private readonly SuperSetOptions _options;
-    private readonly ILogger<AuthController> _logger;
-
-    public AuthController(
-        ISuperSetService superSetService,
-        IOptions<SuperSetOptions> options,
-        ILogger<AuthController> logger)
+    [ApiController]
+    [Route("api/superset")]
+    public class AuthController : ControllerBase
     {
-        _superSetService = superSetService;
-        _options = options.Value;
-        _logger = logger;
-    }
+        private readonly ISuperSetService _superSetService;
+        private readonly SuperSetOptions _options;
+        private readonly ILogger<AuthController> _logger;
 
-    /// <summary>
-    /// Test SuperSet authentication
-    /// </summary>
-    /// <remarks>
-    /// Tests authentication with SuperSet using configured credentials.
-    /// Does not return sensitive authentication information.
-    /// </remarks>
-    /// <returns>Authentication result</returns>
-    /// <response code="200">Authentication successful</response>
-    /// <response code="400">Invalid credentials or configuration</response>
-    /// <response code="500">SuperSet service unavailable</response>
-    [HttpPost("authenticate")]
-    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
-    public async Task<ActionResult<ApiResponse<object>>> Authenticate()
-    {
-        try
+        public AuthController(
+            ISuperSetService superSetService,
+            IOptions<SuperSetOptions> options,
+            ILogger<AuthController> logger)
         {
-            if (string.IsNullOrEmpty(_options.Username) || string.IsNullOrEmpty(_options.Password))
+            _superSetService = superSetService;
+            _options = options.Value;
+            _logger = logger;
+        }
+
+        [HttpPost("authenticate")]
+        public async Task<ActionResult> Authenticate()
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
             {
-                return BadRequest(ApiResponse<object>.Fail("SuperSet credentials not configured"));
+                if (string.IsNullOrEmpty(_options.Username) || string.IsNullOrEmpty(_options.Password))
+                {
+                    response.status = false;
+                    response.Message = "SuperSet credentials not configured";
+                    return BadRequest(response);
+                }
+
+                var result = await _superSetService.LoginAsync(_options.Username, _options.Password);
+
+                response.status = true;
+                response.Message = "SuperSet authentication successful";
+                response.Data = new
+                {
+                    result.Name,
+                    result.Username,
+                    result.Uuid,
+                    result.EmailVerified
+                };
+                return Ok(response);
             }
-            
-            var response = await _superSetService.LoginAsync(_options.Username, _options.Password);
-            
-            // Return only safe diagnostic information
-            var result = new
+            catch (HttpRequestException ex)
             {
-                Name = response.Name,
-                Username = response.Username,
-                Uuid = response.Uuid,
-                EmailVerified = response.EmailVerified
-            };
-            
-            return Ok(ApiResponse<object>.Ok(result, "SuperSet authentication successful"));
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "SuperSet authentication failed");
-            return BadRequest(ApiResponse<object>.Fail($"SuperSet authentication failed: {ex.Message}"));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error during SuperSet authentication");
-            return StatusCode(500, ApiResponse<object>.Fail($"Authentication error: {ex.Message}"));
+                _logger.LogError(ex, "SuperSet authentication failed");
+                response.status = false;
+                response.Message = "SuperSet auth failed: " + ex.Message;
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during SuperSet authentication");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
         }
     }
 }

@@ -1,9 +1,10 @@
-using JIITPlacement.Models.App_Code;
+using JIITPlacement.Models;
 
-namespace JIITPlacement.Services;
-
-public interface ISuperSetSyncService
+namespace JIITPlacement.Services
 {
-    Task<SyncResult> SyncNoticesAsync();
-    Task<SyncResult> SyncJobsAsync();
+    public interface ISuperSetSyncService
+    {
+        Task<SyncResult> SyncNoticesAsync();
+        Task<SyncResult> SyncJobsAsync();
+    }
 }

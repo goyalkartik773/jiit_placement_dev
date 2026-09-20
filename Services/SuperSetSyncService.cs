@@ -1,424 +1,325 @@
+using System.Data;
+using System.Text.Json;
+using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
-using JIITPlacement.Models.SuperSet;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace JIITPlacement.Services;
-
-public class SuperSetSyncService : ISuperSetSyncService
+namespace JIITPlacement.Services
 {
-    private readonly ISuperSetService _superSetService;
-    private readonly AppDbContext _dbContext;
-    private readonly SuperSetOptions _options;
-    private readonly ILogger<SuperSetSyncService> _logger;
-
-    public SuperSetSyncService(
-        ISuperSetService superSetService,
-        AppDbContext dbContext,
-        IOptions<SuperSetOptions> options,
-        ILogger<SuperSetSyncService> logger)
+    public class SuperSetSyncService : ISuperSetSyncService
     {
-        _superSetService = superSetService;
-        _dbContext = dbContext;
-        _options = options.Value;
-        _logger = logger;
-    }
+        private readonly ISuperSetService _superSetService;
+        private readonly DataEntity _dataEntity;
+        private readonly SuperSetOptions _options;
+        private readonly ILogger<SuperSetSyncService> _logger;
 
-    public async Task<SyncResult> SyncNoticesAsync()
-    {
-        _logger.LogInformation("Starting notices synchronization");
-
-        try
+        public SuperSetSyncService(
+            ISuperSetService superSetService,
+            DataEntity dataEntity,
+            IOptions<SuperSetOptions> options,
+            ILogger<SuperSetSyncService> logger)
         {
-            var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-            var superSetNotices = await _superSetService.GetNoticesAsync(loginResponse.Uuid, loginResponse.SessionKey);
+            _superSetService = superSetService;
+            _dataEntity = dataEntity;
+            _options = options.Value;
+            _logger = logger;
+        }
 
-            var result = new SyncResult { Fetched = superSetNotices.Count };
+        public async Task<SyncResult> SyncNoticesAsync()
+        {
+            _logger.LogInformation("Starting notices synchronization");
 
-            foreach (var notice in superSetNotices)
+            try
             {
-                try
+                var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
+                var superSetNotices = await _superSetService.GetNoticesAsync(loginResponse.Uuid, loginResponse.SessionKey);
+
+                var result = new SyncResult { Fetched = superSetNotices.Count };
+
+                foreach (var notice in superSetNotices)
                 {
-                    var existing = await _dbContext.Notices
-                        .FirstOrDefaultAsync(n => n.SuperSetIdentifier == notice.Identifier);
-
-                    if (existing != null)
+                    try
                     {
-                        existing.Title = notice.Title;
-                        existing.Content = notice.Content;
-                        existing.Author = notice.LastModifiedByUserName;
-                        existing.CreatedAt = notice.PublishedAt.HasValue
-                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.PublishedAt.Value).UtcDateTime
-                            : null;
-                        existing.UpdatedAt = notice.LastModifiedOn.HasValue
-                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.LastModifiedOn.Value).UtcDateTime
-                            : null;
-                        existing.updateddatetime = DateTime.UtcNow;
+                        string createdAt = notice.PublishedAt.HasValue
+                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.PublishedAt.Value).UtcDateTime.ToString("o")
+                            : string.Empty;
+                        string updatedAt = notice.LastModifiedOn.HasValue
+                            ? DateTimeOffset.FromUnixTimeMilliseconds(notice.LastModifiedOn.Value).UtcDateTime.ToString("o")
+                            : string.Empty;
 
-                        result.Updated++;
-                    }
-                    else
-                    {
-                        var newNotice = new NoticeRecord
+                        DataTable dt = _dataEntity.ExecuteDataTableFN(
+                            "fn_api_post_notice_v001",
+                            notice.Identifier,
+                            notice.Title,
+                            notice.Content,
+                            notice.LastModifiedByUserName,
+                            createdAt,
+                            updatedAt,
+                            _options.Username
+                        );
+
+                        string fnResult = dt.Rows[0][0].ToString();
+                        var json = Common.ParseJson(fnResult);
+                        if (json.TryGetProperty("status", out var s) && s.GetString() == "SUCCESS")
                         {
-                            SuperSetIdentifier = notice.Identifier,
-                            Title = notice.Title,
-                            Content = notice.Content,
-                            Author = notice.LastModifiedByUserName,
-                            CreatedAt = notice.PublishedAt.HasValue
-                                ? DateTimeOffset.FromUnixTimeMilliseconds(notice.PublishedAt.Value).UtcDateTime
-                                : null,
-                            UpdatedAt = notice.LastModifiedOn.HasValue
-                                ? DateTimeOffset.FromUnixTimeMilliseconds(notice.LastModifiedOn.Value).UtcDateTime
-                                : null,
-                            posteddatetime = DateTime.UtcNow
-                        };
+                            if (fnResult.Contains("created"))
+                                result.Inserted++;
+                            else
+                                result.Updated++;
+                        }
+                        else
+                        {
+                            result.Failed++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error processing notice {Identifier}", notice.Identifier);
+                        result.Failed++;
+                    }
+                }
 
-                        _dbContext.Notices.Add(newNotice);
+                result.Success = true;
+                result.Message = $"Notices sync completed: {result.Inserted} inserted, {result.Updated} updated, {result.Failed} failed";
+                _logger.LogInformation(result.Message);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Notices synchronization failed");
+                return new SyncResult { Success = false, Message = $"Notices sync failed: {ex.Message}" };
+            }
+        }
+
+        public async Task<SyncResult> SyncJobsAsync()
+        {
+            _logger.LogInformation("Starting jobs synchronization");
+
+            try
+            {
+                var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
+                var basicJobs = await _superSetService.GetJobListingsBasicAsync(loginResponse.Uuid, loginResponse.SessionKey);
+
+                var result = new SyncResult { Fetched = basicJobs.Count };
+
+                foreach (var basicJob in basicJobs)
+                {
+                    try
+                    {
+                        var jobDetail = await _superSetService.GetJobDetailsAsync(
+                            loginResponse.Uuid, loginResponse.SessionKey, basicJob.JobProfileIdentifier);
+
+                        var structuredJob = StructureJob(basicJob, jobDetail);
+
+                        foreach (var doc in structuredJob.Documents)
+                        {
+                            if (!string.IsNullOrEmpty(doc.Identifier))
+                            {
+                                doc.Url = await _superSetService.GetDocumentUrlAsync(
+                                    loginResponse.Uuid, loginResponse.SessionKey,
+                                    structuredJob.Id, doc.Identifier);
+                            }
+                        }
+
+                        await SaveJobViaFunctionAsync(structuredJob);
                         result.Inserted++;
                     }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error processing job {JobId}", basicJob.JobProfileIdentifier);
+                        result.Failed++;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error processing notice {Identifier}", notice.Identifier);
-                    result.Failed++;
-                }
+
+                result.Success = true;
+                result.Message = $"Jobs sync completed: {result.Inserted} inserted, {result.Failed} failed";
+                _logger.LogInformation(result.Message);
+                return result;
             }
-
-            await _dbContext.SaveChangesAsync();
-
-            result.Success = true;
-            result.Message = $"Notices sync completed: {result.Inserted} inserted, {result.Updated} updated, {result.Failed} failed";
-
-            _logger.LogInformation("Notices synchronization completed: {Inserted} inserted, {Updated} updated, {Failed} failed",
-                result.Inserted, result.Updated, result.Failed);
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Notices synchronization failed");
-            return new SyncResult
+            catch (Exception ex)
             {
-                Success = false,
-                Message = $"Notices sync failed: {ex.Message}",
-                Fetched = 0,
-                Inserted = 0,
-                Updated = 0,
-                Failed = 0
+                _logger.LogError(ex, "Jobs synchronization failed");
+                return new SyncResult { Success = false, Message = $"Jobs sync failed: {ex.Message}" };
+            }
+        }
+
+        private StructuredJob StructureJob(SuperSetJobBasicDto basicJob, SuperSetJobDetailDto? jobDetail)
+        {
+            var categoryMapping = new Dictionary<int, string>
+            {
+                { 1, "High" }, { 2, "Middle" },
+                { 3, "Offer is more than 4.6 lacs" }, { 4, "Internship" }
             };
-        }
-    }
 
-    public async Task<SyncResult> SyncJobsAsync()
-    {
-        _logger.LogInformation("Starting jobs synchronization");
-
-        try
-        {
-            var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-            var basicJobs = await _superSetService.GetJobListingsBasicAsync(loginResponse.Uuid, loginResponse.SessionKey);
-
-            var result = new SyncResult { Fetched = basicJobs.Count };
-
-            var existingJobIds = await _dbContext.Jobs
-                .Select(j => j.SuperSetJobIdentifier)
-                .ToHashSetAsync();
-
-            var newJobs = basicJobs.Where(j => !existingJobIds.Contains(j.JobProfileIdentifier)).ToList();
-
-            _logger.LogInformation("Found {NewCount} new jobs out of {TotalCount} total", newJobs.Count, basicJobs.Count);
-
-            foreach (var basicJob in newJobs)
+            var structured = new StructuredJob
             {
-                try
-                {
-                    var jobDetail = await _superSetService.GetJobDetailsAsync(
-                        loginResponse.Uuid,
-                        loginResponse.SessionKey,
-                        basicJob.JobProfileIdentifier);
-
-                    var structuredJob = StructureJob(basicJob, jobDetail);
-
-                    foreach (var doc in structuredJob.Documents)
-                    {
-                        if (!string.IsNullOrEmpty(doc.Identifier))
-                        {
-                            doc.Url = await _superSetService.GetDocumentUrlAsync(
-                                loginResponse.Uuid,
-                                loginResponse.SessionKey,
-                                structuredJob.Id,
-                                doc.Identifier);
-                        }
-                    }
-
-                    await SaveJobToDatabaseAsync(structuredJob);
-                    result.Inserted++;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error processing job {JobId}", basicJob.JobProfileIdentifier);
-                    result.Failed++;
-                }
-            }
-
-            await _dbContext.SaveChangesAsync();
-
-            result.Success = true;
-            result.Message = $"Jobs sync completed: {result.Inserted} inserted, {result.Failed} failed";
-
-            _logger.LogInformation("Jobs synchronization completed: {Inserted} inserted, {Failed} failed",
-                result.Inserted, result.Failed);
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Jobs synchronization failed");
-            return new SyncResult
-            {
-                Success = false,
-                Message = $"Jobs sync failed: {ex.Message}",
-                Fetched = 0,
-                Inserted = 0,
-                Updated = 0,
-                Failed = 0
+                Id = basicJob.JobProfileIdentifier,
+                JobProfile = basicJob.JobProfileTitle ?? "Unknown",
+                Company = basicJob.CompanyName ?? "??",
+                PlacementCategoryCode = basicJob.PlacementCategoryLevel,
+                PlacementCategory = basicJob.PlacementCategoryName
+                    ?? categoryMapping.GetValueOrDefault(basicJob.PlacementCategoryLevel, "Unknown"),
+                Content = basicJob.Content ?? string.Empty,
+                CreatedAt = basicJob.CreatedAt,
+                Deadline = basicJob.JobProfileApplicationDeadline,
+                Location = "Unknown",
+                Package = 0,
+                PackageInfo = string.Empty,
+                JobDescription = string.Empty
             };
-        }
-    }
 
-    private StructuredJob StructureJob(SuperSetJobBasicDto basicJob, SuperSetJobDetailDto? jobDetail)
-    {
-        var categoryMapping = new Dictionary<int, string>
-        {
-            { 1, "High" },
-            { 2, "Middle" },
-            { 3, "Offer is more than 4.6 lacs" },
-            { 4, "Internship" }
-        };
-
-        var structured = new StructuredJob
-        {
-            Id = basicJob.JobProfileIdentifier,
-            JobProfile = basicJob.JobProfileTitle ?? "Unknown",
-            Company = basicJob.CompanyName ?? "??",
-            PlacementCategoryCode = basicJob.PlacementCategoryLevel,
-            PlacementCategory = basicJob.PlacementCategoryName
-                ?? categoryMapping.GetValueOrDefault(basicJob.PlacementCategoryLevel, "Unknown"),
-            Content = basicJob.Content ?? string.Empty,
-            CreatedAt = basicJob.CreatedAt,
-            Deadline = basicJob.JobProfileApplicationDeadline,
-            Location = "Unknown",
-            Package = 0,
-            PackageInfo = string.Empty,
-            JobDescription = string.Empty
-        };
-
-        if (jobDetail != null)
-        {
-            var jobDetails = jobDetail;
-
-            if (jobDetails.EligibilityCheckResult?.AcademicResults != null)
+            if (jobDetail != null)
             {
-                foreach (var r in jobDetails.EligibilityCheckResult.AcademicResults)
+                if (jobDetail.EligibilityCheckResult?.AcademicResults != null)
                 {
-                    structured.EligibilityMarks.Add(new EligibilityMark
-                    {
-                        Level = r.Level,
-                        Criteria = r.Required
-                    });
-                }
-            }
-
-            if (jobDetails.EligibilityCheckResult?.CourseCheckResult?.OpenedForCourses != null)
-            {
-                foreach (var course in jobDetails.EligibilityCheckResult.CourseCheckResult.OpenedForCourses)
-                {
-                    if (course.Program != null && !string.IsNullOrEmpty(course.Name))
-                    {
-                        structured.EligibilityCourses.Add($"{course.Program.ShortName} - {course.Name}");
-                    }
-                    else if (!string.IsNullOrEmpty(course.Name))
-                    {
-                        structured.EligibilityCourses.Add($"Unknown - {course.Name}");
-                    }
-                }
-            }
-
-            if (jobDetails.JobProfile != null)
-            {
-                var profile = jobDetails.JobProfile;
-
-                if (profile.AllowGenderFemale) structured.AllowedGenders.Add("Female");
-                if (profile.AllowGenderMale) structured.AllowedGenders.Add("Male");
-                if (profile.AllowGenderOther) structured.AllowedGenders.Add("Other");
-
-                if (!string.IsNullOrEmpty(profile.JobDescription))
-                {
-                    structured.JobDescription = profile.JobDescription + (profile.InvitationCustomText ?? "");
+                    foreach (var r in jobDetail.EligibilityCheckResult.AcademicResults)
+                        structured.EligibilityMarks.Add(new EligibilityMark { Level = r.Level, Criteria = r.Required });
                 }
 
-                if (!string.IsNullOrEmpty(profile.Location))
-                    structured.Location = profile.Location;
-
-                if (profile.Package.HasValue && profile.Package.Value > 0)
-                    structured.Package = profile.Package.Value;
-                else if (profile.CtcMin.HasValue && profile.CtcMin.Value > 0)
-                    structured.Package = profile.CtcMin.Value;
-                else if (profile.CtcMax.HasValue && profile.CtcMax.Value > 0)
-                    structured.Package = profile.CtcMax.Value;
-
-                if (!string.IsNullOrEmpty(profile.CtcAdditionalInfo))
-                    structured.PackageInfo = profile.CtcAdditionalInfo;
-
-                structured.AnnumMonths = profile.CtcInterval;
-
-                if (profile.RequiredSkills != null)
-                    structured.RequiredSkills.AddRange(profile.RequiredSkills);
-
-                if (profile.Stages != null && profile.Stages.Any())
+                if (jobDetail.EligibilityCheckResult?.CourseCheckResult?.OpenedForCourses != null)
                 {
-                    var maxSeq = profile.Stages.Max(s => s.Sequence);
-                    structured.HiringFlow = new List<string>(new string[maxSeq]);
-                    foreach (var stage in profile.Stages)
+                    foreach (var course in jobDetail.EligibilityCheckResult.CourseCheckResult.OpenedForCourses)
                     {
-                        if (stage.Sequence - 1 < structured.HiringFlow.Count)
-                            structured.HiringFlow[stage.Sequence - 1] = stage.Name;
+                        if (course.Program != null && !string.IsNullOrEmpty(course.Name))
+                            structured.EligibilityCourses.Add($"{course.Program.ShortName} - {course.Name}");
+                        else if (!string.IsNullOrEmpty(course.Name))
+                            structured.EligibilityCourses.Add($"Unknown - {course.Name}");
                     }
                 }
 
-                if (profile.Documents != null)
+                if (jobDetail.JobProfile != null)
                 {
-                    foreach (var doc in profile.Documents)
+                    var profile = jobDetail.JobProfile;
+                    if (profile.AllowGenderFemale) structured.AllowedGenders.Add("Female");
+                    if (profile.AllowGenderMale) structured.AllowedGenders.Add("Male");
+                    if (profile.AllowGenderOther) structured.AllowedGenders.Add("Other");
+
+                    if (!string.IsNullOrEmpty(profile.JobDescription))
+                        structured.JobDescription = profile.JobDescription + (profile.InvitationCustomText ?? "");
+
+                    if (!string.IsNullOrEmpty(profile.Location)) structured.Location = profile.Location;
+
+                    if (profile.Package.HasValue && profile.Package.Value > 0) structured.Package = profile.Package.Value;
+                    else if (profile.CtcMin.HasValue && profile.CtcMin.Value > 0) structured.Package = profile.CtcMin.Value;
+                    else if (profile.CtcMax.HasValue && profile.CtcMax.Value > 0) structured.Package = profile.CtcMax.Value;
+
+                    if (!string.IsNullOrEmpty(profile.CtcAdditionalInfo)) structured.PackageInfo = profile.CtcAdditionalInfo;
+                    structured.AnnumMonths = profile.CtcInterval;
+
+                    if (profile.RequiredSkills != null) structured.RequiredSkills.AddRange(profile.RequiredSkills);
+
+                    if (profile.Stages != null && profile.Stages.Any())
                     {
-                        if (!string.IsNullOrEmpty(doc.Name) && !string.IsNullOrEmpty(doc.Identifier))
-                        {
-                            structured.Documents.Add(new StructuredDocument
-                            {
-                                Name = doc.Name,
-                                Identifier = doc.Identifier
-                            });
-                        }
+                        var maxSeq = profile.Stages.Max(s => s.Sequence);
+                        structured.HiringFlow = new List<string>(new string[maxSeq]);
+                        foreach (var stage in profile.Stages)
+                            if (stage.Sequence - 1 < structured.HiringFlow.Count)
+                                structured.HiringFlow[stage.Sequence - 1] = stage.Name;
                     }
+
+                    if (profile.Documents != null)
+                    {
+                        foreach (var doc in profile.Documents)
+                            if (!string.IsNullOrEmpty(doc.Name) && !string.IsNullOrEmpty(doc.Identifier))
+                                structured.Documents.Add(new StructuredDocument { Name = doc.Name, Identifier = doc.Identifier });
+                    }
+                }
+
+                if (structured.Location == "Unknown" && !string.IsNullOrEmpty(jobDetail.JobProfileLocation))
+                    structured.Location = jobDetail.JobProfileLocation;
+
+                structured.PlacementType = jobDetail.PositionType;
+            }
+
+            return structured;
+        }
+
+        private async Task SaveJobViaFunctionAsync(StructuredJob job)
+        {
+            // 1. Save main job
+            DataTable jobDt = await _dataEntity.ExecuteDataTableFNAsync(
+                "fn_api_post_job_v001",
+                string.Empty,
+                job.Id,
+                job.Company,
+                job.JobProfile,
+                job.PlacementCategory,
+                job.PlacementCategoryCode.ToString(),
+                job.Content,
+                job.CreatedAt.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(job.CreatedAt.Value).UtcDateTime.ToString("o") : string.Empty,
+                job.Deadline.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(job.Deadline.Value).UtcDateTime.ToString("o") : string.Empty,
+                job.Location,
+                (decimal)job.Package,
+                job.PackageInfo,
+                job.JobDescription,
+                job.PlacementType ?? string.Empty
+            );
+
+            string jobResult = jobDt.Rows[0][0].ToString();
+            var jobJson = Common.ParseJson(jobResult);
+            if (!jobJson.TryGetProperty("id", out var idProp))
+            {
+                _logger.LogWarning("Failed to get job ID from function result: {Result}", jobResult);
+                return;
+            }
+            string jobUuid = idProp.GetString() ?? string.Empty;
+
+            // 2. Save eligibility marks
+            foreach (var mark in job.EligibilityMarks)
+            {
+                await _dataEntity.ExecuteDataTableFNAsync(
+                    "fn_api_post_jobeligibility_v001",
+                    jobUuid, mark.Level, mark.Criteria.ToString()
+                );
+            }
+
+            // 3. Save eligibility courses
+            foreach (var course in job.EligibilityCourses)
+            {
+                await _dataEntity.ExecuteDataTableFNAsync(
+                    "fn_api_post_jobeligibilitycourse_v001",
+                    jobUuid, course
+                );
+            }
+
+            // 4. Save genders
+            foreach (var gender in job.AllowedGenders)
+            {
+                await _dataEntity.ExecuteDataTableFNAsync(
+                    "fn_api_post_jobgender_v001",
+                    jobUuid, gender
+                );
+            }
+
+            // 5. Save skills
+            foreach (var skill in job.RequiredSkills)
+            {
+                await _dataEntity.ExecuteDataTableFNAsync(
+                    "fn_api_post_jobskill_v001",
+                    jobUuid, skill
+                );
+            }
+
+            // 6. Save hiring flow
+            for (int i = 0; i < job.HiringFlow.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(job.HiringFlow[i]))
+                {
+                    await _dataEntity.ExecuteDataTableFNAsync(
+                        "fn_api_post_jobhiringflow_v001",
+                        jobUuid, (i + 1).ToString(), job.HiringFlow[i]
+                    );
                 }
             }
 
-            if (structured.Location == "Unknown" && !string.IsNullOrEmpty(jobDetails.JobProfileLocation))
+            // 7. Save documents
+            foreach (var doc in job.Documents)
             {
-                structured.Location = jobDetails.JobProfileLocation;
-            }
-
-            structured.PlacementType = jobDetails.PositionType;
-        }
-
-        return structured;
-    }
-
-    private async Task SaveJobToDatabaseAsync(StructuredJob job)
-    {
-        // Save parent job record first
-        var jobRecord = new JobRecord
-        {
-            SuperSetJobIdentifier = job.Id,
-            Company = job.Company,
-            JobProfile = job.JobProfile,
-            PlacementCategory = job.PlacementCategory,
-            PlacementCategoryCode = job.PlacementCategoryCode.ToString(),
-            Content = job.Content,
-            CreatedAt = job.CreatedAt.HasValue
-                ? DateTimeOffset.FromUnixTimeMilliseconds(job.CreatedAt.Value).UtcDateTime
-                : null,
-            Deadline = job.Deadline.HasValue
-                ? DateTimeOffset.FromUnixTimeMilliseconds(job.Deadline.Value).UtcDateTime
-                : null,
-            Location = job.Location,
-            Package = job.Package,
-            PackageInfo = job.PackageInfo,
-            JobDescription = job.JobDescription,
-            PlacementType = job.PlacementType ?? string.Empty,
-            posteddatetime = DateTime.UtcNow
-        };
-
-        _dbContext.Jobs.Add(jobRecord);
-        await _dbContext.SaveChangesAsync(); // Save to get the Id
-
-        // Now save child records with SysJobUuid = jobRecord.Id
-        var jobId = jobRecord.Id;
-        var now = DateTime.UtcNow;
-
-        // Eligibility marks
-        foreach (var mark in job.EligibilityMarks)
-        {
-            _dbContext.JobEligibilities.Add(new JobEligibilityRecord
-            {
-                SysJobUuid = jobId,
-                Level = mark.Level,
-                Criteria = mark.Criteria.ToString(),
-                posteddatetime = now
-            });
-        }
-
-        // Eligibility courses
-        foreach (var course in job.EligibilityCourses)
-        {
-            _dbContext.JobEligibilityCourses.Add(new JobEligibilityCourseRecord
-            {
-                SysJobUuid = jobId,
-                CourseName = course,
-                posteddatetime = now
-            });
-        }
-
-        // Genders
-        foreach (var gender in job.AllowedGenders)
-        {
-            _dbContext.JobGenders.Add(new JobGenderRecord
-            {
-                SysJobUuid = jobId,
-                Gender = gender,
-                posteddatetime = now
-            });
-        }
-
-        // Skills
-        foreach (var skill in job.RequiredSkills)
-        {
-            _dbContext.JobSkills.Add(new JobSkillRecord
-            {
-                SysJobUuid = jobId,
-                SkillName = skill,
-                posteddatetime = now
-            });
-        }
-
-        // Hiring flow
-        for (int i = 0; i < job.HiringFlow.Count; i++)
-        {
-            if (!string.IsNullOrEmpty(job.HiringFlow[i]))
-            {
-                _dbContext.JobHiringFlows.Add(new JobHiringFlowRecord
-                {
-                    SysJobUuid = jobId,
-                    Sequence = (i + 1).ToString(),
-                    StageName = job.HiringFlow[i],
-                    posteddatetime = now
-                });
+                await _dataEntity.ExecuteDataTableFNAsync(
+                    "fn_api_post_jobdocument_v001",
+                    jobUuid, doc.Identifier, doc.Name, doc.Url ?? string.Empty
+                );
             }
         }
-
-        // Documents
-        foreach (var doc in job.Documents)
-        {
-            _dbContext.JobDocuments.Add(new JobDocumentRecord
-            {
-                SysJobUuid = jobId,
-                DocumentIdentifier = doc.Identifier,
-                DocumentName = doc.Name,
-                DocumentUrl = doc.Url ?? string.Empty,
-                posteddatetime = now
-            });
-        }
-
-        await _dbContext.SaveChangesAsync(); // Save all child records
     }
 }

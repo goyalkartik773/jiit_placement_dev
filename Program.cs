@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization;
 using JIITPlacement.Models.App_Code;
-using JIITPlacement.Models.SuperSet;
+using JIITPlacement.Models;
 using JIITPlacement.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,9 +18,8 @@ builder.Services.Configure<SuperSetOptions>(
 builder.Services.Configure<SyncScheduleOptions>(
     builder.Configuration.GetSection(SyncScheduleOptions.SectionName));
 
-// Configure PostgreSQL
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Register DataEntity (database access layer) - replaces EF Core DbContext
+builder.Services.AddScoped<DataEntity>();
 
 // Configure HttpClient for SuperSet
 builder.Services.AddHttpClient("SuperSet", client =>
@@ -92,20 +90,5 @@ app.UseCors("AllowReactApp");
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Auto-apply migrations on startup (optional - can be removed in production)
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try
-    {
-        dbContext.Database.Migrate();
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(ex, "Could not apply database migrations. Database may need to be created manually.");
-    }
-}
 
 app.Run();
