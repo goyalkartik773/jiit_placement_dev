@@ -25,6 +25,12 @@ obj/
 .env.local
 .env.production
 
+## Google OAuth / Gmail
+credentials.json
+token.json
+TokenResponse-* 
+Google.Apis.Auth*/
+
 ## NuGet
 packages/
 *.nupkg

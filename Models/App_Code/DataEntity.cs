@@ -7,6 +7,7 @@ namespace JIITPlacement.Models.App_Code
     public class DataEntity : Common
     {
         private readonly string pgConnection;
+        private readonly ILogger<DataEntity>? _logger;
 
         // Constructor that takes IConfiguration
         public DataEntity(IConfiguration configuration)
@@ -14,6 +15,12 @@ namespace JIITPlacement.Models.App_Code
             pgConnection = configuration.GetConnectionString("PostgreSQL")
                 ?? configuration.GetConnectionString("DefaultConnection")
                 ?? throw new ArgumentNullException("PostgreSQL connection string not found");
+        }
+
+        // Constructor with logger
+        public DataEntity(IConfiguration configuration, ILogger<DataEntity> logger) : this(configuration)
+        {
+            _logger = logger;
         }
 
         // Default constructor that loads configuration automatically
@@ -44,6 +51,7 @@ namespace JIITPlacement.Models.App_Code
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[DataEntity] ExecuteDataTableFN error: {ex.Message}");
                 trans.Rollback();
                 conn.Close();
             }
@@ -126,6 +134,43 @@ namespace JIITPlacement.Models.App_Code
             dt.Load(dataReader);
             trans.Commit();
             conn.Close();
+            return dt;
+        }
+
+        /// <summary>
+        /// Execute a PostgreSQL function with properly parameterized queries (safe for special characters).
+        /// </summary>
+        public DataTable ExecuteDataTableFNParam(string fn_Name, params (string name, object? value)[] parameters)
+        {
+            DataTable dt = new DataTable();
+            NpgsqlConnection conn = new NpgsqlConnection(pgConnection);
+            conn.Open();
+            NpgsqlTransaction trans = conn.BeginTransaction();
+            try
+            {
+                var paramNames = new List<string>();
+                using var cmd = new NpgsqlCommand();
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    var pname = $"@p{i}";
+                    paramNames.Add(pname);
+                    cmd.Parameters.AddWithValue(pname, parameters[i].value ?? DBNull.Value);
+                }
+                cmd.CommandText = $"SELECT * FROM {fn_Name}({string.Join(",", paramNames)})";
+                cmd.Connection = conn;
+                cmd.Transaction = trans;
+                cmd.CommandTimeout = 300;
+                using var reader = cmd.ExecuteReader();
+                dt.Load(reader);
+                trans.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "ExecuteDataTableFNParam error on {FnName}", fn_Name);
+                System.Diagnostics.Debug.WriteLine($"[DataEntity] ExecuteDataTableFNParam error on {fn_Name}: {ex.Message}");
+                trans.Rollback();
+            }
+            finally { conn.Close(); }
             return dt;
         }
 
