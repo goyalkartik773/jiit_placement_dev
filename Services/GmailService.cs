@@ -372,12 +372,7 @@ namespace JIITPlacement.Services
                                 case MessageProcessResult.NewReviewRequired: groupResult.NewMessages++; groupResult.ReviewRequired++; break;
                                 case MessageProcessResult.NewFailed: groupResult.NewMessages++; groupResult.Failed++; break;
                                 case MessageProcessResult.ExistingProcessed: groupResult.ExistingMessages++; break;
-                                case MessageProcessResult.ExistingRetry:
-                                    var retryResult = await ProcessMessageAsync(messageId, group);
-                                    if (retryResult == MessageProcessResult.NewProcessed) groupResult.Processed++;
-                                    else if (retryResult == MessageProcessResult.NewReviewRequired) groupResult.ReviewRequired++;
-                                    else groupResult.Failed++;
-                                    break;
+                                case MessageProcessResult.ExistingRetry: groupResult.ExistingMessages++; groupResult.Processed++; break;
                             }
                         }
                         catch (Exception ex)
@@ -408,6 +403,8 @@ namespace JIITPlacement.Services
 
         private async Task<MessageProcessResult> ProcessMessageAsync(string messageId, SourceGroup group)
         {
+            string messageUuid = "";
+
             DataTable existingDt = _dataEntity.ExecuteDataTableFN("fn_api_select_gmailmessage_v1", messageId);
             if (existingDt.Rows.Count > 0)
             {
@@ -425,8 +422,10 @@ namespace JIITPlacement.Services
                             _logger.LogDebug("Message {MessageId} already processed, skipping", messageId);
                             return MessageProcessResult.ExistingProcessed;
                         }
-                        _logger.LogInformation("Message {MessageId} has status {Status}, retrying", messageId, procStatus);
-                        return MessageProcessResult.ExistingRetry;
+                        // RECEIVED status — message saved but extraction incomplete. Continue extraction.
+                        if (data.ContainsKey("id"))
+                            messageUuid = data["id"]?.ToString() ?? "";
+                        _logger.LogInformation("Message {MessageId} has status {Status}, re-extracting", messageId, procStatus);
                     }
                 }
             }
@@ -437,8 +436,12 @@ namespace JIITPlacement.Services
             var (identifiedGroup, identifiedEmail) = IdentifySourceGroup(message);
             var parsed = _preprocessor.ParseMessage(message, identifiedGroup, identifiedEmail);
 
-            var messageUuid = SaveGmailMessage(parsed);
-            if (string.IsNullOrEmpty(messageUuid)) { _logger.LogError("Failed to save Gmail message {MessageId}", messageId); return MessageProcessResult.NewFailed; }
+            // Save message only if not already saved
+            if (string.IsNullOrEmpty(messageUuid))
+            {
+                messageUuid = SaveGmailMessage(parsed);
+                if (string.IsNullOrEmpty(messageUuid)) { _logger.LogError("Failed to save Gmail message {MessageId}", messageId); return MessageProcessResult.NewFailed; }
+            }
 
             if (parsed.Attachments.Count > 0)
             {

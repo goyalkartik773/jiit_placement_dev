@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text;
+using System.Linq;
 using JIITPlacement.Models.App_Code;
 
 namespace JIITPlacement.Services
@@ -36,7 +37,7 @@ namespace JIITPlacement.Services
 
             try
             {
-                var model = _config["Gemini:Model"] ?? "gemini-2.0-flash";
+                var model = _config["Gemini:Model"] ?? "gemini-2.5-flash";
                 var baseUrl = _config["Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com";
 
                 var prompt = BuildExtractionPrompt(emailContent, subject);
@@ -54,6 +55,7 @@ namespace JIITPlacement.Services
                     },
                     generationConfig = new
                     {
+                        maxOutputTokens = 8192,
                         responseMimeType = "application/json",
                         responseSchema = new
                         {
@@ -89,13 +91,29 @@ namespace JIITPlacement.Services
                 };
 
                 var url = $"{baseUrl}/v1beta/models/{model}:generateContent?key={apiKey}";
-                var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(url, content);
-                var responseJson = await response.Content.ReadAsStringAsync();
+                var requestJson = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
-                if (!response.IsSuccessStatusCode)
+                // Retry for429
+                HttpResponseMessage? response = null;
+                string? responseJson = null;
+                for (int attempt = 1; attempt <= 3; attempt++)
                 {
-                    _logger.LogWarning("Gemini API error: {Status} {Response}", response.StatusCode, responseJson);
+                    response = await _httpClient.PostAsync(url, content);
+                    responseJson = await response.Content.ReadAsStringAsync();
+
+                    if ((int)response.StatusCode == 429)
+                    {
+                        _logger.LogWarning("Gemini429 on placement extraction (attempt {Attempt}), retrying in 60s", attempt);
+                        if (attempt < 3) await Task.Delay(60000);
+                        continue;
+                    }
+                    break;
+                }
+
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Gemini API error: {Status} {Response}", response?.StatusCode, responseJson);
                     return new List<PlacementInfo>();
                 }
 
@@ -104,6 +122,7 @@ namespace JIITPlacement.Services
                     .GetProperty("content").GetProperty("parts")[0]
                     .GetProperty("text").GetString() ?? "";
 
+                _logger.LogDebug("Placement extraction response: {Text}", text.Length > 500 ? text.Substring(0, 500) + "..." : text);
                 return ParsePlacementResponse(text);
             }
             catch (Exception ex)
@@ -147,6 +166,13 @@ Return JSON with a 'placements' array. If no placements found, return empty arra
         {
             try
             {
+                // Clean markdown code blocks if present
+                json = json.Trim();
+                if (json.StartsWith("```json")) json = json.Substring(7);
+                else if (json.StartsWith("```")) json = json.Substring(3);
+                if (json.EndsWith("```")) json = json.Substring(0, json.Length - 3);
+                json = json.Trim();
+
                 var result = JsonSerializer.Deserialize<JsonElement>(json);
                 var placements = new List<PlacementInfo>();
 
@@ -175,6 +201,52 @@ Return JSON with a 'placements' array. If no placements found, return empty arra
                 }
 
                 return placements;
+            }
+            catch (JsonException jex)
+            {
+                _logger.LogWarning("JSON parse failed ({Error}), attempting repair", jex.Message);
+                // Try repairing truncated JSON
+                json = json.Trim();
+                try
+                {
+                    int openBraces = json.Count(ch => ch == '{');
+                    int closeBraces = json.Count(ch => ch == '}');
+                    int openBrackets = json.Count(ch => ch == '[');
+                    int closeBrackets = json.Count(ch => ch == ']');
+
+                    int lastComplete = json.LastIndexOfAny(new[] { ',', ':' });
+                    if (lastComplete > 0 && lastComplete < json.Length - 1)
+                        json = json.Substring(0, lastComplete + 1).TrimEnd(',', ' ');
+
+                    for (int i = 0; i < openBrackets - closeBrackets; i++) json += "]";
+                    for (int i = 0; i < openBraces - closeBraces; i++) json += "}";
+
+                    var result = JsonSerializer.Deserialize<JsonElement>(json);
+                    var placements = new List<PlacementInfo>();
+                    if (result.TryGetProperty("placements", out var placementsArray))
+                    {
+                        foreach (var item in placementsArray.EnumerateArray())
+                        {
+                            var isPlacement = item.TryGetProperty("is_placement", out var ip) && ip.GetBoolean();
+                            var confidence = item.TryGetProperty("confidence", out var conf) ? conf.GetDouble() : 0;
+                            if (!isPlacement || confidence < 0.5) continue;
+                            placements.Add(new PlacementInfo
+                            {
+                                StudentName = GetProp(item, "student_name"),
+                                StudentEmail = GetProp(item, "student_email"),
+                                CompanyName = NormalizeCompany(GetProp(item, "company_name")),
+                                JobProfile = GetProp(item, "job_profile"),
+                                Package = GetProp(item, "package"),
+                                Location = GetProp(item, "location"),
+                                Batch = GetProp(item, "batch"),
+                                PlacementType = GetProp(item, "placement_type"),
+                                Confidence = confidence
+                            });
+                        }
+                    }
+                    return placements;
+                }
+                catch { _logger.LogWarning("Repaired JSON also failed"); return new List<PlacementInfo>(); }
             }
             catch (Exception ex)
             {
