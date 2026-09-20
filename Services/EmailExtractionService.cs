@@ -141,24 +141,9 @@ Respond with a JSON object matching this exact schema:
   ""location"": null or string,
   ""joining_date"": null or string,
   ""deadline"": null or string,
-  ""interview_date"": null or string,
-  ""round"": null or string,
-  ""venue"": null or string,
   ""event_name"": null or string,
   ""topic"": null or string,
-  ""speaker"": null or string,
-  ""start_date"": null or string,
-  ""end_date"": null or string,
-  ""registration_deadline"": null or string,
   ""registration_link"": null or string,
-  ""prize_pool"": null or string,
-  ""team_size"": null or string,
-  ""organizer"": null or string,
-  ""eligibility_criteria"": [],
-  ""hiring_flow"": [],
-  ""students"": [],
-  ""total_students"": 0,
-  ""links"": [],
   ""additional_info"": null or string
 }}";
         }
@@ -239,6 +224,14 @@ Respond with a JSON object matching this exact schema:
                         _logger.LogError("Gemini API429 exhausted after {Max} retries, saving as REVIEW_REQUIRED", maxRetries);
                         return null;
                     }
+                }
+
+                // Retry on 503 ServiceUnavailable (Gemini timeout)
+                if ((int)response.StatusCode == 503 && attempt < maxRetries)
+                {
+                    _logger.LogWarning("Gemini503 ServiceUnavailable (attempt {Attempt}/{Max}), retrying in 30s", attempt, maxRetries);
+                    await Task.Delay(30000);
+                    continue;
                 }
 
                 if (!response.IsSuccessStatusCode)
@@ -383,9 +376,15 @@ Respond with a JSON object matching this exact schema:
                     foreach (var link in links.EnumerateArray())
                     {
                         var el = new ExtractionLink();
-                        if (link.TryGetProperty("url", out var url)) el.Url = url.GetString();
-                        else if (link.ValueKind == JsonValueKind.String) el.Url = link.GetString();
-                        if (link.TryGetProperty("label", out var lbl)) el.Label = lbl.GetString();
+                        if (link.ValueKind == JsonValueKind.Object)
+                        {
+                            if (link.TryGetProperty("url", out var url)) el.Url = url.GetString();
+                            if (link.TryGetProperty("label", out var lbl)) el.Label = lbl.GetString();
+                        }
+                        else if (link.ValueKind == JsonValueKind.String)
+                        {
+                            el.Url = link.GetString();
+                        }
                         response.Links.Add(el);
                     }
                 }
@@ -396,7 +395,10 @@ Respond with a JSON object matching this exact schema:
                     response.HiringFlow = new List<string>();
                     foreach (var step in hf.EnumerateArray())
                     {
-                        response.HiringFlow.Add(step.ValueKind == JsonValueKind.String ? step.GetString() : step.ToString());
+                        if (step.ValueKind == JsonValueKind.String)
+                            response.HiringFlow.Add(step.GetString()!);
+                        else if (step.ValueKind == JsonValueKind.Object)
+                            response.HiringFlow.Add(step.ToString());
                     }
                 }
 
@@ -406,7 +408,10 @@ Respond with a JSON object matching this exact schema:
                     response.EligibilityCriteria = new List<string>();
                     foreach (var crit in ec.EnumerateArray())
                     {
-                        response.EligibilityCriteria.Add(crit.ValueKind == JsonValueKind.String ? crit.GetString() : crit.ToString());
+                        if (crit.ValueKind == JsonValueKind.String)
+                            response.EligibilityCriteria.Add(crit.GetString()!);
+                        else if (crit.ValueKind == JsonValueKind.Object)
+                            response.EligibilityCriteria.Add(crit.ToString());
                     }
                 }
 
@@ -416,6 +421,7 @@ Respond with a JSON object matching this exact schema:
                     response.Students = new List<StudentInfo>();
                     foreach (var student in students.EnumerateArray())
                     {
+                        if (student.ValueKind != JsonValueKind.Object) continue;
                         var si = new StudentInfo();
                         if (student.TryGetProperty("name", out var n)) si.Name = n.GetString();
                         if (student.TryGetProperty("enrollment_number", out var en)) si.EnrollmentNumber = en.GetString();
