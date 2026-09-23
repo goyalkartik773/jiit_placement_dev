@@ -1,0 +1,60 @@
+@use '../../../styles/variables' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1-5;
+  padding: $space-1 $space-2-5;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  font-size: $fs-2xs;
+  font-weight: $fw-bold;
+  letter-spacing: $tracking-wide;
+  text-transform: uppercase;
+  line-height: 1.4;
+  white-space: nowrap;
+
+  // Status dot — solid currentColor circle, pulses only for active/success
+  &__dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &--success &__dot {
+    background: $success-strong;
+    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
+
+  &--success {
+    background: $success-soft;
+    border-color: $success-border;
+    color: $success;
+  }
+
+  &--warning {
+    background: $warning-soft;
+    border-color: $warning-border;
+    color: $warning;
+  }
+
+  &--danger {
+    background: $danger-soft;
+    border-color: $danger-border;
+    color: $danger;
+  }
+
+  &--info {
+    background: $info-soft;
+    border-color: $info-border;
+    color: $info;
+  }
+
+  &--neutral {
+    background: $surface-muted;
+    border-color: $border;
+    color: $text-secondary;
+  }
+}

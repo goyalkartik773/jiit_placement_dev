@@ -1,0 +1,118 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.tier-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-3 $space-5;
+  padding: $space-3 $space-5;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  box-shadow: $shadow-xs;
+
+  &__group {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__divider {
+    width: 1px;
+    height: 22px;
+    background: $border;
+  }
+
+  // Mini chips mirror the exact palettes used on cards
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border: 1px solid transparent;
+    border-radius: $radius-pill;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    white-space: nowrap;
+
+    &--entry {
+      background: $tier-entry-bg;
+      border-color: $tier-entry-border;
+      color: $tier-entry-fg;
+    }
+
+    &--standard {
+      background: $tier-standard-bg;
+      border-color: $tier-standard-border;
+      color: $tier-standard-fg;
+    }
+
+    &--advanced {
+      background: $tier-advanced-bg;
+      border-color: $tier-advanced-border;
+      color: $tier-advanced-fg;
+    }
+
+    &--high {
+      background: $tier-high-bg;
+      border-color: $tier-high-border;
+      color: $tier-high-fg;
+    }
+
+    &--premium {
+      background: $tier-premium-bg;
+      border-color: $tier-premium-border;
+      color: $tier-premium-fg;
+    }
+
+    &--relaxed {
+      background: $criteria-relaxed-bg;
+      border-color: $criteria-relaxed-border;
+      color: $criteria-relaxed-fg;
+    }
+
+    &--moderate {
+      background: $criteria-moderate-bg;
+      border-color: $criteria-moderate-border;
+      color: $criteria-moderate-fg;
+    }
+
+    &--strict {
+      background: $criteria-strict-bg;
+      border-color: $criteria-strict-border;
+      color: $criteria-strict-fg;
+    }
+  }
+}
+
+@include down('lg') {
+  .tier-legend {
+    gap: $space-2 $space-4;
+
+    &__divider {
+      display: none;
+    }
+
+    &__group {
+      flex: 1 1 100%;
+    }
+  }
+}

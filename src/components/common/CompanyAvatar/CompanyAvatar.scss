@@ -1,0 +1,67 @@
+@use '../../../styles/mixins' as *;
+@use '../../../styles/variables' as *;
+
+.company-avatar {
+  @include flex-center;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden; // keeps the sheen inside the tile
+  border-radius: $radius-md;
+  background: $brand-gradient;
+  box-shadow: $shadow-tile;
+  color: $surface;
+  user-select: none;
+
+  // Spec sheen — white/10 at 60% over the gradient
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba($surface, 0.1);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  &--md {
+    width: 44px; // spec w-11
+    height: 44px;
+  }
+
+  &--lg {
+    width: 46px;
+    height: 46px;
+  }
+
+  &--xl {
+    width: 64px; // spec w-16
+    height: 64px;
+    border: 2px solid $surface; // spec border-2 border-white
+    border-radius: $radius-lg; // spec rounded-2xl
+    box-shadow: $shadow-md, 0 12px 24px -12px rgba($primary, 0.35); // spec shadow-md + blue tint
+
+    @include up('md') {
+      width: 80px; // spec sm:w-20
+      height: 80px;
+    }
+  }
+
+  &__initials {
+    position: relative;
+    z-index: 1;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-tight;
+    text-transform: uppercase;
+  }
+
+  &--md &__initials {
+    font-size: $fs-md;
+  }
+
+  &--lg &__initials {
+    font-size: $fs-lg;
+  }
+
+  &--xl &__initials {
+    font-size: $fs-2xl; // spec text-2xl → 3xl handled by tile scale
+  }
+}

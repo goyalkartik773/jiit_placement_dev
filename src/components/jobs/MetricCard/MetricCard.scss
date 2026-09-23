@@ -1,0 +1,264 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Bento metric tile — white surface, label + badge head, headline figure,
+// dashed-foot divider row. Tones: default / rose accent, value colored by
+// tier (fixed package color coding) or status.
+// ============================================================================
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-5;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  min-width: 0;
+  transition: border-color $transition-base;
+
+  &--default:hover {
+    border-color: $border-strong;
+  }
+
+  &--blue:hover {
+    border-color: $primary-border-strong; // spec package card hover:border-blue-300
+  }
+
+  &--rose {
+    border-color: $rose-border;
+  }
+
+  &--rose:hover {
+    border-color: $rose-border-strong;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2;
+  }
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    min-width: 0;
+    font-size: $fs-xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+
+    &--secondary {
+      color: $text-secondary;
+    }
+    &--ink {
+      color: $ink;
+    }
+    &--rose {
+      color: $rose;
+    }
+    &--emerald {
+      color: $success;
+    }
+    &--amber {
+      color: $warning;
+    }
+    &--entry {
+      color: $tier-entry-fg;
+    }
+    &--standard {
+      color: $tier-standard-fg;
+    }
+    &--advanced {
+      color: $tier-advanced-fg;
+    }
+    &--high {
+      color: $tier-high-fg;
+    }
+    &--premium {
+      color: $tier-premium-fg;
+    }
+    &--undisclosed {
+      color: $tier-undisclosed-fg;
+    }
+  }
+
+  // ----- Badge (tier word / open state / drive code) -----
+  &__badge {
+    flex-shrink: 0;
+    padding: $space-0-5 $space-2;
+    border: 1px solid transparent;
+    border-radius: $radius-xs;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-wide;
+    white-space: nowrap;
+
+    &--mono {
+      font-family: $font-mono;
+      font-weight: $fw-medium;
+      letter-spacing: 0;
+      background: $surface-muted;
+      border-color: $border;
+      color: $text-muted;
+    }
+    &--rose {
+      background: $rose-soft;
+      border-color: $rose-border;
+      color: $rose-strong;
+    }
+    &--emerald {
+      background: $success-soft;
+      border-color: $success-border;
+      color: $success;
+    }
+    &--amber {
+      background: $warning-soft;
+      border-color: $warning-border;
+      color: $warning;
+    }
+    &--ink {
+      background: $surface-muted;
+      border-color: $border;
+      color: $ink;
+    }
+    &--secondary {
+      background: $surface-muted;
+      border-color: $border;
+      color: $text-secondary;
+    }
+    &--entry {
+      background: $tier-entry-bg;
+      border-color: $tier-entry-border;
+      color: $tier-entry-fg;
+    }
+    &--standard {
+      background: $tier-standard-bg;
+      border-color: $tier-standard-border;
+      color: $tier-standard-fg;
+    }
+    &--advanced {
+      background: $tier-advanced-bg;
+      border-color: $tier-advanced-border;
+      color: $tier-advanced-fg;
+    }
+    &--high {
+      background: $tier-high-bg;
+      border-color: $tier-high-border;
+      color: $tier-high-fg;
+    }
+    &--premium {
+      background: $tier-premium-bg;
+      border-color: $tier-premium-border;
+      color: $tier-premium-fg;
+    }
+    &--undisclosed {
+      background: $tier-undisclosed-bg;
+      border-color: $tier-undisclosed-border;
+      color: $tier-undisclosed-fg;
+    }
+  }
+
+  // ----- Figure: big value + sub line -----
+  &__figure {
+    @include stack($space-1);
+    min-width: 0;
+  }
+
+  &__value {
+    display: block;
+    font-family: $font-headline;
+    font-size: $fs-2xl;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-tight;
+    line-height: $lh-tight;
+    color: $ink;
+    overflow-wrap: anywhere;
+
+    &--sm {
+      font-size: $fs-lg;
+    }
+
+    &--rose {
+      color: $rose;
+    }
+
+    &--empty {
+      font-size: $fs-md;
+      font-weight: $fw-medium;
+      font-style: italic;
+      letter-spacing: 0;
+      color: $text-muted;
+    }
+
+    &--entry {
+      color: $tier-entry-fg;
+    }
+    &--standard {
+      color: $tier-standard-fg;
+    }
+    &--advanced {
+      color: $tier-advanced-fg;
+    }
+    &--high {
+      color: $tier-high-fg;
+    }
+    &--premium {
+      color: $tier-premium-fg;
+    }
+  }
+
+  &__sub {
+    display: block;
+    font-size: $fs-xs;
+    font-weight: $fw-medium;
+    color: $text-soft;
+    overflow-wrap: anywhere;
+
+    &--mono {
+      font-family: $font-mono;
+    }
+
+    &--rose {
+      color: $rose;
+    }
+  }
+
+  // ----- Footer row -----
+  &__footer {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-2;
+    margin-top: auto;
+    padding-top: $space-3;
+    border-top: 1px solid $surface-muted;
+  }
+
+  &__footer-label {
+    flex-shrink: 0;
+    font-size: $fs-2xs;
+    font-weight: $fw-medium;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  &__footer-value {
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    color: $ink;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+}

@@ -1,0 +1,339 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Spec job card — white surface on the dot-grid canvas, ambient ring shadow,
+// company hero, inset package bar (tier-colored value), location/deadline on
+// one line, criteria chips, excerpt shell, dashed divider + footer.
+// Status pill + category chip share the top line (chip truncates with a
+// native tooltip); company name is pink with a blue hover.
+// ============================================================================
+.job-card {
+  position: relative;
+  @include stack(0); // margins carry the rhythm; flex keeps the footer pinned
+  padding: $card-pad;
+
+  @include up('md') {
+    padding: $card-pad-md; // spec p-7 ≥640px
+  }
+
+  background: $baby-pink; // light baby-pink card surface
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  transition: box-shadow $transition-base, transform $transition-base;
+
+  &:hover {
+    box-shadow: $shadow-card-hover;
+    transform: translateY(-2px);
+  }
+
+  // ----- 01 · status pill + category chip (one line) + attachment count -----
+  &__top {
+    position: relative;
+    z-index: 1; // keeps pill tooltips above the card-wide link overlay
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+    margin-bottom: $space-4;
+  }
+
+  &__tags {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: nowrap; // status + type stay on a single line
+    align-items: center;
+    gap: $space-2;
+    min-width: 0;
+
+    .badge {
+      flex-shrink: 0;
+    }
+
+    .chip {
+      min-width: 0; // oversized category text truncates with a tooltip
+    }
+  }
+
+  &__doc-count {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    flex-shrink: 0;
+    padding: $space-1 $space-2-5;
+    border: 1px solid $border;
+    border-radius: $radius-sm;
+    background: $surface-subtle;
+    color: $text-muted;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+
+    &-value {
+      line-height: 1;
+    }
+  }
+
+  // ----- 02 · company hero -----
+  &__hero {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    min-width: 0;
+    margin-bottom: $space-4;
+  }
+
+  &__hero-text {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: $space-1;
+    min-width: 0;
+  }
+
+  &__company-name {
+    min-width: 0;
+    font-size: $fs-lg;
+    line-height: $lh-tight;
+
+    @include up('md') {
+      font-size: $fs-xl; // spec text-2xl
+    }
+
+    a {
+      color: $primary; // blue company accent — static on hover
+      font-weight: $fw-bold;
+    }
+  }
+
+  &__type {
+    max-width: 100%;
+    overflow: hidden;
+    color: $text-muted;
+    font-size: $fs-xs;
+    font-weight: $fw-medium;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // ----- 03 · role line -----
+  &__role {
+    display: flex;
+    gap: $space-1-5;
+    min-width: 0;
+    margin: 0 0 $space-4;
+    font-size: $fs-base;
+    line-height: $lh-snug;
+
+    @include up('md') {
+      font-size: $fs-md;
+    }
+
+    &-label {
+      flex-shrink: 0;
+      color: $text-muted;
+      font-weight: $fw-semibold;
+    }
+
+    &-value {
+      min-width: 0;
+      color: $ink;
+      font-weight: $fw-semibold;
+      @include truncate;
+    }
+  }
+
+  // ----- 04 · package bar — value colored by the fixed tier coding -----
+  &__package {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-3;
+    padding: $space-3;
+    margin-bottom: $space-4;
+    background: $surface-subtle;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+  }
+
+  &__package-label {
+    flex-shrink: 0;
+    color: $text-muted;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+  }
+
+  &__package-value {
+    min-width: 0;
+    color: $ink;
+    font-family: $font-headline;
+    font-size: $fs-lg;
+    font-weight: $fw-bold;
+    line-height: 1.2;
+    text-align: right;
+    @include truncate;
+
+    @include up('md') {
+      font-size: $fs-xl;
+    }
+
+    &--entry {
+      color: $tier-entry-fg;
+    }
+
+    &--standard {
+      color: $tier-standard-fg;
+    }
+
+    &--advanced {
+      color: $tier-advanced-fg;
+    }
+
+    &--high {
+      color: $tier-high-fg;
+    }
+
+    &--premium {
+      color: $tier-premium-fg;
+    }
+
+    &--undisclosed {
+      color: $text-muted;
+      font-size: $fs-sm;
+      font-style: italic;
+      font-weight: $fw-medium;
+      font-family: $font-sans;
+      letter-spacing: 0;
+    }
+  }
+
+  // ----- 05 · location + deadline (single line) -----
+  &__facts {
+    display: flex;
+    flex-wrap: nowrap; // both facts stay on one line; location truncates
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+    margin-bottom: $space-4;
+    font-size: $fs-xs;
+
+    @include up('md') {
+      font-size: $fs-sm;
+    }
+
+    .icon-label {
+      min-width: 0;
+      font-size: inherit;
+
+      &:first-child {
+        flex: 1 1 auto; // location shrinks with an ellipsis + tooltip
+      }
+
+      &:last-child {
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  // ----- 06 · eligibility chips (fixed strictness colors) -----
+  &__criteria {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+    margin-bottom: $space-4;
+  }
+
+  // ----- 07 · description excerpt in a dot-grid shell -----
+  &__excerpt {
+    display: -webkit-box;
+    padding: $space-3;
+    margin: 0 0 $space-4;
+    background-color: $surface-subtle;
+    background-image: radial-gradient($border 1px, transparent 1px);
+    background-size: 14px 14px;
+    border: 1px dashed $border;
+    border-radius: $radius-md;
+    color: $text-soft;
+    font-size: $fs-sm;
+    line-height: $lh-relaxed;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+
+    &--muted {
+      background-image: none;
+      color: $text-muted;
+      font-style: italic;
+    }
+  }
+
+  // ----- 08 · dashed divider -----
+  &__divider {
+    height: 0;
+    border: 0;
+    border-top: 1px dashed $border;
+    margin: 0 0 $space-4;
+  }
+
+  // ----- 09 · footer: posted date + View details CTA -----
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+    color: $text-muted;
+    font-size: $fs-2xs;
+
+    .icon-label {
+      min-width: 0;
+      font-size: $fs-xs;
+      color: $text-muted;
+    }
+  }
+
+  &__cta {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    flex-shrink: 0;
+    color: $primary;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color $transition-fast, gap $transition-fast;
+
+    svg {
+      transition: transform $transition-fast;
+    }
+
+    &:hover {
+      gap: $space-2;
+      color: $primary-hover;
+
+      svg {
+        transform: translateX(2px);
+      }
+    }
+  }
+
+  // Full-card click target beneath the interactive children.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+  }
+}

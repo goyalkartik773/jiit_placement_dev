@@ -1,0 +1,22 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: $content-max;
+  margin: 0 auto;
+  padding: $space-7 $space-6 $space-10;
+}
+
+@include down('md') {
+  .app-main {
+    padding: $space-5 $space-4 $space-8;
+  }
+}

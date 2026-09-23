@@ -1,0 +1,52 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// Spec: label left / value right, divided rows (divide-slate-100)
+.meta-list {
+  margin: 0;
+
+  > .overview-item + .overview-item {
+    border-top: 1px solid $surface-muted;
+  }
+
+  &__deadline {
+    color: $rose;
+    font-weight: $fw-bold;
+  }
+
+  &__mono {
+    font-family: $font-mono;
+    font-weight: $fw-medium;
+    color: $text;
+  }
+}
+
+.overview-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-3;
+  padding: $space-3 0;
+
+  &__label {
+    flex-shrink: 0;
+    font-size: $fs-xs;
+    font-weight: $fw-regular;
+    color: $text-muted;
+  }
+
+  &__value {
+    margin: 0;
+    font-size: $fs-xs;
+    font-weight: $fw-bold;
+    color: $ink;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  &__empty {
+    font-weight: $fw-regular;
+    font-style: italic;
+    color: $text-muted;
+  }
+}

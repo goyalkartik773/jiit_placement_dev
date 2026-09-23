@@ -1,0 +1,81 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.req-block {
+  & + & {
+    padding-top: $space-5;
+    border-top: 1px solid $surface-muted;
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2 $space-3;
+    margin-bottom: $space-3;
+  }
+
+  &__title {
+    font-size: $fs-xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-secondary;
+    margin-bottom: $space-3;
+  }
+
+  &__head &__title {
+    margin-bottom: 0;
+  }
+
+  // Mono count next to a block title (spec "Passing Year"-style right hint)
+  &__count {
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-semibold;
+    color: $primary;
+    white-space: nowrap;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__more {
+    margin-top: $space-3;
+
+    &.is-open svg {
+      transform: rotate(180deg);
+    }
+
+    svg {
+      transition: transform $transition-base;
+    }
+  }
+
+  &--split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-5;
+
+    @include up('sm') {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: $space-6;
+    }
+
+    > div + div {
+      padding-top: $space-5;
+      border-top: 1px solid $surface-muted;
+
+      @include up('sm') {
+        padding-top: 0;
+        padding-left: $space-6;
+        border-top: 0;
+        border-left: 1px solid $surface-muted;
+      }
+    }
+  }
+}

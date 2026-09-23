@@ -1,0 +1,41 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.state-shell {
+  @include stack($space-3);
+  align-items: center;
+  padding: $space-9 $space-6;
+  text-align: center;
+  background: $surface;
+  border: 1px dashed $border-strong;
+  border-radius: $radius-xl;
+
+  &__icon {
+    @include flex-center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: $surface-muted;
+    color: $text-muted;
+  }
+
+  &__title {
+    font-size: $fs-lg;
+    color: $ink;
+  }
+
+  &__description {
+    max-width: 480px;
+    font-size: $fs-base;
+    color: $text-secondary;
+  }
+
+  &__action {
+    margin-top: $space-2;
+  }
+
+  &--danger &__icon {
+    background: $danger-soft;
+    color: $danger;
+  }
+}

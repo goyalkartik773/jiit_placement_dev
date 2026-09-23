@@ -1,0 +1,26 @@
+@use '../../../styles/variables' as *;
+
+.loader {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+
+  &--sm {
+    width: 13px;
+    height: 13px;
+  }
+
+  &--md {
+    width: 16px;
+    height: 16px;
+  }
+
+  &--lg {
+    width: 22px;
+    height: 22px;
+  }
+}

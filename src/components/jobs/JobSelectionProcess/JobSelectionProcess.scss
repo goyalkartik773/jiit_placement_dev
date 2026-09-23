@@ -1,0 +1,110 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.pipeline {
+  position: relative;
+  @include stack($space-5); // spec space-y-5
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // Gradient rail joining the markers (spec emerald → blue → slate)
+  &::before {
+    content: '';
+    position: absolute;
+    top: 14px; // first marker center (28px circle)
+    bottom: 14px;
+    left: 13px; // rail 2px under a 28px marker → center at 14
+    width: 2px;
+    background: linear-gradient(to bottom, $success, $primary, $border-strong);
+  }
+
+  &__step {
+    position: relative;
+    display: flex;
+    gap: $space-4;
+    padding-left: 44px; // 28px marker + 16px gap
+  }
+
+  // Numbered circle — tone follows the stage's real status
+  &__marker {
+    @include flex-center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    border: 2px solid $surface;
+    border-radius: 50%;
+    background: $primary;
+    color: $surface;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    box-shadow: $shadow-sm;
+    z-index: 1;
+
+    &--success {
+      background: $success-strong;
+    }
+
+    &--neutral {
+      background: $surface;
+      border-color: $border-strong;
+      color: $text-secondary;
+    }
+
+    &--warning {
+      background: $warning;
+    }
+
+    &--danger {
+      background: $danger-strong;
+    }
+
+    &--info {
+      background: $info;
+    }
+  }
+
+  &__card {
+    flex: 1;
+    min-width: 0;
+    padding: $space-4;
+    background: $surface-subtle;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+    transition: border-color $transition-fast;
+
+    &:hover {
+      border-color: $border-strong;
+    }
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2 $space-3;
+  }
+
+  &__name {
+    font-size: $fs-sm;
+    font-weight: $fw-bold;
+    color: $ink;
+    overflow-wrap: anywhere;
+  }
+
+  &__more {
+    margin-top: $space-4;
+
+    &.is-open svg {
+      transform: rotate(180deg);
+    }
+
+    svg {
+      transition: transform $transition-base;
+    }
+  }
+}

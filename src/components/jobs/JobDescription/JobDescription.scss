@@ -1,0 +1,211 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Description prose — clear reading typography for backend HTML: comfortable
+// rhythm, styled headings/lists/quotes, striped hoverable tables with
+// horizontal scroll, and the yellow money-term highlight marker.
+// ============================================================================
+.job-description__prose {
+  color: $text;
+  font-size: $fs-base;
+  line-height: $lh-relaxed;
+  overflow-wrap: anywhere;
+
+  > * + * {
+    margin-top: $space-4; // paragraph rhythm
+  }
+
+  p {
+    margin: 0;
+  }
+
+  // ----- Headings (Plus Jakarta via the global rules) -----
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-top: $space-6;
+    color: $ink;
+    line-height: $lh-snug;
+    letter-spacing: $tracking-tight;
+
+    + * {
+      margin-top: $space-2;
+    }
+  }
+
+  > h1:first-child,
+  > h2:first-child,
+  > h3:first-child,
+  > h4:first-child {
+    margin-top: 0;
+  }
+
+  h1 {
+    font-size: $fs-xl;
+  }
+  h2 {
+    font-size: $fs-lg;
+  }
+  h3 {
+    font-size: $fs-md;
+  }
+  h4,
+  h5,
+  h6 {
+    font-size: $fs-base;
+  }
+
+  // ----- Lists -----
+  ul,
+  ol {
+    padding-left: $space-5;
+    @include stack($space-2);
+    list-style-position: outside;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  li {
+    margin: 0;
+    color: $text-secondary;
+  }
+
+  li::marker {
+    color: $primary;
+    font-weight: $fw-semibold;
+  }
+
+  // ----- Emphasis / links -----
+  strong,
+  b {
+    color: $ink;
+    font-weight: $fw-semibold;
+  }
+
+  a {
+    color: $primary;
+    font-weight: $fw-medium;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba($primary, 0.4);
+    transition: color $transition-fast, text-decoration-color $transition-fast;
+
+    &:hover {
+      color: $primary-hover;
+      text-decoration-color: currentColor;
+    }
+  }
+
+  // ----- Money-term highlight (spec: yellow marker) -----
+  mark {
+    padding: 1px $space-1;
+    background: $highlight;
+    color: $ink;
+    border-radius: $radius-xs;
+    font-weight: $fw-semibold;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+  }
+
+  blockquote {
+    padding: $space-3 $space-4;
+    border-left: 3px solid $primary;
+    background: $primary-soft;
+    border-radius: 0 $radius-md $radius-md 0;
+    color: $text-secondary;
+    font-style: normal;
+  }
+
+  // ----- Tables: card-like, striped, hover rows, horizontal scroll -----
+  table {
+    display: block;
+    width: 100%;
+    border: 1px solid $border;
+    border-collapse: collapse;
+    border-radius: $radius-md;
+    font-size: $fs-sm;
+    overflow-x: auto;
+  }
+
+  thead {
+    background: $surface-muted;
+  }
+
+  th,
+  td {
+    padding: $space-2-5 $space-3;
+    border-bottom: 1px solid $border;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    color: $ink;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    white-space: nowrap;
+  }
+
+  td {
+    color: $text-secondary;
+  }
+
+  tbody {
+    tr:nth-child(even) {
+      background: $surface-subtle;
+    }
+
+    tr {
+      transition: background $transition-fast;
+
+      &:hover {
+        background: $primary-soft;
+      }
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid $border;
+    margin: $space-5 0;
+  }
+
+  code {
+    padding: 1px 5px;
+    background: $surface-muted;
+    border-radius: $radius-xs;
+  }
+
+  pre {
+    padding: $space-3 $space-4;
+    background: $surface-muted;
+    border-radius: $radius-md;
+    overflow-x: auto;
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+}

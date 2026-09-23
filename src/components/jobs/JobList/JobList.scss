@@ -1,0 +1,32 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.job-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: $space-5;
+  transition: opacity $transition-base;
+
+  &.is-refreshing {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+}
+
+// Skeleton variant shares the grid + card geometry
+.job-card--skeleton {
+  pointer-events: none;
+
+  // The excerpt placeholder stacks three bars instead of clamping text
+  .job-card__excerpt {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+  }
+}
+
+@include down('sm') {
+  .job-list {
+    grid-template-columns: 1fr;
+  }
+}

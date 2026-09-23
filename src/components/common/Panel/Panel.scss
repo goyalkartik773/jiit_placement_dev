@@ -1,0 +1,87 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.panel {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $space-6;
+
+  // Spec: main sections p-6 → p-8 (24 → 32) at ≥640px
+  &--lg {
+    @include up('md') {
+      padding: $space-7;
+    }
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+    margin-bottom: $space-5;
+    padding-bottom: $space-3;
+    border-bottom: 1px solid $surface-muted; // spec border-slate-100
+  }
+
+  &__head-main {
+    display: flex;
+    align-items: center;
+    gap: $space-2-5;
+    min-width: 0;
+  }
+
+  &__icon {
+    @include flex-center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: $radius-md;
+    background: $primary-soft;
+    color: $primary;
+  }
+
+  &__title {
+    min-width: 0;
+    font-size: $fs-lg;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-tight;
+    color: $ink;
+  }
+
+  &--sm &__title {
+    font-size: $fs-md;
+  }
+
+  // Mono caption chip (stage count, batch-style labels)
+  &__meta {
+    flex-shrink: 0;
+    padding: $space-1 $space-2;
+    border: 1px solid $border;
+    border-radius: $radius-sm;
+    background: $surface-muted;
+    color: $text-secondary;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-medium;
+    white-space: nowrap;
+  }
+
+  // Count circle (documents)
+  &__count {
+    @include flex-center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: $primary-soft-hover;
+    color: $primary;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+  }
+
+  &__body {
+    @include stack($space-5);
+  }
+}

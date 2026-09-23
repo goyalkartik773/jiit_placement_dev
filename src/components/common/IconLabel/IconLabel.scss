@@ -1,0 +1,38 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1-5; // spec icon mr-1.5
+  min-width: 0;
+  font-size: $fs-sm;
+  color: $text-secondary;
+
+  > svg {
+    flex-shrink: 0;
+    color: $text-muted;
+  }
+
+  &__text {
+    @include truncate;
+  }
+
+  &--strong {
+    color: $ink;
+    font-weight: $fw-semibold;
+
+    > svg {
+      color: $primary;
+    }
+  }
+
+  &--danger {
+    color: $danger;
+    font-weight: $fw-semibold;
+
+    > svg {
+      color: $danger-strong; // spec red-500 icon on red-600 text
+    }
+  }
+}

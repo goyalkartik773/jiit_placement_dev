@@ -1,0 +1,36 @@
+@use '../../../styles/variables' as *;
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1;
+  max-width: 100%;
+  padding: $space-1 $space-2-5;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: $surface-subtle;
+  color: $text-secondary;
+  font-size: $fs-xs;
+  font-weight: $fw-medium;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  // Placement category / skills — spec purple pair
+  &--accent {
+    background: $accent-soft;
+    border-color: $accent-border;
+    color: $accent;
+  }
+
+  &--muted {
+    background: $surface-muted;
+    border-color: $border;
+    color: $text-secondary;
+  }
+}

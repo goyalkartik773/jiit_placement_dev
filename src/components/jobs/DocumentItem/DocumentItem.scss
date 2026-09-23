@@ -1,0 +1,137 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Document row — two-line layout that fits the sidebar: file tile + name/meta
+// on top, status badge + View/Download actions on a dashed footer line.
+// ============================================================================
+.doc-item {
+  @include stack($space-3);
+  padding: $space-3;
+  background: $surface-subtle;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &:hover {
+    border-color: $primary-border-strong;
+    box-shadow: $shadow-sm;
+  }
+
+  // ----- Row: file tile + name/meta -----
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    min-width: 0;
+  }
+
+  &__icon {
+    @include flex-center;
+    flex-direction: column;
+    gap: 1px;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: $file-generic-bg;
+    color: $file-generic-fg;
+    border-radius: $radius-md;
+
+    &--pdf {
+      background: $file-pdf-bg;
+      color: $file-pdf-fg;
+    }
+
+    &--sheet {
+      background: $file-sheet-bg;
+      color: $file-sheet-fg;
+    }
+
+    &--doc {
+      background: $file-doc-bg;
+      color: $file-doc-fg;
+    }
+
+    &--image {
+      background: $file-image-bg;
+      color: $file-image-fg;
+    }
+
+    &--archive {
+      background: $file-archive-bg;
+      color: $file-archive-fg;
+    }
+  }
+
+  &__type {
+    font-size: 9px;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-caps;
+    text-transform: uppercase;
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    @include stack($space-1);
+  }
+
+  &__name {
+    color: $ink;
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+    line-height: $lh-tight;
+    @include truncate;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: $space-2;
+    min-width: 0;
+    color: $text-muted;
+    font-size: $fs-2xs;
+    overflow: hidden;
+
+    > span {
+      min-width: 0;
+      @include truncate;
+    }
+
+    > span + span::before {
+      content: '·';
+      margin-right: $space-2;
+      color: $border-strong;
+    }
+  }
+
+  // ----- Footer: status badge + actions -----
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-2;
+    padding-top: $space-3;
+    border-top: 1px dashed $border;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $space-2;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
+@include down('sm') {
+  .doc-item__actions {
+    width: 100%;
+    margin-left: 0;
+
+    .btn {
+      flex: 1;
+    }
+  }
+}

@@ -1,0 +1,78 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.toast-region {
+  position: fixed;
+  right: $space-5;
+  bottom: $space-5;
+  z-index: $z-toast;
+  @include stack($space-2);
+  max-width: min(420px, calc(100vw - #{$space-5} * 2));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  padding: $space-3 $space-4;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  box-shadow: $shadow-lg;
+  font-size: $fs-base;
+  animation: toast-in $transition-base;
+
+  > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  &--error {
+    border-color: $danger-border;
+
+    > svg {
+      color: $danger;
+    }
+  }
+
+  &--success {
+    border-color: $success-border;
+
+    > svg {
+      color: $success;
+    }
+  }
+
+  &--info > svg {
+    color: $info;
+  }
+
+  &__message {
+    flex: 1;
+    color: $text;
+  }
+
+  &__close {
+    @include flex-center;
+    padding: $space-1;
+    border: 0;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $text-muted;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: $surface-muted;
+      color: $ink;
+    }
+  }
+}
+
+@include down('sm') {
+  .toast-region {
+    right: $space-3;
+    left: $space-3;
+    bottom: $space-3;
+    max-width: none;
+  }
+}

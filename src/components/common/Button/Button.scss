@@ -1,0 +1,78 @@
+@use '../../../styles/variables' as *;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  font-size: $fs-base;
+  font-weight: $fw-semibold;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background $transition-fast, border-color $transition-fast, color $transition-fast,
+    box-shadow $transition-fast;
+
+  &:hover {
+    text-decoration: none;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+  }
+
+  // ----- Variants -----
+  &--primary {
+    background: $primary;
+    border-color: $primary;
+    color: $surface;
+    box-shadow: $shadow-xs;
+
+    &:hover:not(:disabled) {
+      background: $primary-hover;
+      border-color: $primary-hover;
+      color: $surface;
+    }
+
+    &:active:not(:disabled) {
+      background: $primary-active;
+    }
+  }
+
+  &--soft {
+    background: $primary-soft;
+    border-color: $primary-border;
+    color: $primary;
+
+    &:hover:not(:disabled) {
+      background: $primary-soft-hover;
+      color: $primary-active;
+    }
+  }
+
+  &--ghost {
+    background: $surface;
+    border-color: $border-strong;
+    color: $text-secondary;
+
+    &:hover:not(:disabled) {
+      background: $surface-muted;
+      color: $ink;
+    }
+  }
+
+  // ----- Sizes -----
+  &--md {
+    padding: 9px 16px;
+    font-size: $fs-base;
+  }
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: $fs-sm;
+    border-radius: $radius-sm;
+  }
+}

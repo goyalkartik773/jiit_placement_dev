@@ -1,0 +1,55 @@
+@use '../../../styles/variables' as *;
+
+.criteria-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1;
+  max-width: 100%;
+  padding: $space-1 $space-2-5;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  font-size: $fs-xs;
+  font-weight: $fw-medium;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  white-space: nowrap;
+
+  &__level {
+    letter-spacing: 0.01em;
+  }
+
+  &__sep {
+    opacity: 0.55;
+  }
+
+  &__hint {
+    font-size: $fs-2xs;
+    font-weight: $fw-medium;
+    opacity: 0.8;
+  }
+
+  // ----- Fixed strictness palette -----
+  &--relaxed {
+    background: $criteria-relaxed-bg;
+    border-color: $criteria-relaxed-border;
+    color: $criteria-relaxed-fg;
+  }
+
+  &--moderate {
+    background: $criteria-moderate-bg;
+    border-color: $criteria-moderate-border;
+    color: $criteria-moderate-fg;
+  }
+
+  &--strict {
+    background: $criteria-strict-bg;
+    border-color: $criteria-strict-border;
+    color: $criteria-strict-fg;
+  }
+
+  &--unknown {
+    background: $surface-muted;
+    border-color: $border;
+    color: $text-secondary;
+  }
+}

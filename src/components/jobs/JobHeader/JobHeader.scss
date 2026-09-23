@@ -1,0 +1,357 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.job-header {
+  @include stack($space-6);
+
+  // ----- Breadcrumb bar: back + badges -----
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3 $space-4;
+  }
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    color: $text-secondary;
+    font-size: $fs-xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    text-decoration: none;
+
+    svg {
+      color: $text-muted;
+      transition: transform $transition-base;
+    }
+
+    &:hover {
+      color: $primary;
+      text-decoration: none;
+
+      svg {
+        color: $primary;
+        transform: translateX(-2px); // spec group-hover:-translate-x-0.5 (mirrored)
+      }
+    }
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2-5; // spec gap-2.5
+  }
+
+  &__posted {
+    font-size: $fs-xs;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  &__posted-rel {
+    font-weight: $fw-regular;
+    color: $text-faint;
+  }
+
+  // ----- Hero surface with ambient blobs -----
+  &__hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: $space-6;
+    padding: $space-6;
+    background: $surface;
+    border: 1px solid rgba($border, 0.9); // spec border-slate-200/90
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+
+    @include up('md') {
+      padding: $space-7;
+    }
+
+    @include up('xl') {
+      flex-direction: row;
+      gap: $space-7;
+      padding: $space-8;
+    }
+
+    // Decorative gradient orbs (spec -z-0 blurred circles)
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    &::before {
+      top: -96px; // spec -top-24
+      right: -96px; // spec -right-24
+      width: 384px; // spec w-96
+      height: 384px; // spec h-96
+      background: linear-gradient(to bottom right, rgba($primary-soft-hover, 0.6), rgba($primary-soft, 0.4), transparent);
+      filter: blur(64px); // spec blur-3xl
+    }
+
+    &::after {
+      bottom: -80px; // spec -bottom-20
+      left: -80px; // spec -left-20
+      width: 320px; // spec w-80
+      height: 320px; // spec h-80
+      background: rgba($primary-soft, 0.5); // spec bg-blue-50/50
+      filter: blur(48px); // spec blur-2xl
+    }
+  }
+
+  &__main {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: $space-5;
+    flex: 1;
+    min-width: 0;
+  }
+
+  // ----- Chips row -----
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-1 $space-2-5;
+    border: 1px solid $border;
+    border-radius: $radius-pill;
+    background: $surface-muted;
+    color: $text-secondary;
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    white-space: nowrap;
+
+    svg {
+      color: $text-muted;
+    }
+
+    &--code {
+      background: $primary-soft;
+      border-color: $primary-border;
+      color: $primary;
+
+      svg {
+        color: $primary;
+      }
+    }
+
+    &--success {
+      background: $success-soft;
+      border-color: $success-border;
+      color: $success;
+    }
+
+    &--neutral {
+      background: $surface-muted;
+      border-color: $border;
+      color: $text-secondary;
+    }
+
+    &--danger {
+      background: $danger-soft;
+      border-color: $danger-border;
+      color: $danger;
+    }
+  }
+
+  &__chip-dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: $success-strong;
+    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
+
+  // ----- Identity: gradient tile + company + location -----
+  &__identity {
+    display: flex;
+    align-items: center;
+    gap: $space-5; // spec gap-5
+  }
+
+  &__identity-text {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    min-width: 0;
+  }
+
+  &__company {
+    font-size: $fs-2xl;
+    font-weight: $fw-bold;
+    line-height: $lh-tight;
+    color: $primary; // blue company accent — static, no hover shift
+
+    @include up('md') {
+      font-size: $fs-3xl; // spec lg:text-4xl
+    }
+  }
+
+  &__location {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    min-width: 0;
+    font-size: $fs-xs;
+    font-weight: $fw-medium;
+    color: $text-soft;
+
+    svg {
+      flex-shrink: 0;
+      color: $primary;
+    }
+
+    @include up('md') {
+      font-size: $fs-sm;
+    }
+  }
+
+  // ----- Target role block -----
+  &__role {
+    @include stack($space-2);
+    padding-top: $space-4; // spec pt-4
+    border-top: 1px solid $surface-muted; // spec border-slate-100
+  }
+
+  &__role-label {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+  }
+
+  &__role-sep {
+    color: $border-strong;
+  }
+
+  &__role-type {
+    font-family: $font-sans;
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    text-transform: none;
+    letter-spacing: 0;
+    color: $primary;
+  }
+
+  &__profile {
+    font-size: $fs-xl;
+    font-weight: $fw-bold;
+    line-height: $lh-tight;
+
+    @include up('md') {
+      font-size: $fs-2xl; // spec lg:text-3xl
+    }
+  }
+
+  &__summary {
+    max-width: 42rem; // spec max-w-2xl
+    font-size: $fs-xs;
+    line-height: $lh-relaxed;
+    color: $text-soft;
+
+    @include up('md') {
+      font-size: $fs-sm;
+    }
+  }
+
+  // ----- Aside: deadline panel + documents CTA -----
+  &__aside {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+    flex-shrink: 0;
+
+    @include up('xl') {
+      align-self: stretch;
+      justify-content: center;
+      width: $sidebar-rail; // spec w-72 column
+      padding-left: $space-6;
+      border-left: 1px solid $surface-muted; // spec lg:border-l slate-100
+    }
+  }
+
+  &__deadline {
+    @include stack($space-1);
+    padding: $space-3-5 $space-4; // spec p-3.5
+    background: $surface-subtle;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+
+    &--passed {
+      background: $rose-soft;
+      border-color: $rose-border;
+
+      .job-header__deadline-label {
+        color: $rose-strong;
+      }
+
+      .job-header__deadline-value,
+      .job-header__deadline-sub {
+        color: $rose;
+      }
+    }
+  }
+
+  &__deadline-label {
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+  }
+
+  &__deadline-value {
+    font-family: $font-headline;
+    font-size: $fs-lg;
+    font-weight: $fw-bold;
+    color: $ink;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__deadline-sub {
+    font-size: $fs-xs;
+    font-weight: $fw-medium;
+    color: $text-soft;
+  }
+
+  &__docs-btn {
+    width: 100%;
+  }
+}
+
+// ----- Responsive -----
+@include down('sm') {
+  .job-header__hero {
+    padding: $space-5 $space-4;
+  }
+
+  .job-header__posted {
+    display: none; // least-critical badge on narrow screens
+  }
+}

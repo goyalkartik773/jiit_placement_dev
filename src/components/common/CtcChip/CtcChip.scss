@@ -1,0 +1,79 @@
+@use '../../../styles/variables' as *;
+
+.ctc-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: $space-2;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: $radius-pill;
+  font-weight: $fw-bold;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &__amount {
+    letter-spacing: $tracking-tight;
+  }
+
+  // Tier word (details contexts) — small caps, secondary weight
+  &__tier {
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    opacity: 0.85;
+  }
+
+  // ----- Sizes -----
+  &--sm {
+    font-size: $fs-sm;
+  }
+
+  &--md {
+    font-size: $fs-base;
+    padding: 5px 13px;
+  }
+
+  // ----- Fixed tier palette -----
+  &--entry {
+    background: $tier-entry-bg;
+    border-color: $tier-entry-border;
+    color: $tier-entry-fg;
+  }
+
+  &--standard {
+    background: $tier-standard-bg;
+    border-color: $tier-standard-border;
+    color: $tier-standard-fg;
+  }
+
+  &--advanced {
+    background: $tier-advanced-bg;
+    border-color: $tier-advanced-border;
+    color: $tier-advanced-fg;
+  }
+
+  &--high {
+    background: $tier-high-bg;
+    border-color: $tier-high-border;
+    color: $tier-high-fg;
+  }
+
+  &--premium {
+    background: $tier-premium-bg;
+    border-color: $tier-premium-border;
+    color: $tier-premium-fg;
+  }
+
+  &--undisclosed {
+    background: $tier-undisclosed-bg;
+    border-color: $tier-undisclosed-border;
+    color: $tier-undisclosed-fg;
+    font-weight: $fw-medium;
+    font-style: italic;
+  }
+}

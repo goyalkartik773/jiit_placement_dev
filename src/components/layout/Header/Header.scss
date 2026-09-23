@@ -1,0 +1,121 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: $z-header;
+  height: $header-height;
+  background: rgba($surface, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba($border, 0.8);
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-4;
+    max-width: $content-max;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 $space-6;
+  }
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: $space-2; // brand ↔ slash ↔ context (spec space-x-2)
+    min-width: 0;
+  }
+
+  &__sep {
+    flex-shrink: 0;
+    font-size: $fs-xs;
+    color: $text-faint;
+  }
+
+  &__context {
+    min-width: 0;
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    color: $text-muted;
+    text-decoration: none;
+    @include truncate;
+
+    &:hover {
+      color: $ink;
+      text-decoration: none;
+    }
+  }
+}
+
+// ---------- Brand: dot mark + mono wordmark (spec) ----------
+.brand {
+  display: flex;
+  align-items: center;
+  gap: $space-3; // mark ↔ text (spec space-x-3)
+  flex-shrink: 0;
+  color: $ink;
+  text-decoration: none;
+
+  &:hover {
+    color: $ink;
+    text-decoration: none;
+  }
+
+  &__mark {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: $primary;
+    box-shadow: 0 0 0 $space-1 $primary-soft; // ring-4 blue-50
+  }
+
+  &__name {
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    font-weight: $fw-semibold;
+    letter-spacing: $tracking-caps;
+    text-transform: uppercase;
+    color: $ink;
+    white-space: nowrap;
+  }
+}
+
+// ---------- API status pill (spec trailing pill) ----------
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1-5;
+  flex-shrink: 0;
+  padding: $space-0-5 $space-2-5;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: $surface;
+  box-shadow: $shadow-xs;
+  font-family: $font-mono;
+  font-size: $fs-xs;
+  color: $text-muted;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: $success-strong;
+  }
+}
+
+// ---------- Responsive ----------
+@include down('md') {
+  .app-header__inner {
+    gap: $space-3;
+    padding: 0 $space-4;
+  }
+
+  .api-status {
+    display: none; // spec hides the trailing pill below 640px
+  }
+}

@@ -1,0 +1,57 @@
+@use '../../../styles/variables' as *;
+
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, $skeleton-base 25%, $skeleton-highlight 37%, $skeleton-base 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+
+  &--pill {
+    border-radius: $radius-pill;
+  }
+
+  &--circle {
+    border-radius: 50%;
+  }
+
+  &--rect {
+    border-radius: $radius-sm;
+  }
+
+  // Width scale (proportion of the parent)
+  &--w-xs {
+    width: 25%;
+  }
+  &--w-sm {
+    width: 40%;
+  }
+  &--w-md {
+    width: 55%;
+  }
+  &--w-lg {
+    width: 70%;
+  }
+  &--w-xl {
+    width: 85%;
+  }
+  &--w-full {
+    width: 100%;
+  }
+
+  // Height scale
+  &--h-xs {
+    height: 11px;
+  }
+  &--h-sm {
+    height: 14px;
+  }
+  &--h-md {
+    height: 17px;
+  }
+  &--h-lg {
+    height: 23px;
+  }
+  &--h-xl {
+    height: 32px;
+  }
+}
