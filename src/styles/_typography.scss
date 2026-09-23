@@ -1,0 +1,71 @@
+// ============================================================================
+// Typography system — one family, one hierarchy, everywhere.
+// ============================================================================
+@use 'variables' as *;
+@use 'mixins' as *;
+
+body {
+  font-family: $font-sans;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: $ink;
+  font-family: $font-headline;
+  font-weight: $fw-semibold;
+  line-height: $lh-tight;
+  letter-spacing: $tracking-tight;
+}
+
+h1 {
+  font-size: $fs-2xl;
+}
+
+h2 {
+  font-size: $fs-xl;
+}
+
+h3 {
+  font-size: $fs-lg;
+}
+
+strong,
+b {
+  font-weight: $fw-semibold;
+  color: $ink;
+}
+
+code,
+pre,
+.mono {
+  font-family: $font-mono;
+  font-size: 0.92em;
+}
+
+a {
+  color: $primary;
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $primary-hover;
+  }
+}
+
+small {
+  font-size: $fs-sm;
+}
+
+::selection {
+  background: $primary;
+  color: $surface;
+}
+
+:focus-visible {
+  @include focus-ring;
+  border-radius: $radius-sm;
+}

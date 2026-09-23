@@ -1,0 +1,36 @@
+// ============================================================================
+// Shared utilities (kept deliberately small)
+// ============================================================================
+@use 'mixins' as *;
+@use 'variables' as *;
+
+.sr-only {
+  @include visually-hidden;
+}
+
+// Skip-to-content link, visible only on keyboard focus
+.skip-link {
+  position: absolute;
+  top: $space-2;
+  left: $space-2;
+  z-index: $z-toast;
+  padding: $space-2 $space-4;
+  border-radius: $radius-sm;
+  background: $ink;
+  color: $surface;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  transform: translateY(-200%);
+  transition: transform $transition-fast;
+
+  &:focus {
+    transform: translateY(0);
+    color: $surface;
+  }
+}
+
+// Muted helper line used across detail sections
+.muted-note {
+  font-size: $fs-sm;
+  color: $text-muted;
+}

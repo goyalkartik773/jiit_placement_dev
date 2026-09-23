@@ -1,0 +1,84 @@
+// ============================================================================
+// Global reset
+// ============================================================================
+@use 'variables' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  font-family: $font-sans;
+  font-size: $fs-base;
+  line-height: $lh-normal;
+  color: $text;
+  // Spec canvas: slate-50 with a micro dot grid (24px cells)
+  background-color: $app-bg;
+  background-image: radial-gradient($app-dot $app-dot-size, transparent $app-dot-size);
+  background-size: $app-dot-step $app-dot-step;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+
+ul,
+ol {
+  padding: 0;
+}
+
+#root {
+  isolation: isolate;
+}
+
+// Native search input decoration (a custom clear button is provided)
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}

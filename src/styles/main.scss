@@ -1,0 +1,8 @@
+// ============================================================================
+// Global entry stylesheet — imported once from main.tsx.
+// Component styles live next to their components (Component.scss).
+// ============================================================================
+@use 'reset';
+@use 'typography';
+@use 'utilities';
+@use 'animations';

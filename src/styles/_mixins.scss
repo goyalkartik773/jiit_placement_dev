@@ -1,0 +1,87 @@
+// ============================================================================
+// Reusable mixins — only for genuinely repeated patterns.
+// ============================================================================
+@use 'sass:map';
+@use 'variables' as *;
+
+/// Min-width responsive helper: @include up('md') { ... }
+@mixin up($name) {
+  @media (min-width: map.get($breakpoints, $name)) {
+    @content;
+  }
+}
+
+/// Max-width responsive helper: @include down('md') { ... }
+@mixin down($name) {
+  $max: map.get($breakpoints, $name) - 1px;
+  @media (max-width: $max) {
+    @content;
+  }
+}
+
+/// Vertical stack with consistent gap
+@mixin stack($gap: $space-4) {
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+/// Centered flex
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/// Base card surface (white, subtle border, controlled radius)
+@mixin card($padding: $space-5, $radius: $radius-lg) {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: $padding;
+  box-shadow: $shadow-xs;
+}
+
+/// Uppercase caption label (overview keys, stat labels…)
+@mixin field-label {
+  font-size: $fs-2xs;
+  font-weight: $fw-bold;
+  text-transform: uppercase;
+  letter-spacing: $tracking-caps;
+  color: $text-muted;
+}
+
+/// One-line ellipsis
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/// Multi-line clamp
+@mixin line-clamp($lines: 3) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/// Consistent keyboard focus ring
+@mixin focus-ring($offset: 2px) {
+  outline: 2px solid $primary;
+  outline-offset: $offset;
+}
+
+/// Visually hidden but available to screen readers
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
