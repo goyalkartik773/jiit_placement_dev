@@ -1,0 +1,67 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.jobs-page {
+  @include stack($space-6);
+}
+
+// ----- Page heading -----
+.page-head {
+  &__text {
+    @include stack($space-1);
+  }
+
+  &__eyebrow {
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $primary;
+  }
+
+  &__title {
+    font-size: $fs-3xl;
+    line-height: $lh-tight;
+  }
+
+  &__count {
+    font-size: $fs-sm;
+    color: $text-secondary;
+  }
+
+  &__refreshing {
+    font-weight: $fw-semibold;
+    color: $primary;
+  }
+}
+
+// ----- Inline refresh-failure banner -----
+.jobs-page__banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3 $space-4;
+  background: $warning-soft;
+  border: 1px solid $warning-border;
+  border-radius: $radius-md;
+  font-size: $fs-sm;
+  color: $warning;
+
+  > span {
+    flex: 1;
+    min-width: 240px;
+  }
+
+  // The dimmed list sits below the banner with its own gap
+  .job-list {
+    flex-basis: 100%;
+    margin-top: $space-3;
+  }
+}
+
+@include down('sm') {
+  .page-head__title {
+    font-size: $fs-2xl;
+  }
+}

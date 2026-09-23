@@ -1,0 +1,126 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.page--detail {
+  @include stack($space-6);
+}
+
+// ----- Spec split: main (8/12) + sidebar (4/12), stacked below 1080px -----
+.detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $space-6;
+
+  &__main {
+    @include stack($space-6);
+    min-width: 0;
+  }
+
+  &__side {
+    @include stack($space-6);
+    min-width: 0;
+  }
+
+  @include up('xl') {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: $space-7; // spec gap-8
+    align-items: start;
+
+    &__main {
+      grid-column: span 8;
+    }
+
+    &__side {
+      grid-column: span 4;
+    }
+  }
+}
+
+// ----- Skeleton: mirrors bar + hero + bento + split -----
+.detail-skeleton {
+  @include stack($space-6);
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-4;
+  }
+
+  &__hero {
+    @include stack($space-4);
+    padding: $space-6;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+
+    @include up('md') {
+      padding: $space-7;
+    }
+  }
+
+  &__identity {
+    display: flex;
+    align-items: center;
+    gap: $space-5;
+  }
+
+  &__identity-lines {
+    @include stack($space-2);
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__metrics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-4;
+
+    @include up('md') {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @include up('xl') {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  &__metric {
+    @include stack($space-3);
+    padding: $space-5;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+  }
+
+  &__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-6;
+
+    @include up('xl') {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: $space-7;
+    }
+  }
+
+  &__card {
+    @include stack($space-4);
+    padding: $space-6;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+
+    @include up('xl') {
+      &:first-child {
+        grid-column: span 8;
+      }
+
+      &:last-child {
+        grid-column: span 4;
+      }
+    }
+  }
+}

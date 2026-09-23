@@ -1,0 +1,7 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.not-found {
+  @include flex-center;
+  min-height: 50vh;
+}
