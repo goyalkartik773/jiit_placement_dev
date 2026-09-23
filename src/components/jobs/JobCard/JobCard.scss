@@ -6,7 +6,7 @@
 // company hero, inset package bar (tier-colored value), location/deadline on
 // one line, criteria chips, excerpt shell, dashed divider + footer.
 // Status pill + category chip share the top line (chip truncates with a
-// native tooltip); company name is pink with a blue hover.
+// native tooltip); company name is blue (static, no hover color change).
 // ============================================================================
 .job-card {
   position: relative;
@@ -17,7 +17,7 @@
     padding: $card-pad-md; // spec p-7 ≥640px
   }
 
-  background: $baby-pink; // light baby-pink card surface
+  background: $surface; // white card surface — aligned with the theme
   border: 1px solid $border;
   border-radius: $radius-lg;
   box-shadow: $shadow-card;
@@ -46,13 +46,17 @@
     align-items: center;
     gap: $space-2;
     min-width: 0;
+    overflow: hidden; // hard clip at the row edge
 
     .badge {
       flex-shrink: 0;
     }
 
     .chip {
-      min-width: 0; // oversized category text truncates with a tooltip
+      // block box so text-overflow can produce a real ellipsis inside flex
+      display: block;
+      min-width: 0;
+      max-width: 100%;
     }
   }
 
@@ -252,7 +256,6 @@
 
   // ----- 07 · description excerpt in a dot-grid shell -----
   &__excerpt {
-    display: -webkit-box;
     padding: $space-3;
     margin: 0 0 $space-4;
     background-color: $surface-subtle;
@@ -263,9 +266,8 @@
     color: $text-soft;
     font-size: $fs-sm;
     line-height: $lh-relaxed;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    @include line-clamp(3); // clean 3-line clip with an ellipsis…
+    max-height: calc(3 * #{$fs-sm} * #{$lh-relaxed}); // …even if clamp is unsupported
 
     &--muted {
       background-image: none;

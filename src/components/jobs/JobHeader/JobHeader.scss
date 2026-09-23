@@ -130,6 +130,9 @@
     display: inline-flex;
     align-items: center;
     gap: $space-1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     padding: $space-1 $space-2-5;
     border: 1px solid $border;
     border-radius: $radius-pill;
@@ -170,6 +173,11 @@
       border-color: $danger-border;
       color: $danger;
     }
+  }
+
+  // Long category text truncates with a native tooltip
+  &__chip-text {
+    @include truncate;
   }
 
   &__chip-dot {

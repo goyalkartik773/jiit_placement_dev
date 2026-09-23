@@ -51,8 +51,9 @@
   color: $text-muted;
 }
 
-/// One-line ellipsis
+/// One-line ellipsis (min-width:0 so flex items may shrink)
 @mixin truncate {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

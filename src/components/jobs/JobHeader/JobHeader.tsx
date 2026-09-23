@@ -56,7 +56,7 @@ export function JobHeader({ job }: JobHeaderProps) {
           <div className="job-header__chips">
             {job.placementcategory ? (
               <span className="job-header__chip job-header__chip--neutral" title={job.placementcategory}>
-                {job.placementcategory}
+                <span className="job-header__chip-text">{job.placementcategory}</span>
               </span>
             ) : null}
             {job.placementcategorycode ? (
