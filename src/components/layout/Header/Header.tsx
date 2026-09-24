@@ -14,6 +14,7 @@ function apiHostLabel(): string {
 function contextLabel(pathname: string): string {
   if (pathname === '/') return 'Active Job Listing';
   if (pathname.startsWith('/jobs/')) return 'Job Details';
+  if (pathname === '/admin') return 'Admin Console';
   return 'Page Not Found';
 }
 
@@ -36,10 +37,20 @@ export function Header() {
           </Link>
         </div>
 
-        <span className="api-status" title={`Backend API base URL — ${API_BASE_URL}`}>
-          <span className="api-status__dot" aria-hidden="true" />
-          API {apiHostLabel()}
-        </span>
+        <div className="app-header__tools">
+          <Link
+            to="/admin"
+            className="app-header__admin"
+            aria-current={pathname === '/admin' ? 'page' : undefined}
+            title="Admin sync console"
+          >
+            Admin
+          </Link>
+          <span className="api-status" title={`Backend API base URL — ${API_BASE_URL}`}>
+            <span className="api-status__dot" aria-hidden="true" />
+            API {apiHostLabel()}
+          </span>
+        </div>
       </div>
     </header>
   );

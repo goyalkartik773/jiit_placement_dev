@@ -48,6 +48,41 @@
       text-decoration: none;
     }
   }
+
+  &__tools {
+    display: flex;
+    align-items: center;
+    gap: $space-4;
+    flex-shrink: 0;
+  }
+
+  &__admin {
+    padding: $space-1 $space-2;
+    border: 1px solid $border;
+    border-radius: $radius-sm;
+    background: $surface;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+    text-decoration: none;
+    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+
+    &:hover {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+      text-decoration: none;
+    }
+
+    &[aria-current='page'] {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+    }
+  }
 }
 
 // ---------- Brand: dot mark + mono wordmark (spec) ----------

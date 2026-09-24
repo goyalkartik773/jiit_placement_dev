@@ -23,9 +23,18 @@
     background: currentColor;
   }
 
+  // Live dots pulse for states that mean "in progress"
+  &--success &__dot,
+  &--info &__dot {
+    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
+
   &--success &__dot {
     background: $success-strong;
-    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
+
+  &--info &__dot {
+    background: $info;
   }
 
   &--success {

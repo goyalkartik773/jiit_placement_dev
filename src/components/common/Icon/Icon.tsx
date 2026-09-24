@@ -31,7 +31,8 @@ export type IconName =
   | 'book'
   | 'folder'
   | 'terminal'
-  | 'checklist';
+  | 'checklist'
+  | 'logout';
 
 const paths: Record<IconName, JSX.Element> = {
   search: (
@@ -175,6 +176,13 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="m3 7 2 2 4-4" />
       <path d="m3 17 2 2 4-4" />
       <path d="M13 6h8M13 12h8M13 18h8" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
     </>
   ),
 };

@@ -1,0 +1,21 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.admin-page {
+  @include stack($space-6);
+
+  // The shared page heading doubles as a toolbar row on this page
+  .page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: $space-4;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $space-2;
+    flex-shrink: 0;
+  }
+}

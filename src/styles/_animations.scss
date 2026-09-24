@@ -29,6 +29,16 @@
   }
 }
 
+// Indeterminate <progress> fill sliding across the track (admin sync panel)
+@keyframes progress-slide {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
 // Live-availability dot inside status badges
 @keyframes pulse-dot {
   0%,
