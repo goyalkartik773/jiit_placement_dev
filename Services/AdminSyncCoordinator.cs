@@ -154,13 +154,18 @@ namespace JIITPlacement.Services
             _logger.LogError("Sync {SyncId} failed: {Error}", syncId, error);
         }
 
+        public async Task<int?> GetTotalJobsAsync()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
+            return await CountJobsAsync(dataEntity);
+        }
+
         private async Task<int?> TryCountJobsAsync()
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
-                return await CountJobsAsync(dataEntity);
+                return await GetTotalJobsAsync();
             }
             catch (Exception ex)
             {

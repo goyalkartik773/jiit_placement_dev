@@ -16,5 +16,11 @@ namespace JIITPlacement.Services
 
         /// <summary>Current snapshot (status "idle" when never run).</summary>
         AdminSyncStatus GetStatus();
+
+        /// <summary>
+        /// Live job count straight from the jobs table (single source of truth).
+        /// Returns null when the count could not be determined; throws on DB errors.
+        /// </summary>
+        Task<int?> GetTotalJobsAsync();
     }
 }
