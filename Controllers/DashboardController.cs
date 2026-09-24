@@ -1,11 +1,13 @@
 using System.Data;
 using JIITPlacement.Models.App_Code;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JIITPlacement.Controllers
 {
     [ApiController]
     [Route("api")]
+    [Authorize] // aggregate stats are admin-only
     public class DashboardController : ControllerBase
     {
         private readonly DataEntity _dataEntity;

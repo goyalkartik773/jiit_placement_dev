@@ -1,6 +1,44 @@
 @JIITPlacement_HostAddress = http://localhost:5104
+@admin_token = paste_token_from_login_response_here
 
-GET {{JIITPlacement_HostAddress}}/weatherforecast/
+### Public job APIs (consumed by the frontend)
+GET {{JIITPlacement_HostAddress}}/api/jobs?page=1&pageSize=20
+Accept: application/json
+
+###
+GET {{JIITPlacement_HostAddress}}/api/jobs
+Accept: application/json
+
+### Admin login
+POST {{JIITPlacement_HostAddress}}/api/admin/login
+Content-Type: application/json
+
+{
+  "username": "admin@jiit",
+  "password": "YOUR_PASSWORD"
+}
+
+### Job count (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/jobs/count
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Start sync (authenticated; 409 when a sync is already running)
+POST {{JIITPlacement_HostAddress}}/api/admin/jobs/sync
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Sync status / final result (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/jobs/sync/status
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Logout — invalidates the token immediately (authenticated)
+POST {{JIITPlacement_HostAddress}}/api/admin/logout
+Authorization: Bearer {{admin_token}}
+
+### Unauthorized check — must return {"success":false,"message":"Unauthorized"}
+GET {{JIITPlacement_HostAddress}}/api/admin/jobs/count
 Accept: application/json
 
 ###

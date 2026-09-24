@@ -1,5 +1,4 @@
 using System.Data;
-using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
 using Microsoft.AspNetCore.Mvc;
 
@@ -46,38 +45,6 @@ namespace JIITPlacement.Controllers
                     response.Message = "No notices found";
                     response.Data = null;
                 }
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                response.status = false;
-                response.Message = "Error: " + ex.Message;
-                return StatusCode(500, response);
-            }
-        }
-
-        [HttpPost("notices")]
-        public ActionResult PostNotice([FromBody] Cls_Notice.NoticeRequest request)
-        {
-            Common.ReturnResponse response = new Common.ReturnResponse();
-            try
-            {
-                DataTable dt = _dataEntity.ExecuteDataTableFN(
-                    "fn_api_post_notice_v001",
-                    request.SysIdentifier,
-                    request.Title,
-                    request.Content,
-                    request.Author,
-                    request.CreatedAt,
-                    request.UpdatedAt,
-                    request.PostedBy
-                );
-
-                string result = dt.Rows[0][0].ToString();
-                var jsonResult = Common.ParseJson(result);
-                response.status = jsonResult.TryGetProperty("status", out var s) && s.GetString() == "SUCCESS";
-                response.Message = jsonResult.TryGetProperty("message", out var m) ? m.GetString() ?? result : result;
-                response.Data = jsonResult;
                 return Ok(response);
             }
             catch (Exception ex)

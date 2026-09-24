@@ -2,12 +2,15 @@ using System.Data;
 using JIITPlacement.Models;
 using JIITPlacement.Models.App_Code;
 using JIITPlacement.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JIITPlacement.Controllers
 {
     [ApiController]
     [Route("api")]
+    [Authorize] // every Gmail admin/placement API requires an admin session;
+                // only the two OAuth endpoints below are anonymous
     public class GmailController : ControllerBase
     {
         private readonly IGmailService _gmailService;
@@ -359,6 +362,7 @@ namespace JIITPlacement.Controllers
         /// After granting access, Google redirects to /api/gmail/auth/callback.
         /// </summary>
         [HttpGet("gmail/auth")]
+        [AllowAnonymous] // Google redirects the browser here without an admin token
         public ActionResult StartAuth()
         {
             try
@@ -378,6 +382,7 @@ namespace JIITPlacement.Controllers
         /// Exchanges the code for tokens and saves them.
         /// </summary>
         [HttpGet("gmail/auth/callback")]
+        [AllowAnonymous] // Google redirects the browser here without an admin token
         public async Task<ActionResult> AuthCallback(
             [FromQuery] string? code,
             [FromQuery] string? error)
