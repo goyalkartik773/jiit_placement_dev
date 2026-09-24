@@ -34,3 +34,40 @@
   font-size: $fs-sm;
   color: $text-muted;
 }
+
+// Shared page heading — eyebrow + title + supporting count line
+// (used by the jobs list and the admin console)
+.page-head {
+  &__text {
+    @include stack($space-1);
+  }
+
+  &__eyebrow {
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $primary;
+  }
+
+  &__title {
+    font-size: $fs-3xl;
+    line-height: $lh-tight;
+  }
+
+  &__count {
+    font-size: $fs-sm;
+    color: $text-secondary;
+  }
+
+  &__refreshing {
+    font-weight: $fw-semibold;
+    color: $primary;
+  }
+}
+
+@include down('sm') {
+  .page-head__title {
+    font-size: $fs-2xl;
+  }
+}
