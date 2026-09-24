@@ -57,18 +57,49 @@ function combineSignals(signal: AbortSignal | undefined, timeoutMs: number): { s
 }
 
 /**
- * Performs a GET and returns the parsed body.
- * Non-2xx responses and `status: false` envelopes are thrown as ApiError.
+ * Options accepted by every request helper.
+ * `token` is only sent by the admin endpoints (Authorization: Bearer).
  */
-export async function getJson<T>(path: string, options: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<T> {
-  const { signal, cleanup, timedOut } = combineSignals(options.signal, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+export interface RequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  token?: string | null;
+}
+
+/**
+ * Server-supplied failure message — the jobs envelope uses `Message`,
+ * the admin endpoints use `message`; both are honoured.
+ */
+function extractServerMessage(parsed: unknown): string {
+  if (parsed && typeof parsed === 'object') {
+    const candidate = parsed as { Message?: unknown; message?: unknown };
+    if (typeof candidate.Message === 'string' && candidate.Message) return candidate.Message;
+    if (typeof candidate.message === 'string' && candidate.message) return candidate.message;
+  }
+  return '';
+}
+
+interface RequestDetails extends RequestOptions {
+  method: 'GET' | 'POST';
+  body?: unknown;
+}
+
+/** Core request: fetch + timeout/abort handling + uniform ApiError normalization. */
+async function requestJson<T>(path: string, details: RequestDetails): Promise<T> {
+  const { signal, cleanup, timedOut } = combineSignals(details.signal, details.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const url = `${BASE_URL}${path}`;
+  const hasBody = details.body !== undefined && details.body !== null;
+
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (hasBody) headers['Content-Type'] = 'application/json';
+  if (details.token) headers['Authorization'] = `Bearer ${details.token}`;
 
   let res: Response;
   try {
     res = await fetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
+      method: details.method,
+      headers,
+      body: hasBody ? JSON.stringify(details.body) : undefined,
       signal,
     });
   } catch (error) {
@@ -99,11 +130,9 @@ export async function getJson<T>(path: string, options: { signal?: AbortSignal; 
   }
 
   if (!res.ok) {
-    const serverMessage =
-      parsed && typeof parsed === 'object' && 'Message' in parsed && typeof (parsed as ApiEnvelope<unknown>).Message === 'string'
-        ? (parsed as ApiEnvelope<unknown>).Message
-        : '';
-    throw new ApiError(serverMessage || `Request failed (${res.status} ${res.statusText}).`, { httpStatus: res.status });
+    throw new ApiError(extractServerMessage(parsed) || `Request failed (${res.status} ${res.statusText}).`, {
+      httpStatus: res.status,
+    });
   }
 
   if (parsed === null) {
@@ -119,6 +148,24 @@ export async function getJson<T>(path: string, options: { signal?: AbortSignal; 
   }
 
   return parsed as T;
+}
+
+/**
+ * Performs a GET and returns the parsed body.
+ * Non-2xx responses and `status: false` envelopes are thrown as ApiError.
+ */
+export function getJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return requestJson<T>(path, { method: 'GET', ...options });
+}
+
+/** GET with an `Authorization: Bearer` header (admin endpoints). */
+export function getAuthJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return requestJson<T>(path, { method: 'GET', ...options });
+}
+
+/** POST a JSON body, optionally authenticated (admin endpoints). */
+export function postJson<T>(path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
+  return requestJson<T>(path, { method: 'POST', body, ...options });
 }
 
 /** Absolute URL for endpoints that return raw bytes (document download). */
