@@ -32,7 +32,7 @@ namespace JIITPlacement.Services
         /// <summary>
         /// Admin endpoint: sync both jobs and notices with a single SuperSet login.
         /// </summary>
-        public async Task<SyncResult> SyncAllAsync(bool syncJobs, bool syncNotices)
+        public async Task<SyncResult> SyncAllAsync(bool syncJobs, bool syncNotices, IProgress<SyncProgress>? progress = null)
         {
             if (!syncJobs && !syncNotices)
             {
@@ -74,7 +74,7 @@ namespace JIITPlacement.Services
                 if (syncJobs)
                 {
                     _logger.LogInformation("Starting jobs synchronization...");
-                    var jobResult = await SyncJobsInternalAsync(loginResponse);
+                    var jobResult = await SyncJobsInternalAsync(loginResponse, progress);
                     combinedResult.Fetched += jobResult.Fetched;
                     combinedResult.Inserted += jobResult.Inserted;
                     combinedResult.Updated += jobResult.Updated;
@@ -110,38 +110,6 @@ namespace JIITPlacement.Services
                     Success = false,
                     Message = $"Sync failed after {stopwatch.Elapsed.TotalSeconds:F1}s: {ex.Message}"
                 };
-            }
-        }
-
-        public async Task<SyncResult> SyncNoticesAsync()
-        {
-            _logger.LogInformation("Starting notices synchronization");
-
-            try
-            {
-                var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-                return await SyncNoticesInternalAsync(loginResponse);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Notices synchronization failed");
-                return new SyncResult { Success = false, Message = $"Notices sync failed: {ex.Message}" };
-            }
-        }
-
-        public async Task<SyncResult> SyncJobsAsync()
-        {
-            _logger.LogInformation("Starting jobs synchronization");
-
-            try
-            {
-                var loginResponse = await _superSetService.LoginAsync(_options.Username, _options.Password);
-                return await SyncJobsInternalAsync(loginResponse);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Jobs synchronization failed");
-                return new SyncResult { Success = false, Message = $"Jobs sync failed: {ex.Message}" };
             }
         }
 
@@ -203,7 +171,7 @@ namespace JIITPlacement.Services
             return result;
         }
 
-        private async Task<SyncResult> SyncJobsInternalAsync(SuperSetLoginResponse loginResponse)
+        private async Task<SyncResult> SyncJobsInternalAsync(SuperSetLoginResponse loginResponse, IProgress<SyncProgress>? progress)
         {
             _logger.LogInformation("Fetching job listings from SuperSet...");
 
@@ -211,6 +179,9 @@ namespace JIITPlacement.Services
             var result = new SyncResult { Fetched = basicJobs.Count };
 
             _logger.LogInformation("Fetched {Count} job listings from SuperSet", basicJobs.Count);
+
+            // The source total is known only after this fetch — first honest report.
+            progress?.Report(new SyncProgress { JobsTotal = basicJobs.Count });
 
             int processedCount = 0;
             foreach (var basicJob in basicJobs)
@@ -294,6 +265,16 @@ namespace JIITPlacement.Services
                     _logger.LogWarning(ex, "Error processing job {JobId}", basicJob.JobProfileIdentifier);
                     result.Failed++;
                 }
+
+                progress?.Report(new SyncProgress
+                {
+                    JobsTotal = basicJobs.Count,
+                    JobsProcessed = processedCount,
+                    NewJobs = result.Inserted,
+                    JobsFailed = result.Failed,
+                    DocumentsDownloaded = result.DocumentsDownloaded,
+                    DocumentsFailed = result.DocumentsFailed
+                });
             }
 
             return result;

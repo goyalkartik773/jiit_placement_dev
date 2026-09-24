@@ -332,4 +332,18 @@ namespace JIITPlacement.Models
         public int DocumentsSkipped { get; set; }
         public int DocumentsFailed { get; set; }
     }
+
+    // ================================================================
+    // Sync Progress (reported live by the job sync loop)
+    // ================================================================
+    public class SyncProgress
+    {
+        /// <summary>Total job listings returned by the source (0 until fetched).</summary>
+        public int JobsTotal { get; set; }
+        public int JobsProcessed { get; set; }
+        public int NewJobs { get; set; }
+        public int JobsFailed { get; set; }
+        public int DocumentsDownloaded { get; set; }
+        public int DocumentsFailed { get; set; }
+    }
 }

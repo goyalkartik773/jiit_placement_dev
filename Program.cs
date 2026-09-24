@@ -61,6 +61,9 @@ builder.Services.AddAuthentication(AdminAuthHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, AdminAuthHandler>(AdminAuthHandler.SchemeName, null);
 builder.Services.AddAuthorization();
 
+// Background job-sync coordinator (single sync at a time + live status)
+builder.Services.AddSingleton<IAdminSyncCoordinator, AdminSyncCoordinator>();
+
 // Gmail integration services
 builder.Services.AddScoped<IGmailService, GmailSyncService>();
 builder.Services.AddScoped<IEmailPreprocessor, EmailPreprocessor>();
