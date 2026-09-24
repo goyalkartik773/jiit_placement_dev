@@ -1,0 +1,120 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.admin-login {
+  @include flex-center;
+  min-height: 60vh;
+  padding: $space-6 0;
+
+  &__card {
+    @include card($space-7, $radius-xl);
+    width: 100%;
+    max-width: 420px;
+    box-shadow: $shadow-md;
+  }
+
+  &__mark {
+    @include flex-center;
+    width: 42px;
+    height: 42px;
+    margin-bottom: $space-4;
+    border-radius: $radius-md;
+    background: $brand-gradient;
+    color: $surface;
+    box-shadow: $shadow-tile;
+  }
+
+  &__eyebrow {
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+  }
+
+  &__title {
+    margin-top: $space-1;
+    font-size: $fs-2xl;
+    font-weight: $fw-bold;
+    line-height: $lh-tight;
+    letter-spacing: $tracking-tight;
+    color: $ink;
+  }
+
+  &__subtitle {
+    margin-top: $space-2;
+    font-size: $fs-sm;
+    color: $text-muted;
+  }
+
+  &__form {
+    @include stack($space-4);
+    margin-top: $space-6;
+  }
+
+  &__field {
+    @include stack($space-1-5);
+  }
+
+  &__label {
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+    color: $text-secondary;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 10px $space-3;
+    border: 1px solid $border-strong;
+    border-radius: $radius-md;
+    background: $surface;
+    color: $ink;
+    font-size: $fs-base;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &::placeholder {
+      color: $text-faint;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 $space-1 $primary-soft-hover;
+    }
+
+    &:disabled {
+      background: $surface-muted;
+      color: $text-muted;
+    }
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-2-5 $space-3;
+    border: 1px solid $danger-border;
+    border-radius: $radius-md;
+    background: $danger-soft;
+    color: $danger;
+    font-size: $fs-sm;
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  &__submit {
+    width: 100%;
+  }
+
+  @include down('sm') {
+    min-height: 0;
+    padding: $space-4 0;
+
+    &__card {
+      padding: $space-5;
+    }
+  }
+}
