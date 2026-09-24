@@ -9,13 +9,13 @@ Accept: application/json
 GET {{JIITPlacement_HostAddress}}/api/jobs
 Accept: application/json
 
-### Admin login
+### Admin login (password comes from Admin:Password config/env — never committed)
 POST {{JIITPlacement_HostAddress}}/api/admin/login
 Content-Type: application/json
 
 {
   "username": "admin@jiit",
-  "password": "YOUR_PASSWORD"
+  "password": "your_admin_password"
 }
 
 ### Job count (authenticated)

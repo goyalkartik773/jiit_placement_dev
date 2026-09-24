@@ -31,8 +31,11 @@ compared in constant time.
 ### `POST /api/admin/login`
 
 ```json
-{ "username": "admin@jiit", "password": "YOUR_PASSWORD" }
+{ "username": "admin@jiit", "password": "<Admin:Password>" }
 ```
+
+The development credentials come from `appsettings.json` (git-ignored) or the `Admin__Username` /
+`Admin__Password` environment variables — they are never committed to source control.
 
 ```json
 { "success": true, "message": "Login successful", "token": "..." }
