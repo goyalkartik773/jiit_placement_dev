@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using JIITPlacement.Models.App_Code;
 using JIITPlacement.Models;
 using JIITPlacement.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,6 +52,14 @@ builder.Services.AddHttpClient("Gemini", client =>
 builder.Services.AddScoped<ISuperSetService, SuperSetService>();
 builder.Services.AddScoped<ISuperSetSyncService, SuperSetSyncService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+
+// Admin authentication: opaque session tokens with in-memory revocation
+builder.Services.Configure<AdminOptions>(
+    builder.Configuration.GetSection(AdminOptions.SectionName));
+builder.Services.AddSingleton<IAdminSessionStore, AdminSessionStore>();
+builder.Services.AddAuthentication(AdminAuthHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, AdminAuthHandler>(AdminAuthHandler.SchemeName, null);
+builder.Services.AddAuthorization();
 
 // Gmail integration services
 builder.Services.AddScoped<IGmailService, GmailSyncService>();
@@ -109,6 +118,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowReactApp");
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
