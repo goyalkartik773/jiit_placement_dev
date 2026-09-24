@@ -124,7 +124,25 @@ Returns the **actual file bytes** with the file's `content-type` and
 
 ### Auth
 
-No `[Authorize]` attributes and no auth middleware — all GET endpoints are open.
+No `[Authorize]` attributes on the public jobs API — all GET endpoints are open.
+
+### Admin API (used by `/admin`)
+
+The admin console talks to the backend's admin API (full contract in
+`JIITPlacement/README.md`). Every endpoint requires `Authorization: Bearer <token>`:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/admin/login` | `{username, password}` → `{success, message, token}`; 401 `Invalid credentials` |
+| `POST /api/admin/logout` | Revokes the session token; 401 `Unauthorized` without one |
+| `GET /api/admin/jobs/count` | `{success, totalJobs}` from `fn_api_count_jobs_v001()` |
+| `POST /api/admin/jobs/sync` | Starts the single background sync; 409 `Job synchronization is already running` when one is live |
+| `GET /api/admin/jobs/sync/status` | `idle / running / completed / failed` + real counters (fields stay `null` until actually known) |
+
+The session token lives in `sessionStorage` (per tab — never logged or rendered) and is
+attached by `services/adminService.ts`, the only file that knows these paths. Progress is
+polled from the status endpoint every 2s while a run is active — the UI never invents
+percentages.
 
 ---
 
@@ -165,6 +183,8 @@ job's response (`sysjobuuid`), and downloads use the job's `id` + the document's
 - ✅ Job listing from `GET /api/jobs` with server pagination + server search (debounced)
 - ✅ Refine filters (location / status / category) + sorting over the complete result set
 - ✅ Job details route `/jobs/:jobId` with every field the API returns
+- ✅ Admin console route `/admin`: sign-in, live job count, single-run sync with honest
+  server-side progress, completed/failed result summaries, logout
 - ✅ Documents with **working View** (PDF/images opened via blob URLs) and
   **Download** (real bytes from `GET /api/jobs/{jobId}/documents/{documentId}`)
 - ✅ Loading skeletons, empty states, error states with retry, failure toasts
@@ -238,6 +258,8 @@ frontend/
 │   │   │   ├── ErrorState/     NotFoundState/
 │   │   ├── layout/
 │   │   │   ├── Header/  Footer/  MainLayout/   # app shell + skip link
+│   │   ├── admin/
+│   │   │   └── AdminLogin/  SyncPanel/         # console pieces
 │   │   └── jobs/
 │   │       ├── JobCard/  JobList/  JobsToolbar/  Pagination/
 │   │       ├── JobHeader/  JobOverview/  JobDescription/
@@ -247,12 +269,14 @@ frontend/
 │   │       └── _detail-card.scss               # shared detail section shell
 │   ├── pages/
 │   │   ├── Jobs/           (Jobs.tsx + Jobs.scss)
+│   │   ├── Admin/          (Admin.tsx + Admin.scss)
 │   │   ├── JobDetails/     (JobDetails.tsx + JobDetailsSkeleton.tsx + .scss)
 │   │   └── NotFound/       (NotFound.tsx + NotFound.scss)
-│   ├── services/           # apiClient.ts, jobService.ts, documentService.ts
-│   ├── hooks/              # useJobs, useJobDetails, useDebounce
+│   ├── services/           # apiClient.ts, jobService.ts, documentService.ts, adminService.ts
+│   ├── hooks/              # useJobs, useJobDetails, useDebounce, useAdminSync
 │   ├── utils/              # format, html, jobList, tiers (color-coding rules)
 │   ├── types/job.types.ts  # exact backend contract (incl. key spellings)
+│   ├── types/admin.types.ts # admin API response shapes
 │   └── styles/
 │       ├── _variables.scss  _mixins.scss  _reset.scss  _typography.scss
 │       ├── _utilities.scss  _animations.scss  main.scss
