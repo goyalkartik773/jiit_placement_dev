@@ -33,7 +33,12 @@ GET {{JIITPlacement_HostAddress}}/api/admin/jobs/sync/status
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
-### Logout — invalidates the token immediately (authenticated)
+### Delete every job + its stored documents (authenticated; 409 while a sync runs)
+DELETE {{JIITPlacement_HostAddress}}/api/admin/jobs
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Logout — revokes the token's jti immediately (authenticated)
 POST {{JIITPlacement_HostAddress}}/api/admin/logout
 Authorization: Bearer {{admin_token}}
 
