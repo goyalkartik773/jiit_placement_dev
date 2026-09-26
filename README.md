@@ -134,15 +134,28 @@ The admin console talks to the backend's admin API (full contract in
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/admin/login` | `{username, password}` → `{success, message, token}`; 401 `Invalid credentials` |
-| `POST /api/admin/logout` | Revokes the session token; 401 `Unauthorized` without one |
+| `POST /api/admin/logout` | Revokes the session token server-side; 401 `Unauthorized` without one |
 | `GET /api/admin/jobs/count` | `{success, totalJobs}` from `fn_api_count_jobs_v001()` |
 | `POST /api/admin/jobs/sync` | Starts the single background sync; 409 `Job synchronization is already running` when one is live |
 | `GET /api/admin/jobs/sync/status` | `idle / running / completed / failed` + real counters (fields stay `null` until actually known) |
+| `DELETE /api/admin/jobs` | Deletes every job record **and** its stored documents; 409 while a sync (or another delete) runs. Returns honest counts (`jobsDeleted`, `documentRowsDeleted`, `filesDeleted`, `filesMissing`, `filesFailed`) plus real per-phase timings (`phases[]`) |
 
-The session token lives in `sessionStorage` (per tab — never logged or rendered) and is
-attached by `services/adminService.ts`, the only file that knows these paths. Progress is
-polled from the status endpoint every 2s while a run is active — the UI never invents
-percentages.
+The token lives in `sessionStorage` (per tab — never logged or rendered) and is
+attached by `services/adminService.ts`, the only file that knows these paths. The frontend
+treats it as an opaque bearer string (the backend issues a signed JWT — no frontend change
+needed). Progress is polled from the status endpoint every 2s while a run is active — the
+UI never invents percentages.
+
+### Script console
+
+`components/admin/ScriptConsole/` renders every operation as terminal output: timestamped,
+tone-colored lines (command / info / success / warn / error / dim) inside a dark console
+window with `role="log"` + `aria-live`, auto-scroll and a blinking cursor while busy.
+Lines are produced by `hooks/useAdminSync.ts` **from real server responses only** — the
+request that was sent, run milestones, polled progress bars built from server counters,
+delete phase timings, and failures. Nothing is fabricated; an empty console reads
+"Awaiting command…". The destructive action is two-step: the first click arms the button
+("Click again to confirm" + a live-count hint) and auto-disarms after 4 seconds.
 
 ---
 
@@ -184,7 +197,10 @@ job's response (`sysjobuuid`), and downloads use the job's `id` + the document's
 - ✅ Refine filters (location / status / category) + sorting over the complete result set
 - ✅ Job details route `/jobs/:jobId` with every field the API returns
 - ✅ Admin console route `/admin`: sign-in, live job count, single-run sync with honest
-  server-side progress, completed/failed result summaries, logout
+  server-side progress, completed/failed result summaries, logout — presented as a
+  terminal-style **script console** (real request/milestone/progress/phase lines)
+- ✅ **Delete all jobs** (two-step confirm) — removes every job record and its stored
+  documents, prints the server's real phase timings and refreshed count
 - ✅ Documents with **working View** (PDF/images opened via blob URLs) and
   **Download** (real bytes from `GET /api/jobs/{jobId}/documents/{documentId}`)
 - ✅ Loading skeletons, empty states, error states with retry, failure toasts
@@ -259,7 +275,8 @@ frontend/
 │   │   ├── layout/
 │   │   │   ├── Header/  Footer/  MainLayout/   # app shell + skip link
 │   │   ├── admin/
-│   │   │   └── AdminLogin/  SyncPanel/         # console pieces
+│   │   │   ├── AdminLogin/  SyncPanel/         # sign-in + operations panel
+│   │   │   └── ScriptConsole/                  # terminal-style output surface
 │   │   └── jobs/
 │   │       ├── JobCard/  JobList/  JobsToolbar/  Pagination/
 │   │       ├── JobHeader/  JobOverview/  JobDescription/
