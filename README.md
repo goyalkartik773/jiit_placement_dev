@@ -3,10 +3,10 @@
 ASP.NET Core (.NET 10) + PostgreSQL service for the JIIT placement job-sync system.
 
 - **Public job API** — consumed by the React frontend (`GET /api/jobs`, `GET /api/jobs/{id}`, `GET /api/jobs/{jobId}/documents/{documentId}`).
-- **Admin API** — session login + the "Sync New Jobs" workflow (see below).
+- **Admin API** — JWT login + the sync and delete-all workflows (see below).
 - **Sync source** — SuperSet (`SuperSet` config section). Documents are downloaded to
   `FileStorage:RootPath` (`D:\JIITPlacementFiles`) during sync — unchanged behavior.
-- **Gmail subsystem** — separate ingestion pipeline; admin endpoints now require an admin session,
+- **Gmail subsystem** — separate ingestion pipeline; admin endpoints now require a valid admin JWT,
   only the two OAuth browser endpoints stay anonymous.
 
 ## Running
@@ -17,14 +17,19 @@ dotnet run          # http://localhost:5104 (Development profile, user-secrets s
 
 Configuration lives in `appsettings.json` (git-ignored — never commit it) with committed placeholders in
 `appsettings.example.json`. Environment variables override file config (`Admin__Password`,
-`SuperSet__Password`, `ConnectionStrings__DefaultConnection`, `FileStorage__RootPath`, …).
+`Jwt__Secret`, `SuperSet__Password`, `ConnectionStrings__DefaultConnection`, `FileStorage__RootPath`, …).
+
+**JWT**: the API refuses to start when `Jwt:Secret` is missing or shorter than 32 bytes. Copy the `Jwt`
+section from `appsettings.example.json` into your git-ignored `appsettings.json` (or user-secrets) and
+put a random ≥32-byte base64 value in `Secret` (e.g. from `Secret`/`openssl rand -base64 32`).
 
 Database schema/functions: `migrations.sql` (base) + `SQL/*.sql` (gmail, placements, local documents,
-`migration_admin.sql` = job-count function, `cleanup_obsolete.sql` = audited cleanup).
+`migration_admin.sql` = job-count function, `migration_delete_jobs.sql` = delete-all-jobs function,
+`cleanup_obsolete.sql` = audited cleanup).
 
 ## Admin API contracts
 
-All admin endpoints except `login` require `Authorization: Bearer <token>` and answer challenges with
+All admin endpoints except `login` require `Authorization: Bearer <jwt>` and answer challenges with
 `401 {"success":false,"message":"Unauthorized"}`. Responses never contain passwords; the password is
 compared in constant time.
 
@@ -42,8 +47,8 @@ The development credentials come from `appsettings.json` (git-ignored) or the `A
 ```
 
 Invalid → `401 { "success": false, "message": "Invalid credentials" }`.
-Token: random 256-bit opaque session token (stored server-side as a SHA-256 digest, expires after
-`Admin:TokenExpirationHours`, default 8h).
+Token: signed JWT (HMAC-SHA256, `Jwt:Secret`) carrying `username`, `role` and a `jti` session id;
+expires after `Admin:TokenExpirationHours`, default 8h.
 
 ### `POST /api/admin/logout`
 
@@ -51,7 +56,8 @@ Token: random 256-bit opaque session token (stored server-side as a SHA-256 dige
 { "success": true, "message": "Logged out successfully" }
 ```
 
-The presented token is revoked immediately — subsequent calls get `401`.
+The token's `jti` is revoked immediately — subsequent calls with that token get `401` (revocation
+entries expire together with the token they belong to).
 
 ### `GET /api/admin/jobs/count`
 
@@ -69,12 +75,14 @@ duplicate counting tables).
 ```
 
 Runs the **existing** sync logic (`SuperSetSyncService.SyncAllAsync`, single SuperSet login, jobs +
-notices) in the background — the HTTP request returns immediately. Exactly one sync can run at a
-time; concurrent clicks → `409`:
+notices) in the background — the HTTP request returns immediately. Exactly one admin data operation
+(sync **or** delete) can run at a time; concurrent clicks → `409`:
 
 ```json
 { "success": false, "message": "Job synchronization is already running", "syncId": "...", "status": "running" }
 ```
+
+When a deletion holds the slot instead, the message is `"Job deletion is already running"`.
 
 ### `GET /api/admin/jobs/sync/status`
 
@@ -107,6 +115,37 @@ known:
 
 Failure path sets `status: "failed"` with a populated `error` and is logged — exceptions are never
 silently swallowed.
+
+### `DELETE /api/admin/jobs`
+
+Deletes **every job record** in one transaction (`fn_api_delete_all_jobs_v001`: `jobs` plus the seven
+job child tables — notices and Gmail data are never touched) and then removes the documents those
+records owned from `FileStorage:RootPath`, including orphaned leftovers under `Jobs\`; the empty
+folder tree is dropped too (recreated by the next sync). While a sync (or another deletion) runs →
+`409 { "success": false, "message": "Job synchronization is already running" }` /
+`"Job deletion is already running"`.
+
+```json
+{
+  "success": true,
+  "message": "Deleted 96 jobs and 84 documents",
+  "jobsDeleted": 96,
+  "documentRowsDeleted": 82,
+  "filesDeleted": 84,
+  "filesMissing": 0,
+  "filesFailed": 0,
+  "durationMs": 179,
+  "phases": [
+    { "phase": "delete_records", "durationMs": 63 },
+    { "phase": "delete_files", "durationMs": 115 }
+  ]
+}
+```
+
+`phases` are real wall-clock measurements (the admin UI prints them as console output);
+`filesMissing` counts referenced documents already absent on disk, `filesFailed` counts real
+failures (a non-empty value is logged per path). DB failure → `500 { "success": false, "message": ... }`
+and nothing is partially reported as deleted (the record deletion is transactional).
 
 ## Public job API (unchanged envelope)
 
