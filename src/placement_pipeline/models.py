@@ -61,6 +61,7 @@ class StudentRow(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
     status: Optional[str] = None
+    section: Optional[str] = None        # label of the table's section, if any
 
     def display(self) -> str:
         return self.raw_name or self.name or self.roll_no or "?"
