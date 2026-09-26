@@ -70,7 +70,7 @@ _BRANCH_FULL_RE = re.compile(
 
 # status phrases can span several cells: "Pre-Placement" "Offer" "-" "FTE"
 _STATUS_START_RE = re.compile(
-    r"^(?:not\s+(?:selected|shortlisted|cleared|qualified|invited|registered|selected\s+for)"
+    r"^(?:not\s+(?:selected|shortlisted|cleared|qualified|invited|registered|submitted|selected\s+for)"
     r"|no\s*show|did\s+not\s+(?:attend|show)|absent"
     r"|selected|shortlisted|cleared|qualified|offered"
     r"|offers?\s+(?:released|extended|made)"
