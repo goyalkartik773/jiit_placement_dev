@@ -80,7 +80,7 @@ function extractServerMessage(parsed: unknown): string {
 }
 
 interface RequestDetails extends RequestOptions {
-  method: 'GET' | 'POST';
+  method: 'GET' | 'POST' | 'DELETE';
   body?: unknown;
 }
 
@@ -166,6 +166,11 @@ export function getAuthJson<T>(path: string, options: RequestOptions = {}): Prom
 /** POST a JSON body, optionally authenticated (admin endpoints). */
 export function postJson<T>(path: string, body: unknown, options: RequestOptions = {}): Promise<T> {
   return requestJson<T>(path, { method: 'POST', body, ...options });
+}
+
+/** DELETE without a body, optionally authenticated (admin endpoints). */
+export function deleteJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return requestJson<T>(path, { method: 'DELETE', ...options });
 }
 
 /** Absolute URL for endpoints that return raw bytes (document download). */

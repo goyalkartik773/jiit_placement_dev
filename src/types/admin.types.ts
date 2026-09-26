@@ -60,3 +60,22 @@ export interface AdminSyncStatus {
   finishedAt?: string | null;
   error?: string | null;
 }
+
+/** One measured step of a delete run (real server-side wall clock). */
+export interface AdminDeletePhase {
+  phase: string;
+  durationMs: number;
+}
+
+/** DELETE /api/admin/jobs — honest counts of everything that was removed. */
+export interface AdminDeleteJobsResponse {
+  success: boolean;
+  message?: string;
+  jobsDeleted?: number;
+  documentRowsDeleted?: number;
+  filesDeleted?: number;
+  filesMissing?: number;
+  filesFailed?: number;
+  durationMs?: number;
+  phases?: AdminDeletePhase[];
+}

@@ -1,5 +1,6 @@
-import { ApiError, getAuthJson, postJson } from './apiClient';
+import { ApiError, deleteJson, getAuthJson, postJson } from './apiClient';
 import type {
+  AdminDeleteJobsResponse,
   AdminJobCountResponse,
   AdminLoginResponse,
   AdminLogoutResponse,
@@ -15,6 +16,7 @@ import type {
  * GET    /api/admin/jobs/count
  * POST   /api/admin/jobs/sync
  * GET    /api/admin/jobs/sync/status
+ * DELETE /api/admin/jobs
  *
  * The session token lives in sessionStorage (per-tab) and is attached as an
  * `Authorization: Bearer` header. It is never logged or rendered.
@@ -100,6 +102,23 @@ export async function fetchSyncStatus(signal?: AbortSignal): Promise<AdminSyncSt
 
   if (!response || typeof response.status !== 'string') {
     throw new ApiError('The server returned an unexpected sync status.');
+  }
+
+  return response;
+}
+
+/**
+ * Deletes every job record and the documents it owns (records first, then
+ * the files). Throws ApiError(409) while a sync (or another deletion) runs.
+ */
+export async function deleteAllJobs(signal?: AbortSignal): Promise<AdminDeleteJobsResponse> {
+  const response = await deleteJson<AdminDeleteJobsResponse>('/api/admin/jobs', {
+    token: getAdminToken(),
+    signal,
+  });
+
+  if (!response.success) {
+    throw new ApiError(response.message || 'Deleting the jobs failed.');
   }
 
   return response;
