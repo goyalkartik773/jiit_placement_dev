@@ -1,12 +1,15 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Badge, type BadgeTone } from '../../common/Badge/Badge';
 import { Button } from '../../common/Button/Button';
-import { ErrorState } from '../../common/ErrorState/ErrorState';
-import { Icon, type IconName } from '../../common/Icon/Icon';
+import { Icon } from '../../common/Icon/Icon';
 import { Panel } from '../../common/Panel/Panel';
 import { Skeleton } from '../../common/Skeleton/Skeleton';
+import { ScriptConsole, type ConsoleLine } from '../ScriptConsole/ScriptConsole';
 import type { AdminSyncState, AdminSyncStatus } from '../../../types/admin.types';
 import './SyncPanel.scss';
+
+/** How long the destructive button waits for the confirming second click. */
+const ARM_MS = 4000;
 
 interface SyncPanelProps {
   count: number | null;
@@ -17,7 +20,13 @@ interface SyncPanelProps {
   statusError: string | null;
   starting: boolean;
   startError: string | null;
+  deleting: boolean;
+  /** Console output from the hook (real server responses only). */
+  lines: ConsoleLine[];
+  /** True while a sync or delete runs — drives the console cursor. */
+  busy: boolean;
   onStart: () => void;
+  onDelete: () => void;
   /** Reload count + status — also the retry action for every load error. */
   onRefresh: () => void;
 }
@@ -29,43 +38,15 @@ const PILL: Record<AdminSyncState, { tone: BadgeTone; label: string }> = {
   failed: { tone: 'danger', label: 'Failed' },
 };
 
-const PANEL_ICON: Record<AdminSyncState, IconName> = {
-  idle: 'refresh',
-  running: 'refresh',
-  completed: 'check-circle',
-  failed: 'alert-circle',
-};
-
 /** Numbers are server-owned; unknown values render an em dash, never a guess. */
 function formatValue(value: number | null | undefined): string {
   return typeof value === 'number' ? value.toLocaleString() : '—';
 }
 
-interface StatItemProps {
-  icon: IconName;
-  label: string;
-  value: number | null | undefined;
-  tone?: 'default' | 'danger';
-}
-
-function StatItem({ icon, label, value, tone = 'default' }: StatItemProps) {
-  const showDanger = tone === 'danger' && typeof value === 'number' && value > 0;
-
-  return (
-    <div className="sync-stats__item">
-      <dt className="sync-stats__label">
-        <Icon name={icon} size={14} />
-        {label}
-      </dt>
-      <dd className={`sync-stats__value${showDanger ? ' sync-stats__value--danger' : ''}`}>{formatValue(value)}</dd>
-    </div>
-  );
-}
-
 /**
- * The one card of the admin console: database count + sync lifecycle
- * (idle → running progress → completed result / failure), driven entirely
- * by the status endpoint.
+ * The admin operations card: database count, the two script actions
+ * (sync / delete-all with a confirm step) and the terminal-style console
+ * that prints every real server response.
  */
 export function SyncPanel({
   count,
@@ -76,25 +57,34 @@ export function SyncPanel({
   statusError,
   starting,
   startError,
+  deleting,
+  lines,
+  busy,
   onStart,
+  onDelete,
   onRefresh,
 }: SyncPanelProps) {
   const state: AdminSyncState = status?.status ?? 'idle';
   const pill = PILL[state];
-  const totalFailure = statusError !== null && status === null;
-  const progress = status?.progress;
-  const jobsTotal = status?.jobsTotal;
-  const jobsProcessed = status?.jobsProcessed;
+  const running = state === 'running';
 
-  // The count row always carries the shared Refresh/reload control, so the
-  // state actions only need the primary start/again/fail action.
-  const actions = (
-    <div className="sync-panel__actions">
-      <Button variant="primary" icon="zap" onClick={onStart} loading={starting}>
-        {state === 'completed' ? 'Sync again' : state === 'failed' ? 'Try again' : 'Sync New Jobs'}
-      </Button>
-    </div>
-  );
+  // Destructive action: first click arms, second click inside ARM_MS executes.
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), ARM_MS);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+
+  function handleDeleteClick(): void {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
+    onDelete();
+  }
 
   function errorRow(message: string): ReactNode {
     return (
@@ -108,122 +98,16 @@ export function SyncPanel({
     );
   }
 
-  function renderBody(): ReactNode {
-    if (statusLoading) {
-      return (
-        <div className="sync-panel__loading" aria-hidden="true">
-          <Skeleton width="full" height="md" shape="pill" />
-          <Skeleton width="lg" height="sm" shape="pill" />
-        </div>
-      );
-    }
-
-    if (totalFailure) {
-      return <ErrorState title="Could not load sync status" message={statusError} onRetry={onRefresh} />;
-    }
-
-    if (state === 'running' && status) {
-      return (
-        <div className="sync-panel__running">
-          <div className="sync-panel__progress-head">
-            <span className="sync-panel__progress-label">
-              {typeof jobsTotal === 'number'
-                ? `${formatValue(jobsProcessed)} of ${formatValue(jobsTotal)} jobs processed`
-                : 'Fetching the job list from SuperSet…'}
-            </span>
-            {typeof progress === 'number' ? <span className="sync-panel__progress-pct">{progress}%</span> : null}
-          </div>
-
-          {/* Native progress = accessible value (or indeterminate) with zero inline styles. */}
-          {typeof progress === 'number' ? (
-            <progress className="sync-panel__progress" max={100} value={progress} aria-label="Synchronization progress" />
-          ) : (
-            <progress className="sync-panel__progress sync-panel__progress--indeterminate" aria-label="Synchronization progress" />
-          )}
-
-          <dl className="sync-stats">
-            <StatItem icon="briefcase" label="Jobs before" value={status.totalJobsBeforeSync} />
-            <StatItem icon="zap" label="New jobs" value={status.newJobs} />
-            <StatItem icon="paperclip" label="Documents" value={status.documentsDownloaded} />
-            <StatItem icon="alert-circle" label="Failed jobs" value={status.failedJobs} tone="danger" />
-          </dl>
-
-          <p className="sync-panel__note">Runs on the server — you can leave this page while it continues.</p>
-        </div>
-      );
-    }
-
-    if (state === 'completed' && status) {
-      return (
-        <div className="sync-panel__result sync-panel__result--success">
-          <div className="sync-panel__result-head">
-            <span className="sync-panel__result-icon" aria-hidden="true">
-              <Icon name="check-circle" size={18} />
-            </span>
-            <div className="sync-panel__result-text">
-              <p className="sync-panel__result-title">Synchronization complete</p>
-              {status.message ? <p className="sync-panel__result-sub">{status.message}</p> : null}
-            </div>
-          </div>
-
-          <p className="sync-panel__flow">
-            <span className="sync-panel__flow-num">{formatValue(status.totalJobsBeforeSync)}</span>
-            <Icon name="chevron-right" size={16} className="sync-panel__flow-arrow" />
-            <span className="sync-panel__flow-num sync-panel__flow-num--after">{formatValue(status.totalJobsAfterSync)}</span>
-            <span className="sync-panel__flow-unit">jobs in database</span>
-          </p>
-
-          <dl className="sync-stats">
-            <StatItem icon="zap" label="New jobs" value={status.newJobs} />
-            <StatItem icon="paperclip" label="Documents" value={status.documentsDownloaded} />
-            <StatItem icon="file" label="Docs failed" value={status.documentsFailed} tone="danger" />
-            <StatItem icon="alert-circle" label="Failed jobs" value={status.failedJobs} tone="danger" />
-          </dl>
-
-          {actions}
-        </div>
-      );
-    }
-
-    if (state === 'failed' && status) {
-      return (
-        <div className="sync-panel__result sync-panel__result--danger" role="alert">
-          <div className="sync-panel__result-head">
-            <span className="sync-panel__result-icon" aria-hidden="true">
-              <Icon name="alert-circle" size={18} />
-            </span>
-            <div className="sync-panel__result-text">
-              <p className="sync-panel__result-title">Synchronization failed</p>
-              <p className="sync-panel__result-sub">{status.error ?? status.message ?? 'No error detail was reported.'}</p>
-            </div>
-          </div>
-          {actions}
-        </div>
-      );
-    }
-
-    // idle
-    return (
-      <div className="sync-panel__idle">
-        <p className="sync-panel__hint">
-          Pulls the latest listings and documents from SuperSet into the database. One sync runs at a time and existing
-          documents are kept.
-        </p>
-        {actions}
-      </div>
-    );
-  }
-
   return (
     <Panel
       className="sync-panel"
-      icon={PANEL_ICON[state]}
-      title="Job synchronization"
+      icon="terminal"
+      title="Sync & cleanup"
       meta={
         statusLoading ? (
           <Skeleton width="sm" height="xs" shape="pill" />
         ) : (
-          <Badge tone={pill.tone} dot={state === 'running'}>
+          <Badge tone={pill.tone} dot={running}>
             {pill.label}
           </Badge>
         )
@@ -242,10 +126,62 @@ export function SyncPanel({
       </div>
 
       {/* Count failure is only surfaced once the status view is usable —
-          otherwise the status ErrorState already explains the outage. */}
+          otherwise the status row already explains the outage. */}
       {countError && status ? errorRow(countError) : null}
 
-      {renderBody()}
+      <div className="sync-panel__actions">
+        <Button
+          variant="primary"
+          icon="zap"
+          onClick={onStart}
+          loading={starting}
+          disabled={deleting || running}
+          title={running ? 'A synchronization is already running' : undefined}
+        >
+          {state === 'completed' ? 'Sync again' : state === 'failed' ? 'Try again' : 'Sync New Jobs'}
+        </Button>
+
+        <Button
+          variant="danger"
+          icon="trash"
+          onClick={handleDeleteClick}
+          loading={deleting}
+          disabled={starting || running}
+          title={armed ? 'Click again to confirm the deletion' : 'Deletes every job and its documents'}
+        >
+          {armed ? 'Click again to confirm' : 'Delete all jobs'}
+        </Button>
+
+        {armed ? (
+          <span className="sync-panel__armed" role="status">
+            Removes all {formatValue(count)} jobs and their documents from the database and disk.
+          </span>
+        ) : null}
+      </div>
+
+      {/* Native progress = accessible value (or indeterminate) with zero inline styles. */}
+      {running && status ? (
+        <div className="sync-panel__progress-row">
+          <div className="sync-panel__progress-head">
+            <span className="sync-panel__progress-label">
+              {typeof status.jobsTotal === 'number'
+                ? `${formatValue(status.jobsProcessed)} of ${formatValue(status.jobsTotal)} jobs processed`
+                : 'Fetching the job list from SuperSet…'}
+            </span>
+            {typeof status.progress === 'number' ? (
+              <span className="sync-panel__progress-pct">{status.progress}%</span>
+            ) : null}
+          </div>
+
+          {typeof status.progress === 'number' ? (
+            <progress className="sync-panel__progress" max={100} value={status.progress} aria-label="Synchronization progress" />
+          ) : (
+            <progress className="sync-panel__progress sync-panel__progress--indeterminate" aria-label="Synchronization progress" />
+          )}
+        </div>
+      ) : null}
+
+      <ScriptConsole lines={lines} busy={busy} title="admin@jiit-placement:~/jobs" />
 
       {/* A failed refresh keeps the last known status on screen — flag it. */}
       {statusError && status ? errorRow(statusError) : null}

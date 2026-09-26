@@ -57,7 +57,7 @@ export function Admin() {
       <section className="page-head">
         <div className="page-head__text">
           <p className="page-head__eyebrow">Admin · Restricted</p>
-          <h1 className="page-head__title">Sync console</h1>
+          <h1 className="page-head__title">Admin console</h1>
           <p className="page-head__count" aria-live="polite">
             {countLine(sync.count, sync.countLoading)}
           </p>
@@ -78,7 +78,11 @@ export function Admin() {
         statusError={sync.statusError}
         starting={sync.starting}
         startError={sync.startError}
+        deleting={sync.deleting}
+        lines={sync.lines}
+        busy={sync.busy}
         onStart={sync.start}
+        onDelete={sync.remove}
         onRefresh={sync.reload}
       />
     </div>
