@@ -64,6 +64,18 @@
     }
   }
 
+  &--danger {
+    background: $danger;
+    border-color: $danger;
+    color: $surface;
+
+    &:hover:not(:disabled) {
+      background: $danger-hover;
+      border-color: $danger-hover;
+      color: $surface;
+    }
+  }
+
   // ----- Sizes -----
   &--md {
     padding: 9px 16px;

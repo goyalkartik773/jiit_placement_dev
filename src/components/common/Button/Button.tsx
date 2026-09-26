@@ -4,7 +4,7 @@ import { Icon, type IconName } from '../Icon/Icon';
 import { Loader, type LoaderSize } from '../Loader/Loader';
 import './Button.scss';
 
-export type ButtonVariant = 'primary' | 'soft' | 'ghost';
+export type ButtonVariant = 'primary' | 'soft' | 'ghost' | 'danger';
 export type ButtonSize = 'md' | 'sm';
 
 interface ButtonBaseProps {
