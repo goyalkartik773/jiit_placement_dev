@@ -53,6 +53,27 @@ _ORIGINAL_MESSAGE_RE = re.compile(
     r"^[ \t>]*-{3,}\s*Original Message\s*-{3,}[ \t\r]*$", re.MULTILINE | re.IGNORECASE
 )
 
+# Gmail's quoted-history header (Google Groups quotes keep it unquoted), and
+# the ``---------- Forwarded message ----------`` header block — both open a
+# history section whose From/Date/Subject lines must never be parsed as
+# facts of the current message:
+#   ----------
+#   From: Anita Marwaha <anitamarwaha.tnp@gmail.com>
+#   Date: Tue, Apr 28, 2026 at 4:51 PM
+#   Subject: Amazon WoW Program - ... Register by 5 PM,
+#            29 April 2026            <- wrapped subject line
+#   To: <jiitengg2027@googlegroups.com>
+#                                                 <- first blank line ends it
+# The block runs from the ``From:`` line to the first blank line (subjects
+# wrap), so continuation lines are consumed too.
+_QUOTED_HEADER_RE = re.compile(
+    r"^[ \t>]*-{3,}(?:[ \t]*Forwarded message[ \t]*-{3,})?[ \t]*\r?\n"
+    r"[ \t>]*From:[ \t][^\r\n]*\r?\n"
+    r"(?:[ \t>]*\S[^\r\n]*\r?\n)*?"
+    r"[ \t]*\r?\n",
+    re.MULTILINE,
+)
+
 FORWARDED_MARKER_RE = re.compile(
     r"^[ \t]*-{3,}\s*Forwarded message\s*-{3,}[ \t\r]*$", re.MULTILINE | re.IGNORECASE
 )
@@ -132,14 +153,17 @@ def _strip_quote_markers(text: str) -> str:
 def current_section(text: str, *, strip_quotes: bool = True) -> str:
     """Return the authoritative (newest) section of a message body.
 
-    Cuts everything from the first quoted-reply header (``On ... wrote:``) or
-    ``-----Original Message-----`` separator onwards, then removes ``>``
-    quote markers that remain. If the message has *no* unquoted content of its
-    own (pure reply bodies such as "Reminder:" resends), the first quoted
-    message is used instead — it is the only content the sender forwarded.
+    Cuts everything from the first quoted-reply header (``On ... wrote:``),
+    ``-----Original Message-----`` separator or Gmail quoted-history block
+    (``---`` + ``From:``/``Date:``/``Subject:`` lines) onwards, then removes
+    ``>`` quote markers that remain. If the message has *no* unquoted content
+    of its own (pure reply bodies such as "Reminder:" resends), the first
+    quoted message is used instead — it is the only content the sender
+    forwarded.
     """
     cut = -1
-    for regex in (_THREAD_RE, _ORIGINAL_MESSAGE_RE):
+    header_end = 0
+    for regex in (_THREAD_RE, _ORIGINAL_MESSAGE_RE, _QUOTED_HEADER_RE):
         m = regex.search(text)
         if m and (cut == -1 or m.start() < cut):
             cut = m.start()
@@ -148,8 +172,12 @@ def current_section(text: str, *, strip_quotes: bool = True) -> str:
         section = text
     elif not text[:cut].strip():
         # Pure reply: body begins with the reply header itself.
-        nxt = _THREAD_RE.search(text, header_end)
-        section = text[header_end : nxt.start() if nxt else len(text)]
+        nxt = -1
+        for regex in (_THREAD_RE, _ORIGINAL_MESSAGE_RE, _QUOTED_HEADER_RE):
+            m = regex.search(text, header_end)
+            if m and (nxt == -1 or m.start() < nxt):
+                nxt = m.start()
+        section = text[header_end : nxt if nxt != -1 else len(text)]
     else:
         section = text[:cut]
     if strip_quotes:
@@ -178,14 +206,52 @@ def flat(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def prepare_body(body: str) -> str:
-    """Full body-prep chain for classification/parsing (line structure kept)."""
+def _prep_base(body: str) -> str:
     text = strip_invisible(body)
     text = normalize_punct(text)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = strip_footer(text)
+    return strip_footer(text)
+
+
+def prepare_body(body: str) -> str:
+    """Full body-prep chain for classification/parsing (line structure kept)."""
+    text = _prep_base(body)
+    # forwarded history (``---------- Forwarded message ----------``) belongs
+    # to an earlier message: keep the sender's own part, or the forwarded
+    # content when the sender added nothing (a pure forward/resend)
+    current, history = split_forwarded(text)
+    if history and not current.strip():
+        text = history
+    else:
+        text = current
     text = current_section(text)
     return text.strip("\n")
+
+
+def prepare_parts(body: str) -> list[str]:
+    """Sections an ingest should parse, newest first.
+
+    ``prepare_body`` keeps only the sender's own part (classification +
+    current-state parsing). The forwarded block is *content* in this corpus
+    (T&P forwards the company announcement; cumulative offer addenda resend
+    the earlier list), so ingest also gets it as a second section — its
+    From/Date/Subject header is stripped, its reply quotes never parsed.
+    """
+    text = _prep_base(body)
+    current, history = split_forwarded(text)
+    parts: list[str] = []
+    if current.strip():
+        parts.append(current_section(current))
+    if history.strip():
+        # remove *every* forwarded header block (levels nest: the inner
+        # ``---------- Forwarded message ----------`` content is part of the
+        # record too), then cut reply quotes as usual
+        quoted = current_section(_QUOTED_HEADER_RE.sub("", history))
+        if quoted.strip():
+            parts.append(quoted)
+    if not parts:
+        parts.append(current_section(text))
+    return [p.strip("\n") for p in parts if p.strip()]
 
 
 def clean_subject(subject: str) -> SubjectInfo:

@@ -5,6 +5,7 @@ from placement_pipeline.normalize import (
     current_section,
     normalize_punct,
     prepare_body,
+    prepare_parts,
     split_forwarded,
     strip_footer,
     strip_invisible,
@@ -136,3 +137,101 @@ def test_prepare_body_full_chain():
 def test_prepare_body_is_idempotent_on_clean_text():
     once = prepare_body(THREAD_BODY)
     assert prepare_body(once) == once
+
+
+# --- forwarded history / quoted headers (ingest sections) -------------------
+
+FORWARDED_HISTORY = """\
+Kind attention: the deadline is *25 May 2026*.
+
+---------- Forwarded message ---------
+From: Anita Marwaha <anitamarwaha.tnp@gmail.com>
+Date: Tue, Apr 28, 2026 at 4:51 PM
+Subject: Amazon WoW Program - Batch 2027 - Register by 5 PM,
+29 April 2026
+To: <jiitengg2027@googlegroups.com>
+
+Consent by 29 April 2026 through the link.
+"""
+
+# Two stacked forwards: the deeper level must survive for ingest.
+NESTED_FORWARD = """\
+Final updated names: 3 students.
+
+---------- Forwarded message ---------
+From: a@example.com
+Date: Wed, 24 Jun 2026 at 2:40 PM
+Subject: Fwd: Hyperdart - Additional list
+
+Additional list below.
+
+---------- Forwarded message ---------
+From: a@example.com
+Date: Thu, 7 May 2026 at 5:09 PM
+Subject: Fwd: Hyperdart - First list
+To: <grp@googlegroups.com>
+
+First list here.
+"""
+
+QUOTED_HEADER = """\
+Register by 25 May 2026.
+
+---
+From: Anita Marwaha <anit@example.com>
+Date: Tue, Apr 28, 2026 at 4:51 PM
+Subject: earlier note - Register by 29 April 2026
+
+Earlier body text.
+"""
+
+PURE_FORWARD = """\
+---------- Forwarded message ---------
+From: someone@example.com
+Date: Mon, 6 Jul 2026 at 9:00 AM
+Subject: X - Offers
+
+Offer letter enclosed for 6 July 2026.
+"""
+
+
+def test_prepare_body_drops_forwarded_history_and_its_headers():
+    out = prepare_body(FORWARDED_HISTORY)
+    assert "25 May 2026" in out
+    # history dates / headers never belong to the current message
+    assert "29 April 2026" not in out
+    assert "Apr 28" not in out
+    assert "From:" not in out
+
+
+def test_prepare_parts_returns_current_then_stripped_history():
+    parts = prepare_parts(FORWARDED_HISTORY)
+    assert len(parts) == 2
+    assert "25 May 2026" in parts[0]
+    # history content kept, its From/Date/Subject header stripped
+    assert "29 April 2026" in parts[1]
+    assert "From:" not in parts[1]
+    assert "Apr 28" not in parts[1]
+    assert "Subject:" not in parts[1]
+
+
+def test_prepare_parts_keeps_nested_forward_levels():
+    parts = prepare_parts(NESTED_FORWARD)
+    assert len(parts) == 2
+    assert "Additional list below." in parts[1]
+    assert "First list here." in parts[1]  # deeper level survives
+    assert "From:" not in parts[1]
+
+
+def test_prepare_body_pure_forward_uses_history_without_header():
+    out = prepare_body(PURE_FORWARD)
+    assert "Offer letter enclosed" in out
+    assert "From:" not in out
+    assert "9:00 AM" not in out  # the Date: header time is not a fact
+
+
+def test_current_section_cuts_gmail_quoted_header_block():
+    out = current_section(QUOTED_HEADER)
+    assert "25 May 2026" in out
+    assert "Apr 28" not in out
+    assert "Earlier body text." not in out
