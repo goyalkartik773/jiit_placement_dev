@@ -5,39 +5,42 @@ using JIITPlacement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Microsoft.Net.Http.Headers;
 
 namespace JIITPlacement.Controllers
 {
     /// <summary>
-    /// Admin APIs: session login/logout plus the job-sync workflow
-    /// (count → start → status/result). Every action except login requires
-    /// a valid admin session token.
+    /// Admin APIs: JWT login/logout plus the job-sync workflow
+    /// (count → start → status/result) and the delete-all-jobs cleanup.
+    /// Every action except login requires a valid, non-revoked admin JWT.
     /// </summary>
     [ApiController]
     [Route("api/admin")]
     public class AdminController : ControllerBase
     {
-        private const string BearerPrefix = "Bearer ";
-
         private readonly AdminOptions _adminOptions;
-        private readonly IAdminSessionStore _sessionStore;
+        private readonly IAdminTokenService _tokenService;
+        private readonly IAdminTokenRevocationStore _revocationStore;
         private readonly IAdminSyncCoordinator _syncCoordinator;
+        private readonly IJobCleanupService _cleanupService;
         private readonly ILogger<AdminController> _logger;
 
         public AdminController(
             IOptions<AdminOptions> adminOptions,
-            IAdminSessionStore sessionStore,
+            IAdminTokenService tokenService,
+            IAdminTokenRevocationStore revocationStore,
             IAdminSyncCoordinator syncCoordinator,
+            IJobCleanupService cleanupService,
             ILogger<AdminController> logger)
         {
             _adminOptions = adminOptions.Value;
-            _sessionStore = sessionStore;
+            _tokenService = tokenService;
+            _revocationStore = revocationStore;
             _syncCoordinator = syncCoordinator;
+            _cleanupService = cleanupService;
             _logger = logger;
         }
 
-        /// <summary>POST /api/admin/login — exchanges credentials for a bearer token.</summary>
+        /// <summary>POST /api/admin/login — exchanges credentials for a signed JWT.</summary>
         [HttpPost("login")]
         [AllowAnonymous]
         public ActionResult Login([FromBody] AdminLoginRequest? request)
@@ -51,19 +54,23 @@ namespace JIITPlacement.Controllers
                 return Unauthorized(new { success = false, message = "Invalid credentials" });
             }
 
-            var token = _sessionStore.CreateToken(username);
+            var (token, _) = _tokenService.Issue(username);
             _logger.LogInformation("Admin login successful for {Username}", username);
             return Ok(new { success = true, message = "Login successful", token });
         }
 
-        /// <summary>POST /api/admin/logout — invalidates the presented token immediately.</summary>
+        /// <summary>POST /api/admin/logout — revokes the presented token's session id.</summary>
         [HttpPost("logout")]
         [Authorize]
         public ActionResult Logout()
         {
-            var token = GetBearerToken();
-            if (token != null)
-                _sessionStore.RevokeToken(token);
+            var jti = User.FindFirst("jti")?.Value;
+            if (!string.IsNullOrEmpty(jti))
+            {
+                var expiresAt = DateTimeOffset.UtcNow
+                    .AddHours(Math.Max(1, _adminOptions.TokenExpirationHours));
+                _revocationStore.Revoke(jti, expiresAt);
+            }
 
             _logger.LogInformation("Admin logout for {Username}", User.Identity?.Name ?? "unknown");
             return Ok(new { success = true, message = "Logged out successfully" });
@@ -96,14 +103,16 @@ namespace JIITPlacement.Controllers
         {
             try
             {
-                var (started, status) = await _syncCoordinator.TryStartAsync();
+                var (started, status, busyOperation) = await _syncCoordinator.TryStartAsync();
 
                 if (!started)
                 {
                     return Conflict(new
                     {
                         success = false,
-                        message = "Job synchronization is already running",
+                        message = busyOperation == "delete"
+                            ? "Job deletion is already running"
+                            : "Job synchronization is already running",
                         syncId = status.SyncId,
                         status = status.Status
                     });
@@ -155,6 +164,60 @@ namespace JIITPlacement.Controllers
             });
         }
 
+        /// <summary>
+        /// DELETE /api/admin/jobs — removes every job record in one transaction
+        /// and then deletes the documents those records owned from disk.
+        /// Rejects with 409 while a synchronization (or another deletion) runs.
+        /// </summary>
+        [HttpDelete("jobs")]
+        [Authorize]
+        public async Task<ActionResult> DeleteAllJobs()
+        {
+            var (allowed, busyOperation) = _syncCoordinator.TryBeginDelete();
+            if (!allowed)
+            {
+                return Conflict(new
+                {
+                    success = false,
+                    message = busyOperation == "sync"
+                        ? "Job synchronization is already running"
+                        : "Job deletion is already running"
+                });
+            }
+
+            try
+            {
+                var result = await _cleanupService.DeleteAllJobsAsync();
+                if (!result.Success)
+                {
+                    _logger.LogError("Job deletion failed: {Message}", result.Message);
+                    return StatusCode(500, new { success = false, message = result.Message });
+                }
+
+                _logger.LogInformation(
+                    "Deleted {Jobs} jobs, {Rows} document rows, {Files} files ({Missing} already absent, {Failed} failed) in {Elapsed} ms",
+                    result.JobsDeleted, result.DocumentRowsDeleted, result.FilesDeleted,
+                    result.FilesMissing, result.FilesFailed, result.DurationMs);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Deleted {result.JobsDeleted} jobs and {result.FilesDeleted} documents",
+                    jobsDeleted = result.JobsDeleted,
+                    documentRowsDeleted = result.DocumentRowsDeleted,
+                    filesDeleted = result.FilesDeleted,
+                    filesMissing = result.FilesMissing,
+                    filesFailed = result.FilesFailed,
+                    durationMs = result.DurationMs,
+                    phases = result.Phases.Select(p => new { phase = p.Phase, durationMs = p.DurationMs })
+                });
+            }
+            finally
+            {
+                _syncCoordinator.EndDelete();
+            }
+        }
+
         private bool IsValidCredential(string username, string password)
         {
             if (string.IsNullOrEmpty(_adminOptions.Username) || string.IsNullOrEmpty(_adminOptions.Password))
@@ -174,19 +237,6 @@ namespace JIITPlacement.Controllers
             var a = Encoding.UTF8.GetBytes(value);
             var b = Encoding.UTF8.GetBytes(expected);
             return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
-        }
-
-        private string? GetBearerToken()
-        {
-            if (!Request.Headers.TryGetValue(HeaderNames.Authorization, out var values))
-                return null;
-
-            var header = values.ToString();
-            if (!header.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            var token = header[BearerPrefix.Length..].Trim();
-            return string.IsNullOrEmpty(token) ? null : token;
         }
     }
 }

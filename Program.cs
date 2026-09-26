@@ -1,8 +1,11 @@
+using System.Text;
 using System.Text.Json.Serialization;
 using JIITPlacement.Models.App_Code;
 using JIITPlacement.Models;
 using JIITPlacement.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,16 +56,80 @@ builder.Services.AddScoped<ISuperSetService, SuperSetService>();
 builder.Services.AddScoped<ISuperSetSyncService, SuperSetSyncService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
-// Admin authentication: opaque session tokens with in-memory revocation
+// Admin authentication: signed JWT bearer tokens with jti-based logout revocation
 builder.Services.Configure<AdminOptions>(
     builder.Configuration.GetSection(AdminOptions.SectionName));
-builder.Services.AddSingleton<IAdminSessionStore, AdminSessionStore>();
-builder.Services.AddAuthentication(AdminAuthHandler.SchemeName)
-    .AddScheme<AuthenticationSchemeOptions, AdminAuthHandler>(AdminAuthHandler.SchemeName, null);
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.AddSingleton<IAdminTokenService, AdminTokenService>();
+builder.Services.AddSingleton<IAdminTokenRevocationStore, AdminTokenRevocationStore>();
+
+var jwtSecret = builder.Configuration[$"{JwtOptions.SectionName}:Secret"] ?? string.Empty;
+if (Encoding.UTF8.GetBytes(jwtSecret).Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Secret is missing or shorter than 32 bytes. Copy the Jwt section from appsettings.example.json " +
+        "into appsettings.json (git-ignored) or into user-secrets before starting the API.");
+}
+
+var jwtIssuer = builder.Configuration[$"{JwtOptions.SectionName}:Issuer"] ?? "JIITPlacement";
+var jwtAudience = builder.Configuration[$"{JwtOptions.SectionName}:Audience"] ?? "JIITPlacement";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false; // keep claim names as issued (username, role, jti)
+        options.RequireHttpsMetadata = false; // local development runs over http
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            NameClaimType = "username",
+            RoleClaimType = "role",
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                // Logout revokes the token's jti; a revoked session no longer authenticates.
+                var jti = context.Principal?.FindFirst("jti")?.Value;
+                if (!string.IsNullOrEmpty(jti))
+                {
+                    var store = context.HttpContext.RequestServices.GetRequiredService<IAdminTokenRevocationStore>();
+                    if (store.IsRevoked(jti))
+                        context.Fail("This session was logged out.");
+                }
+                return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                // Replace the empty 401 body with the documented JSON error.
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsync("{\"success\":false,\"message\":\"Unauthorized\"}");
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsync("{\"success\":false,\"message\":\"Forbidden\"}");
+            }
+        };
+    });
 builder.Services.AddAuthorization();
 
 // Background job-sync coordinator (single sync at a time + live status)
 builder.Services.AddSingleton<IAdminSyncCoordinator, AdminSyncCoordinator>();
+
+// Admin job deletion (records first, then the stored documents on disk)
+builder.Services.AddScoped<IJobCleanupService, JobCleanupService>();
 
 // Gmail integration services
 builder.Services.AddScoped<IGmailService, GmailSyncService>();
@@ -100,7 +167,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         In = ParameterLocation.Header,
-        Description = "Admin session token from POST /api/admin/login"
+        Description = "Signed admin JWT from POST /api/admin/login"
     });
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {

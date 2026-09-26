@@ -17,7 +17,8 @@ namespace JIITPlacement.Services
 
         private readonly object _gate = new();
         private AdminSyncStatus _status = new();
-        private int _runningFlag; // 0 = idle, 1 = running
+        private int _busyFlag; // 0 = idle, 1 = sync or delete in progress
+        private volatile string? _busyOperation; // "sync" | "delete" while busy
 
         public AdminSyncCoordinator(
             IServiceScopeFactory scopeFactory,
@@ -35,14 +36,15 @@ namespace JIITPlacement.Services
             }
         }
 
-        public async Task<(bool started, AdminSyncStatus status)> TryStartAsync()
+        public async Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync()
         {
-            // Atomic guard: only the first caller may start a sync.
-            if (Interlocked.CompareExchange(ref _runningFlag, 1, 0) != 0)
+            // Atomic guard: only the first caller may claim the operation slot.
+            if (Interlocked.CompareExchange(ref _busyFlag, 1, 0) != 0)
             {
-                _logger.LogWarning("Sync start rejected — a synchronization is already running");
-                return (false, GetStatus());
+                _logger.LogWarning("Sync start rejected — another admin operation is already running");
+                return (false, GetStatus(), _busyOperation);
             }
+            _busyOperation = "sync";
 
             var syncId = Guid.NewGuid().ToString("N");
             int? totalBefore = await TryCountJobsAsync();
@@ -73,7 +75,7 @@ namespace JIITPlacement.Services
 
             var snapshot = status.Clone();
             _ = Task.Run(() => RunSyncAsync(syncId, totalBefore));
-            return (true, snapshot);
+            return (true, snapshot, null);
         }
 
         private async Task RunSyncAsync(string syncId, int? totalBefore)
@@ -119,8 +121,27 @@ namespace JIITPlacement.Services
             }
             finally
             {
-                Interlocked.Exchange(ref _runningFlag, 0);
+                _busyOperation = null;
+                Interlocked.Exchange(ref _busyFlag, 0);
             }
+        }
+
+        public (bool allowed, string? busyOperation) TryBeginDelete()
+        {
+            if (Interlocked.CompareExchange(ref _busyFlag, 1, 0) != 0)
+            {
+                _logger.LogWarning("Deletion rejected — another admin operation is already running");
+                return (false, _busyOperation);
+            }
+
+            _busyOperation = "delete";
+            return (true, null);
+        }
+
+        public void EndDelete()
+        {
+            _busyOperation = null;
+            Interlocked.Exchange(ref _busyFlag, 0);
         }
 
         /// <summary>Merge one real progress report from the sync loop.</summary>
