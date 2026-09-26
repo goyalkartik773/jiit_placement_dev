@@ -1,0 +1,146 @@
+@use '../../../styles/variables' as *;
+
+.script-console {
+  border: 1px solid $ink;
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: $ink;
+  box-shadow: $shadow-sm;
+
+  // ----- Title bar -----
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-2 $space-3;
+    background: $text; // slate-800 — title bar above the slate-900 body
+    border-bottom: 1px solid $text-soft;
+  }
+
+  &__dots {
+    display: inline-flex;
+    gap: $space-1-5;
+  }
+
+  &__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: $radius-pill;
+
+    &--close {
+      background: $danger-strong;
+    }
+
+    &--min {
+      background: $warning;
+    }
+
+    &--max {
+      background: $success-strong;
+    }
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    color: $text-faint;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__state {
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+
+    &--busy {
+      color: $success-strong;
+    }
+  }
+
+  // ----- Output body -----
+  &__body {
+    padding: $space-3 $space-4;
+    max-height: 22rem;
+    overflow-y: auto;
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    line-height: $lh-normal;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $text-soft;
+      border-radius: $radius-pill;
+    }
+  }
+
+  &__line {
+    display: flex;
+    gap: $space-3;
+    margin: 0;
+    padding: $space-0-5 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    &--cmd {
+      color: $primary-border;
+      font-weight: $fw-medium;
+    }
+
+    &--info {
+      color: $info-border;
+    }
+
+    &--success {
+      color: $success-strong;
+    }
+
+    &--warn {
+      color: $warning-border;
+    }
+
+    &--error {
+      color: $danger-strong;
+      font-weight: $fw-medium;
+    }
+
+    &--dim {
+      color: $text-muted;
+    }
+
+    &--cursor {
+      padding-top: $space-1;
+    }
+  }
+
+  &__time {
+    flex: none;
+    color: $text-muted;
+    user-select: none;
+  }
+
+  &__text {
+    min-width: 0;
+  }
+
+  &__cursor {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    background: $success-strong;
+    vertical-align: text-bottom;
+    animation: caret-blink 1.1s step-end infinite;
+  }
+}
