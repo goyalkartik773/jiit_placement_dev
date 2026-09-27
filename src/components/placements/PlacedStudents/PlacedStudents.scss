@@ -48,6 +48,12 @@
       white-space: nowrap;
     }
 
+    // Long text columns wrap instead of forcing an even wider table
+    td.placed-students__person,
+    td.placed-students__role {
+      white-space: normal;
+    }
+
     tbody tr:last-child td {
       border-bottom: 0;
     }
@@ -79,7 +85,8 @@
   }
 
   &__role {
-    white-space: normal;
+    // Wraps in long role names (see td.placed-students__role above)
+    overflow-wrap: anywhere;
   }
 
   &__ctc {

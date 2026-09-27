@@ -83,7 +83,7 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
       <p className="placed-students__count" aria-live="polite">
         <strong>{data?.placedCount ?? students.length}</strong> student
         {(data?.placedCount ?? students.length) === 1 ? '' : 's'} matched to{' '}
-        <strong>{data?.job.jobprofile}</strong>
+        <strong>{data?.job.jobprofile ?? 'this job'}</strong>
       </p>
 
       <div className="placed-students__scroll">
@@ -103,7 +103,7 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
             {students.map((student) => (
               <tr key={student.id}>
                 <td className="placed-students__roll">{student.rollno}</td>
-                <td>
+                <td className="placed-students__person">
                   <span className="placed-students__name">{student.studentname}</span>
                   {student.email ? <span className="placed-students__email">{student.email}</span> : null}
                 </td>

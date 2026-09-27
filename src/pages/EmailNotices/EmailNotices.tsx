@@ -47,6 +47,13 @@ export function EmailNotices() {
   const facets = useMemo(() => data?.facets ?? [], [data]);
   const typeLabel = type ? classificationLabelOf(type) : null;
 
+  // Facets ignore the active `type`, so their sum is the honest "All" count
+  // for the current search (the filtered totalCount would understate it).
+  const allCount = useMemo(
+    () => (facets.length > 0 ? facets.reduce((sum, facet) => sum + (facet.count || 0), 0) : data?.totalCount ?? 0),
+    [facets, data],
+  );
+
   const heading = search ? `Results for "${search}"` : 'Email notices';
   const countLabel = data
     ? `${data.totalCount} notice${data.totalCount === 1 ? '' : 's'}${typeLabel ? ` - ${typeLabel} only` : ''}`
@@ -84,7 +91,7 @@ export function EmailNotices() {
           onClick={() => setType('')}
         >
           All
-          <span className="email-notices-page__facet-count">{data ? data.totalCount : 0}</span>
+          <span className="email-notices-page__facet-count">{data ? allCount : null}</span>
         </button>
 
         {facets.map((facet) => (
