@@ -333,7 +333,7 @@ namespace JIITPlacement.Services
             return (null, null);
         }
 
-        public async Task<GmailSyncResult> SyncAllAsync(GmailSyncRequest request)
+        public async Task<GmailSyncResult> SyncAllAsync(GmailSyncRequest request, IProgress<GmailSyncProgress>? progress = null)
         {
             _logger.LogInformation("Gmail sync started - MaxResults: {MaxResults}, Query: {Query}", request.MaxResults, request.Query ?? "(none)");
 
@@ -361,11 +361,22 @@ namespace JIITPlacement.Services
                     var messageIds = await GetMessageIdsAsync(query, request.MaxResults);
                     groupResult.Fetched = messageIds.Count;
 
+                    progress?.Report(new GmailSyncProgress
+                    {
+                        Phase = "listing",
+                        GroupName = group.Name,
+                        GroupEmail = group.Email,
+                        Total = messageIds.Count
+                    });
+
+                    int done = 0;
                     foreach (var messageId in messageIds)
                     {
+                        string? outcome = null;
                         try
                         {
                             var procResult = await ProcessMessageAsync(messageId, group);
+                            outcome = procResult.ToString();
                             switch (procResult)
                             {
                                 case MessageProcessResult.NewProcessed: groupResult.NewMessages++; groupResult.Processed++; break;
@@ -379,10 +390,44 @@ namespace JIITPlacement.Services
                         {
                             _logger.LogError(ex, "Failed to process message {MessageId}", messageId);
                             groupResult.Failed++;
+                            outcome = "Exception";
                         }
+
+                        done++;
+                        progress?.Report(new GmailSyncProgress
+                        {
+                            Phase = "message",
+                            GroupName = group.Name,
+                            GroupEmail = group.Email,
+                            Total = messageIds.Count,
+                            Done = done,
+                            Fetched = messageIds.Count,
+                            NewMessages = groupResult.NewMessages,
+                            Existing = groupResult.ExistingMessages,
+                            Processed = groupResult.Processed,
+                            ReviewRequired = groupResult.ReviewRequired,
+                            Failed = groupResult.Failed,
+                            MessageId = messageId,
+                            Result = outcome
+                        });
                     }
 
                     result.Groups.Add(groupResult);
+
+                    progress?.Report(new GmailSyncProgress
+                    {
+                        Phase = "group_done",
+                        GroupName = group.Name,
+                        GroupEmail = group.Email,
+                        Total = messageIds.Count,
+                        Done = messageIds.Count,
+                        Fetched = groupResult.Fetched,
+                        NewMessages = groupResult.NewMessages,
+                        Existing = groupResult.ExistingMessages,
+                        Processed = groupResult.Processed,
+                        ReviewRequired = groupResult.ReviewRequired,
+                        Failed = groupResult.Failed
+                    });
                 }
 
                 result.TotalFetched = result.Groups.Sum(g => g.Fetched);

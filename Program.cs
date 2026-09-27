@@ -128,6 +128,11 @@ builder.Services.AddAuthorization();
 // Background job-sync coordinator (single sync at a time + live status)
 builder.Services.AddSingleton<IAdminSyncCoordinator, AdminSyncCoordinator>();
 
+// Admin console scripts: server-generated console output + persisted history
+builder.Services.AddSingleton<IAdminScriptStore, AdminScriptStore>();
+builder.Services.AddScoped<IAdminScriptRunner, AdminScriptRunner>();
+builder.Services.AddScoped<IAdminDeleteScripts, AdminDeleteScripts>();
+
 // Admin job deletion (records first, then the stored documents on disk)
 builder.Services.AddScoped<IJobCleanupService, JobCleanupService>();
 

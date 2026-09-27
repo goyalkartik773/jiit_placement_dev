@@ -19,6 +19,8 @@ namespace JIITPlacement.Services
         private AdminSyncStatus _status = new();
         private int _busyFlag; // 0 = idle, 1 = sync or delete in progress
         private volatile string? _busyOperation; // "sync" | "delete" while busy
+        private string? _runRowId; // admin_script_runs.id of the current run
+        private int _nextLogAt; // next jobsProcessed value to print in the console
 
         public AdminSyncCoordinator(
             IServiceScopeFactory scopeFactory,
@@ -36,7 +38,7 @@ namespace JIITPlacement.Services
             }
         }
 
-        public async Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync()
+        public async Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync(string? username = null)
         {
             // Atomic guard: only the first caller may claim the operation slot.
             if (Interlocked.CompareExchange(ref _busyFlag, 1, 0) != 0)
@@ -62,12 +64,33 @@ namespace JIITPlacement.Services
                 DocumentsFailed = 0,
                 FailedJobs = 0,
                 Progress = null, // no fabricated percentage before the total is known
-                StartedAt = DateTimeOffset.UtcNow
+                StartedAt = DateTimeOffset.UtcNow,
+                Output = new List<ScriptOutputLine>()
             };
+            AppendLine(status, "cmd", "$ POST /api/admin/jobs/sync");
+            AppendLine(status, "info", totalBefore is null
+                ? "→ job count unavailable before sync"
+                : $"→ {totalBefore} jobs in the database before sync");
+            AppendLine(status, "info", "→ source: Superset job feed (jobs + notices + documents)");
+
+            // History is best-effort: a logging failure must never block the sync.
+            _runRowId = null;
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
+                _runRowId = AdminScriptRunLog.Begin(dataEntity, "jobs_sync", username ?? "unknown",
+                    "POST /api/admin/jobs/sync");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not open the jobs_sync history row");
+            }
 
             lock (_gate)
             {
                 _status = status;
+                _nextLogAt = 0;
             }
 
             _logger.LogInformation("Sync {SyncId} started — {Count} jobs before sync",
@@ -94,6 +117,7 @@ namespace JIITPlacement.Services
                 if (!result.Success)
                 {
                     Fail(syncId, result.Message);
+                    Persist(syncId, "failed", "Job synchronization failed", result.Message);
                     return;
                 }
 
@@ -106,8 +130,17 @@ namespace JIITPlacement.Services
                     _status.TotalJobsAfterSync = totalAfter;
                     _status.Progress = ComputeProgress(_status.JobsProcessed, _status.JobsTotal);
                     _status.FinishedAt = DateTimeOffset.UtcNow;
+                    AppendLine(_status, "success",
+                        $"✓ {_status.TotalJobsBeforeSync} → {totalAfter} jobs in the database");
+                    AppendLine(_status, "info",
+                        $"  {_status.JobsProcessed}/{_status.JobsTotal} source jobs processed · {_status.NewJobs} new · " +
+                        $"{_status.DocumentsDownloaded} documents downloaded" +
+                        (_status.FailedJobs > 0 ? $" · {_status.FailedJobs} failed" : "") +
+                        (_status.DocumentsFailed > 0 ? $" · {_status.DocumentsFailed} document failures" : ""));
                     final = _status.Clone();
                 }
+
+                Persist(syncId, "completed", final.Message ?? "Job synchronization completed", null);
 
                 _logger.LogInformation(
                     "Sync {SyncId} completed — jobs {Before} -> {After}, {New} new, {Processed}/{Total} processed, {Docs} documents downloaded, {DocFailed} document failures, {Failed} failed jobs",
@@ -118,6 +151,7 @@ namespace JIITPlacement.Services
             {
                 _logger.LogError(ex, "Sync {SyncId} failed", syncId);
                 Fail(syncId, ex.Message);
+                Persist(syncId, "failed", "Job synchronization failed", ex.Message);
             }
             finally
             {
@@ -126,23 +160,30 @@ namespace JIITPlacement.Services
             }
         }
 
-        public (bool allowed, string? busyOperation) TryBeginDelete()
+        public string? BusyOperation => _busyOperation;
+
+        public (bool allowed, string? busyOperation) TryBeginScript(string script)
         {
             if (Interlocked.CompareExchange(ref _busyFlag, 1, 0) != 0)
             {
-                _logger.LogWarning("Deletion rejected — another admin operation is already running");
+                _logger.LogWarning(
+                    "Script {Script} rejected — {Busy} is already running", script, _busyOperation);
                 return (false, _busyOperation);
             }
 
-            _busyOperation = "delete";
+            _busyOperation = script;
             return (true, null);
         }
 
-        public void EndDelete()
+        public void EndScript()
         {
             _busyOperation = null;
             Interlocked.Exchange(ref _busyFlag, 0);
         }
+
+        public (bool allowed, string? busyOperation) TryBeginDelete() => TryBeginScript("delete");
+
+        public void EndDelete() => EndScript();
 
         /// <summary>Merge one real progress report from the sync loop.</summary>
         private void ApplyProgress(string syncId, SyncProgress p)
@@ -158,6 +199,21 @@ namespace JIITPlacement.Services
                 _status.DocumentsDownloaded = p.DocumentsDownloaded;
                 _status.DocumentsFailed = p.DocumentsFailed;
                 _status.Progress = ComputeProgress(p.JobsProcessed, p.JobsTotal);
+
+                // Print about 20 progress lines per run — enough to feel live,
+                // few enough to keep the console readable and the log small.
+                if (p.JobsTotal is int total && total > 0)
+                {
+                    int step = Math.Max(1, (int)Math.Ceiling(total / 20.0));
+                    if (_nextLogAt == 0) _nextLogAt = step;
+                    if (p.JobsProcessed >= _nextLogAt || p.JobsProcessed == total)
+                    {
+                        AppendLine(_status, "info",
+                            $"  [{p.JobsProcessed}/{p.JobsTotal}] {p.NewJobs} new · {p.DocumentsDownloaded} documents" +
+                            (p.JobsFailed > 0 ? $" · {p.JobsFailed} failed" : ""));
+                        _nextLogAt = p.JobsProcessed + step;
+                    }
+                }
             }
         }
 
@@ -170,9 +226,68 @@ namespace JIITPlacement.Services
                 _status.Message = "Job synchronization failed";
                 _status.Error = error;
                 _status.FinishedAt = DateTimeOffset.UtcNow;
+                AppendLine(_status, "error", "✗ " + error);
             }
 
             _logger.LogError("Sync {SyncId} failed: {Error}", syncId, error);
+        }
+
+        /// <summary>Write the run to admin_script_runs so history survives restarts.</summary>
+        private void Persist(string syncId, string status, string message, string? error)
+        {
+            AdminSyncStatus snapshot;
+            string? runId;
+            lock (_gate)
+            {
+                if (_status.SyncId != syncId) return;
+                snapshot = _status.Clone();
+                runId = _runRowId;
+                _runRowId = null;
+            }
+
+            if (string.IsNullOrEmpty(runId)) return;
+
+            long durationMs = snapshot.StartedAt is not null && snapshot.FinishedAt is not null
+                ? (long)Math.Max((snapshot.FinishedAt.Value - snapshot.StartedAt.Value).TotalMilliseconds, 0)
+                : 0;
+
+            var counters = new
+            {
+                totalJobsBeforeSync = snapshot.TotalJobsBeforeSync,
+                totalJobsAfterSync = snapshot.TotalJobsAfterSync,
+                jobsTotal = snapshot.JobsTotal,
+                jobsProcessed = snapshot.JobsProcessed,
+                newJobs = snapshot.NewJobs,
+                documentsDownloaded = snapshot.DocumentsDownloaded,
+                documentsFailed = snapshot.DocumentsFailed,
+                failedJobs = snapshot.FailedJobs
+            };
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
+                AdminScriptRunLog.Finish(dataEntity, runId, status, message, counters,
+                    snapshot.Output ?? new List<ScriptOutputLine>(), error, durationMs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not persist the jobs_sync history row");
+            }
+        }
+
+        /// <summary>Append a console line while holding the status lock.</summary>
+        private static void AppendLine(AdminSyncStatus status, string tone, string text)
+        {
+            status.Output ??= new List<ScriptOutputLine>();
+            status.Output.Add(new ScriptOutputLine
+            {
+                Time = DateTime.Now.ToString("HH:mm:ss"),
+                Tone = tone,
+                Text = text
+            });
+            if (status.Output.Count > 500)
+                status.Output.RemoveRange(0, status.Output.Count - 500);
         }
 
         public async Task<int?> GetTotalJobsAsync()

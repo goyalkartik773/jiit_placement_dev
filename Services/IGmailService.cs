@@ -27,8 +27,10 @@ namespace JIITPlacement.Services
 
         /// <summary>
         /// Synchronize messages from all configured groups (the complete pipeline).
+        /// An optional progress sink receives one event per listing/per processed
+        /// message so a console script can stream real output while it runs.
         /// </summary>
-        Task<GmailSyncResult> SyncAllAsync(GmailSyncRequest request);
+        Task<GmailSyncResult> SyncAllAsync(GmailSyncRequest request, IProgress<GmailSyncProgress>? progress = null);
 
         /// <summary>
         /// Get messages with pagination and filtering.

@@ -30,6 +30,17 @@ namespace JIITPlacement.Models
         public DateTimeOffset? FinishedAt { get; set; }
         public string? Error { get; set; }
 
-        public AdminSyncStatus Clone() => (AdminSyncStatus)MemberwiseClone();
+        /// <summary>
+        /// Console output the run produced (server-side, replayable). Empty until
+        /// the first line is written, so the field is omitted from the JSON.
+        /// </summary>
+        public List<ScriptOutputLine>? Output { get; set; }
+
+        public AdminSyncStatus Clone()
+        {
+            var clone = (AdminSyncStatus)MemberwiseClone();
+            if (Output is not null) clone.Output = new List<ScriptOutputLine>(Output);
+            return clone;
+        }
     }
 }

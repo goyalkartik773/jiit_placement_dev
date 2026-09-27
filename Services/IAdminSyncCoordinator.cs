@@ -13,8 +13,9 @@ namespace JIITPlacement.Services
         /// Start a sync unless another admin operation is already running.
         /// Returns whether it started, the status snapshot, and the operation
         /// holding the slot ("sync" or "delete") when it did not start.
+        /// <paramref name="username"/> is only used for the history entry.
         /// </summary>
-        Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync();
+        Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync(string? username = null);
 
         /// <summary>Current snapshot (status "idle" when never run).</summary>
         AdminSyncStatus GetStatus();
@@ -26,8 +27,21 @@ namespace JIITPlacement.Services
         Task<int?> GetTotalJobsAsync();
 
         /// <summary>
-        /// Claim the single-operation slot for a job deletion.
-        /// Returns whether it was claimed plus the operation holding it when not.
+        /// Claim the single-operation slot for any admin script (job deletion,
+        /// gmail sync, offer sync, mailbox delete, ...). Returns whether it was
+        /// claimed plus the operation holding it when not.
+        /// </summary>
+        (bool allowed, string? busyOperation) TryBeginScript(string script);
+
+        /// <summary>Release a slot claimed by <see cref="TryBeginScript"/>.</summary>
+        void EndScript();
+
+        /// <summary>Operation currently holding the slot, or null when idle.</summary>
+        string? BusyOperation { get; }
+
+        /// <summary>
+        /// Claim the slot for a job deletion (thin wrapper over
+        /// <see cref="TryBeginScript"/> with the legacy "delete" label).
         /// </summary>
         (bool allowed, string? busyOperation) TryBeginDelete();
 
