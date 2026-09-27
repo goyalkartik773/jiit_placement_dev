@@ -136,6 +136,7 @@ def upgrade() -> None:
     op.create_table('opportunities',
     sa.Column('id', sa.String(length=32), nullable=False),
     sa.Column('email_id', sa.String(length=32), nullable=False),
+    sa.Column('company_id', sa.String(length=32), nullable=True),
     sa.Column('organization_name', sa.Text(), nullable=True),
     sa.Column('event_name', sa.Text(), nullable=True),
     sa.Column('event_type', sa.String(length=64), nullable=True),
@@ -151,10 +152,12 @@ def upgrade() -> None:
     sa.Column('confidence', sa.Float(), nullable=False),
     sa.Column('method', sa.String(length=32), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['company_id'], ['companies.id'], name=op.f('fk_opportunities_company_id_companies'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['email_id'], ['emails.id'], name=op.f('fk_opportunities_email_id_emails'), ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['is_revision_of'], ['emails.id'], name=op.f('fk_opportunities_is_revision_of_emails'), ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_opportunities'))
     )
+    op.create_index(op.f('ix_opportunities_company_id'), 'opportunities', ['company_id'], unique=False)
     op.create_index(op.f('ix_opportunities_created_at'), 'opportunities', ['created_at'], unique=False)
     op.create_index(op.f('ix_opportunities_deadline'), 'opportunities', ['deadline'], unique=False)
     op.create_index(op.f('ix_opportunities_email_id'), 'opportunities', ['email_id'], unique=False)
@@ -265,6 +268,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_opportunities_email_id'), table_name='opportunities')
     op.drop_index(op.f('ix_opportunities_deadline'), table_name='opportunities')
     op.drop_index(op.f('ix_opportunities_created_at'), table_name='opportunities')
+    op.drop_index(op.f('ix_opportunities_company_id'), table_name='opportunities')
     op.drop_table('opportunities')
     op.drop_index(op.f('ix_offers_email_id'), table_name='offers')
     op.drop_index(op.f('ix_offers_created_at'), table_name='offers')

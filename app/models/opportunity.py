@@ -19,6 +19,9 @@ class Opportunity(Base):
     email_id: Mapped[str] = mapped_column(
         String(32), ForeignKey("emails.id", ondelete="CASCADE"), index=True
     )
+    company_id: Mapped[Optional[str]] = mapped_column(
+        String(32), ForeignKey("companies.id", ondelete="SET NULL"), index=True
+    )
 
     organization_name: Mapped[Optional[str]] = mapped_column(Text)
     #: Cleaned subject of the source email — the event/opportunity title.
