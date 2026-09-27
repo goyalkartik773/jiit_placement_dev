@@ -1,3 +1,6 @@
+# Secrets (never commit: PG password, OAuth material)
+.env
+
 # Python
 __pycache__/
 *.py[cod]
