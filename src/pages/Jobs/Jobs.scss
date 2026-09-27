@@ -3,6 +3,97 @@
 
 .jobs-page {
   @include stack($space-6);
+
+  // Calm design system typography — scoped here because _typography.scss
+  // forces $font-headline (IBM Plex) on headings for the other screens, and
+  // the reset leaves body text on the legacy ink (#12151C instead of #1B1E27).
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--ui-font);
+    color: var(--ui-ink);
+  }
+
+  strong,
+  b {
+    color: var(--ui-ink);
+  }
+
+  // ----- Page head (eyebrow / title / count line) -----
+  .page-head__eyebrow {
+    color: var(--ui-accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .page-head__title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+
+  .page-head__count {
+    font-size: 13px;
+    color: var(--ui-muted);
+  }
+
+  .page-head__refreshing {
+    color: var(--ui-accent);
+  }
+
+  // Shared pagination is styled with the legacy tokens ($primary / $border)
+  // because Superset and Email Notices use it too — retint it here only.
+  .pagination__btn {
+    border-color: var(--ui-border);
+    color: var(--ui-muted);
+
+    &:hover:not(:disabled):not(.is-active) {
+      color: var(--ui-ink);
+    }
+
+    &.is-active {
+      background: var(--ui-accent);
+      border-color: var(--ui-accent);
+      color: var(--ui-panel);
+    }
+  }
+}
+
+// ============================================================================
+// Single white filter panel: search row → filter groups → legend → hint.
+// The panel owns the surface (14px radius, 1px border); JobsToolbar and
+// TierLegend own their rows inside it.
+// ============================================================================
+.jobs-filter-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-panel);
+  font-family: var(--ui-font);
+}
+
+.jobs-filter-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--ui-border-soft);
+  color: var(--ui-faint);
+  font-size: 11.5px;
+  font-weight: 500;
+
+  > svg {
+    flex-shrink: 0;
+  }
 }
 
 // ----- Inline refresh-failure banner (page-head lives in styles/_utilities.scss) -----
@@ -12,11 +103,12 @@
   align-items: center;
   gap: $space-3;
   padding: $space-3 $space-4;
-  background: $warning-soft;
-  border: 1px solid $warning-border;
-  border-radius: $radius-md;
+  background: var(--ui-red-soft);
+  border: 1px solid rgba(213, 72, 75, 0.35);
+  border-radius: var(--ui-radius-panel);
+  color: var(--ui-red);
   font-size: $fs-sm;
-  color: $warning;
+  font-weight: 600;
 
   > span {
     flex: 1;

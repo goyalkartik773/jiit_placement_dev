@@ -2,25 +2,19 @@
 @use '../../../styles/mixins' as *;
 
 // ============================================================================
-// Spec job card — white surface on the dot-grid canvas, ambient ring shadow,
-// company hero, inset package bar (tier-colored value), location/deadline on
-// one line, criteria chips, excerpt shell, dashed divider + footer.
-// Status pill + category chip share the top line (chip truncates with a
-// native tooltip); company name is blue (static, no hover color change).
+// Calm job card — the Card component owns the white surface (1px border,
+// 16px radius); this file owns padding (20px) and the 14px section rhythm:
+// status row → avatar/company + role → green package strip → location and
+// deadline → one accent eligibility pill → quiet dashed excerpt → footer
+// behind a hairline. Plus Jakarta Sans everywhere; no monospace on this card.
 // ============================================================================
 .job-card {
   position: relative;
-  @include stack(0); // margins carry the rhythm; flex keeps the footer pinned
-  padding: $card-pad;
-
-  @include up('md') {
-    padding: $card-pad-md; // spec p-7 ≥640px
-  }
-
-  background: $surface; // white card surface — aligned with the theme
-  border: 1px solid $border;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-card;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  font-family: var(--ui-font);
   transition: box-shadow $transition-base, transform $transition-base;
 
   &:hover {
@@ -28,314 +22,324 @@
     transform: translateY(-2px);
   }
 
-  // ----- 01 · status pill + category chip (one line) + attachment count -----
+  // ----- 01 · status indicator + one neutral category tag + attachments -----
   &__top {
-    position: relative;
-    z-index: 1; // keeps pill tooltips above the card-wide link overlay
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: $space-3;
-    margin-bottom: $space-4;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    color: var(--ui-muted);
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+
+    &--active {
+      color: var(--ui-green);
+    }
+
+    &--active &-dot {
+      animation: pulse-dot 1.8s ease-in-out infinite;
+    }
+
+    &-dot {
+      width: 7px;
+      height: 7px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: currentColor;
+    }
   }
 
   &__tags {
     display: flex;
-    flex: 1 1 auto;
-    flex-wrap: nowrap; // status + type stay on a single line
     align-items: center;
-    gap: $space-2;
+    justify-content: flex-end;
+    gap: 8px;
     min-width: 0;
-    overflow: hidden; // hard clip at the row edge
+  }
 
-    .badge {
-      flex-shrink: 0;
-    }
-
-    .chip {
-      // block box so text-overflow can produce a real ellipsis inside flex
-      display: block;
-      min-width: 0;
-      max-width: 100%;
-    }
+  // The single category tag keeps the neutral pill look of an unselected filter
+  & .job-card__category {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 10px;
+    overflow: hidden;
+    color: var(--ui-muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   &__doc-count {
     display: inline-flex;
     align-items: center;
-    gap: $space-1-5;
+    gap: 4px;
     flex-shrink: 0;
-    padding: $space-1 $space-2-5;
-    border: 1px solid $border;
-    border-radius: $radius-sm;
-    background: $surface-subtle;
-    color: $text-muted;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
+    color: var(--ui-faint);
+    font-size: 12.5px;
+    font-weight: 600;
 
     &-value {
       line-height: 1;
     }
   }
 
-  // ----- 02 · company hero -----
+  // ----- 02 · company avatar + name, role beneath -----
   &__hero {
-    position: relative;
-    z-index: 1;
     display: flex;
     align-items: center;
-    gap: $space-3;
+    gap: 12px;
     min-width: 0;
-    margin-bottom: $space-4;
   }
 
   &__hero-text {
     display: flex;
     flex-direction: column;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: $space-1;
+    gap: 3px;
     min-width: 0;
   }
 
   &__company-name {
     min-width: 0;
-    font-size: $fs-lg;
-    line-height: $lh-tight;
-
-    @include up('md') {
-      font-size: $fs-xl; // spec text-2xl
-    }
+    font-family: var(--ui-font);
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
 
     a {
-      color: $primary; // blue company accent — static on hover
-      font-weight: $fw-bold;
+      color: var(--ui-ink);
+      font-weight: inherit;
+
+      &:hover {
+        color: var(--ui-accent);
+      }
     }
+  }
+
+  &__role {
+    min-width: 0;
+    color: var(--ui-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    @include truncate;
   }
 
   &__type {
     max-width: 100%;
     overflow: hidden;
-    color: $text-muted;
-    font-size: $fs-xs;
-    font-weight: $fw-medium;
+    color: var(--ui-faint);
+    font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
-  // ----- 03 · role line -----
-  &__role {
-    display: flex;
-    gap: $space-1-5;
-    min-width: 0;
-    margin: 0 0 $space-4;
-    font-size: $fs-base;
-    line-height: $lh-snug;
-
-    @include up('md') {
-      font-size: $fs-md;
-    }
-
-    &-label {
-      flex-shrink: 0;
-      color: $text-muted;
-      font-weight: $fw-semibold;
-    }
-
-    &-value {
-      min-width: 0;
-      color: $ink;
-      font-weight: $fw-semibold;
-      @include truncate;
-    }
-  }
-
-  // ----- 04 · package bar — value colored by the fixed tier coding -----
+  // ----- 03 · package strip — green means money, never "not disclosed" -----
   &__package {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: $space-3;
-    padding: $space-3;
-    margin-bottom: $space-4;
-    background: $surface-subtle;
-    border: 1px solid $border;
-    border-radius: $radius-md;
+    gap: 12px;
+    padding: 11px 14px;
+    background: var(--ui-green-soft);
+    border-radius: var(--ui-radius-field); // 11px
   }
 
   &__package-label {
     flex-shrink: 0;
-    color: $text-muted;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
+    color: var(--ui-muted);
+    font-size: 11px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: $tracking-caps;
   }
 
   &__package-value {
     min-width: 0;
-    color: $ink;
-    font-family: $font-headline;
-    font-size: $fs-lg;
-    font-weight: $fw-bold;
+    color: var(--ui-green);
+    font-family: var(--ui-font);
+    font-size: 19px;
+    font-weight: 800;
     line-height: 1.2;
     text-align: right;
     @include truncate;
 
-    @include up('md') {
-      font-size: $fs-xl;
-    }
-
-    &--entry {
-      color: $tier-entry-fg;
-    }
-
-    &--standard {
-      color: $tier-standard-fg;
-    }
-
-    &--advanced {
-      color: $tier-advanced-fg;
-    }
-
-    &--high {
-      color: $tier-high-fg;
-    }
-
-    &--premium {
-      color: $tier-premium-fg;
-    }
-
+    // Tier modifiers keep the same green; only an undisclosed value is muted.
     &--undisclosed {
-      color: $text-muted;
-      font-size: $fs-sm;
-      font-style: italic;
-      font-weight: $fw-medium;
-      font-family: $font-sans;
-      letter-spacing: 0;
+      color: var(--ui-muted);
+      font-size: 14px;
+      font-weight: 700;
+      font-style: normal;
     }
   }
 
-  // ----- 05 · location + deadline (single line) -----
+  // ----- 04 · location left / deadline right (plain text, no badge) -----
   &__facts {
     display: flex;
-    flex-wrap: nowrap; // both facts stay on one line; location truncates
     align-items: center;
     justify-content: space-between;
-    gap: $space-3;
-    margin-bottom: $space-4;
-    font-size: $fs-xs;
+    gap: 12px;
+    min-width: 0;
+    font-size: 13px;
+  }
 
-    @include up('md') {
-      font-size: $fs-sm;
+  &__facts .job-card__location {
+    flex: 1 1 auto;
+    color: var(--ui-muted);
+    font-weight: 600;
+
+    > svg {
+      width: 14px;
+      height: 14px;
+      color: var(--ui-faint);
     }
 
-    .icon-label {
-      min-width: 0;
-      font-size: inherit;
-
-      &:first-child {
-        flex: 1 1 auto; // location shrinks with an ellipsis + tooltip
-      }
-
-      &:last-child {
-        flex-shrink: 0;
-        white-space: nowrap;
-      }
+    .icon-label__text {
+      @include truncate;
     }
   }
 
-  // ----- 06 · eligibility chips (fixed strictness colors) -----
+  &__facts .job-card__deadline {
+    flex-shrink: 0;
+    color: var(--ui-muted);
+    font-weight: 600;
+    white-space: nowrap;
+
+    // Plain coloured text only — no icon, no box
+    > svg {
+      display: none;
+    }
+
+    &.icon-label--danger {
+      color: var(--ui-red);
+      font-weight: 700;
+    }
+  }
+
+  // ----- 05 · one accent pill holding every eligibility mark -----
   &__criteria {
     display: flex;
-    flex-wrap: wrap;
-    gap: $space-2;
-    margin-bottom: $space-4;
+    min-width: 0;
   }
 
-  // ----- 07 · description excerpt in a dot-grid shell -----
+  & .job-card__eligibility {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    max-width: 100%;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.5;
+
+    // Marks become plain inline segments — no per-mark coloured badges
+    .criteria-chip {
+      max-width: none;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .criteria-chip--relaxed,
+    .criteria-chip--moderate,
+    .criteria-chip--strict,
+    .criteria-chip--unknown {
+      border-color: transparent;
+      background: transparent;
+      color: inherit;
+    }
+  }
+
+  &__more {
+    color: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.75;
+    white-space: nowrap;
+  }
+
+  // ----- 06 · quiet dashed description preview -----
   &__excerpt {
-    padding: $space-3;
-    margin: 0 0 $space-4;
-    background-color: $surface-subtle;
-    background-image: radial-gradient($border 1px, transparent 1px);
-    background-size: 14px 14px;
-    border: 1px dashed $border;
-    border-radius: $radius-md;
-    color: $text-soft;
-    font-size: $fs-sm;
-    line-height: $lh-relaxed;
+    padding: 11px 13px;
+    background: var(--ui-quiet);
+    border: 1px dashed var(--ui-border);
+    border-radius: 10px;
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.55;
     @include line-clamp(3); // clean 3-line clip with an ellipsis…
-    max-height: calc(3 * #{$fs-sm} * #{$lh-relaxed}); // …even if clamp is unsupported
+    // …even if clamp is unsupported (3 lines + 11px padding + 1px border)
+    max-height: calc(3 * 13px * 1.55 + 24px);
 
     &--muted {
-      background-image: none;
-      color: $text-muted;
+      color: var(--ui-faint);
       font-style: italic;
     }
   }
 
-  // ----- 08 · dashed divider -----
-  &__divider {
-    height: 0;
-    border: 0;
-    border-top: 1px dashed $border;
-    margin: 0 0 $space-4;
-  }
-
-  // ----- 09 · footer: posted date + View details CTA -----
+  // ----- 07 · footer: posted date + text-only View details link -----
   &__footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: $space-3;
-    color: $text-muted;
-    font-size: $fs-2xs;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--ui-border-soft);
+    color: var(--ui-faint);
+    font-size: 12.5px;
 
     .icon-label {
       min-width: 0;
-      font-size: $fs-xs;
-      color: $text-muted;
-    }
-  }
+      color: var(--ui-faint);
+      font-size: 12.5px;
+      font-weight: 500;
 
-  &__cta {
-    position: relative;
-    z-index: 1;
-    display: inline-flex;
-    align-items: center;
-    gap: $space-1-5;
-    flex-shrink: 0;
-    color: $primary;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
-    text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: color $transition-fast, gap $transition-fast;
+      > svg {
+        width: 14px;
+        height: 14px;
+        color: var(--ui-faint);
+      }
 
-    svg {
-      transition: transform $transition-fast;
-    }
-
-    &:hover {
-      gap: $space-2;
-      color: $primary-hover;
-
-      svg {
-        transform: translateX(2px);
+      .icon-label__text {
+        @include truncate;
       }
     }
   }
 
-  // Full-card click target beneath the interactive children.
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: inherit;
+  &__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    color: var(--ui-accent);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: gap $transition-fast;
+
+    &:hover {
+      gap: 5px;
+      color: var(--ui-accent);
+      text-decoration: underline;
+    }
   }
 }

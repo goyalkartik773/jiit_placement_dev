@@ -1,10 +1,11 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
+// 3 columns on desktop → 2 → 1, 16px gap.
 .job-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: $space-5;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $space-4;
   transition: opacity $transition-base;
 
   &.is-refreshing {
@@ -13,20 +14,30 @@
   }
 }
 
-// Skeleton variant shares the grid + card geometry
-.job-card--skeleton {
-  pointer-events: none;
-
-  // The excerpt placeholder stacks three bars instead of clamping text
-  .job-card__excerpt {
-    display: flex;
-    flex-direction: column;
-    gap: $space-2;
+@include up('md') {
+  .job-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@include down('sm') {
+@include up('xl') {
   .job-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+// Skeleton variant shares the grid + card geometry (it is not a Card, so it
+// carries the same white surface here)
+.job-card--skeleton {
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  pointer-events: none;
+}
+
+// The excerpt placeholder stacks three bars instead of clamping text
+.job-card.job-card--skeleton .job-card__excerpt {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
 }

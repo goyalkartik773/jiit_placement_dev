@@ -1,37 +1,151 @@
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+// ============================================================================
+// Company-Wise Placement — calm data screen.
+// One accent + green (money/positive) + red (warnings); Plus Jakarta Sans only.
+// `_typography.scss` forces IBM Plex on h1–h6 globally, so the page heading is
+// re-scoped to the design-system font right here (that file stays untouched).
+// No monospace anywhere on this screen.
+// ============================================================================
 .placements-page {
   @include stack($space-6);
+  font-family: var(--ui-font);
+  // Reset leaves inherited text on the legacy ink (#12151C) — use the design
+  // token's #1B1E27 as the default for every unstyled element on this page.
+  color: var(--ui-ink);
 
-  // ----- Summary strip -----
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--ui-font);
+    color: var(--ui-ink);
+  }
+
+  strong,
+  b {
+    color: var(--ui-ink);
+  }
+
+  // Shared pagination is styled with the legacy tokens ($primary / $border)
+  // because Superset and Email Notices use it too — retint it here only.
+  .pagination__btn {
+    border-color: var(--ui-border);
+    color: var(--ui-muted);
+
+    &:hover:not(:disabled):not(.is-active) {
+      color: var(--ui-ink);
+    }
+
+    &.is-active {
+      background: var(--ui-accent);
+      border-color: var(--ui-accent);
+      color: var(--ui-panel);
+    }
+  }
+
+  // ----- Page head (scoped to this page only) -----
+  .page-head__eyebrow {
+    font-family: var(--ui-font);
+    color: var(--ui-accent);
+  }
+
+  .page-head__title {
+    font-family: var(--ui-font);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: $lh-tight;
+    letter-spacing: -0.015em;
+    color: var(--ui-ink);
+  }
+
+  .page-head__count {
+    font-family: var(--ui-font);
+    font-size: 13px;
+    color: var(--ui-muted);
+  }
+
+  .page-head__refreshing {
+    font-family: var(--ui-font);
+    color: var(--ui-accent);
+  }
+
+  // Empty/error state titles are <h2>, which _typography.scss keeps on IBM
+  // Plex for every other screen — scoped override so this page stays on the
+  // design-system font end to end.
+  .state-shell__title {
+    font-family: var(--ui-font);
+  }
+
+  // ----- Summary strip: ONE panel split into equal cells -----
+  // The surface (white, 1px border) comes from the shared <Card>; only the
+  // 14px radius and the cell layout are added here.
   &__stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: $space-3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: $space-2 $space-3;
+
+    // 14px panel radius (the shared <Card> ships with the 16px card radius)
+    &.ui-card {
+      border-radius: var(--ui-radius-panel);
+    }
   }
 
   &__stat {
-    @include card($space-4, $radius-md);
-    @include stack($space-1);
-  }
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-4 $space-3;
+    text-align: center;
 
-  &__stat-label {
-    @include field-label;
+    // Soft 1px dividers — inset ~20% from the top/bottom, never full height
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 20%;
+      right: 0;
+      bottom: 20%;
+      width: 1px;
+      background: var(--ui-border);
+    }
   }
 
   &__stat-value {
-    font-family: $font-headline;
-    font-size: $fs-2xl;
-    font-weight: $fw-bold;
-    line-height: $lh-tight;
-    letter-spacing: $tracking-tight;
-    color: $ink;
+    font-family: var(--ui-font);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--ui-ink);
+
+    &--accent {
+      color: var(--ui-accent);
+    }
+
+    &--green {
+      color: var(--ui-green);
+    }
+  }
+
+  &__stat-label {
+    font-family: var(--ui-font);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ui-muted);
   }
 
   &__stat-hint {
-    font-size: $fs-xs;
-    color: $text-muted;
+    font-family: var(--ui-font);
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--ui-faint);
   }
 
   // ----- Toolbar -----
@@ -40,84 +154,156 @@
     align-items: center;
     flex-wrap: wrap;
     gap: $space-3;
-    padding: $space-4 $space-5;
-    background: $surface;
-    border: 1px solid $border;
-    border-radius: $radius-lg;
-    box-shadow: $shadow-xs;
+    padding: $space-3 $space-4;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-panel);
   }
 
-  &__toggle {
+  // Search field — a plain rounded (11px) bordered input, no special styling.
+  // (SearchField is shared, so it is only re-skinned from inside this page.)
+  .search-field {
+    flex: 1 1 300px;
+
+    input {
+      padding: 11px $space-8;
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-field);
+      background: var(--ui-panel);
+      font-family: var(--ui-font);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ui-ink);
+
+      &::placeholder {
+        color: var(--ui-faint);
+      }
+
+      &:focus {
+        border-color: var(--ui-accent);
+        box-shadow: 0 0 0 3px rgba(62, 99, 221, 0.14);
+      }
+    }
+
+    &__icon {
+      left: $space-3;
+      color: var(--ui-faint);
+    }
+
+    &__clear {
+      background: var(--ui-pill);
+      color: var(--ui-muted);
+
+      &:hover {
+        background: var(--ui-track);
+        color: var(--ui-ink);
+      }
+    }
+  }
+
+  // ----- Segmented control for the single "with placements" boolean -----
+  &__segmented {
+    display: inline-flex;
+    gap: 2px;
+    height: 40px; // matches the search field and the sort control
+    padding: 3px;
+    background: var(--ui-track);
+    border-radius: 10px;
+  }
+
+  &__segment {
     display: inline-flex;
     align-items: center;
     gap: $space-1-5;
-    padding: $space-2 $space-3;
-    border: 1px solid $border-strong;
-    border-radius: $radius-sm;
-    background: $surface;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
-    text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $text-secondary;
+    height: 100%;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font-family: var(--ui-font);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ui-muted);
     white-space: nowrap;
-    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+    cursor: pointer;
+    transition: color $transition-fast, background $transition-fast, box-shadow $transition-fast;
 
     &:hover {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
+      color: var(--ui-ink);
     }
 
     &:focus-visible {
-      @include focus-ring(1px);
+      outline: 2px solid var(--ui-accent);
+      outline-offset: 1px;
     }
 
-    &.is-on {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
-      box-shadow: inset 0 -2px 0 0 $primary;
+    // Active segment: white pill with a subtle shadow
+    &[aria-pressed='true'] {
+      background: var(--ui-panel);
+      color: var(--ui-accent);
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1);
+    }
+
+    &[aria-pressed='true']:hover {
+      color: var(--ui-accent);
     }
   }
 
+  // Sort — one bordered control holding the icon + the current sort label.
+  // The <select>, its options, its values and its handler are untouched.
   &__select {
     display: inline-flex;
     align-items: center;
     gap: $space-2;
+    height: 40px;
     margin-left: auto;
+    padding: 0 $space-3;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-field);
+    background: var(--ui-panel);
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &:hover {
+      border-color: var(--ui-faint);
+    }
+
+    &:focus-within {
+      border-color: var(--ui-accent);
+      box-shadow: 0 0 0 3px rgba(62, 99, 221, 0.14);
+    }
 
     > span {
       display: inline-flex;
       align-items: center;
-      gap: $space-1;
-      font-size: $fs-sm;
-      font-weight: $fw-semibold;
-      color: $text-secondary;
+      gap: $space-1-5;
+      font-family: var(--ui-font);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ui-ink);
       white-space: nowrap;
+
+      svg {
+        color: var(--ui-faint);
+      }
     }
 
     select {
       appearance: none;
       -webkit-appearance: none;
-      max-width: 220px;
-      padding: $space-2 $space-7 $space-2 $space-3;
-      border: 1px solid $border-strong;
-      border-radius: $radius-sm;
-      background: $surface
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='#{$text-muted}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-        no-repeat right $space-3 center;
-      font-size: $fs-sm;
-      font-weight: $fw-semibold;
-      color: $text;
+      max-width: 190px;
+      padding: 0 20px 0 0;
+      border: 0;
+      background: transparent
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1b0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        no-repeat right center;
+      font-family: var(--ui-font);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ui-muted);
       cursor: pointer;
-      transition: border-color $transition-fast, box-shadow $transition-fast;
 
       &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.15);
+        outline: none; // the wrapping control shows the focus ring instead
       }
     }
   }
@@ -126,28 +312,31 @@
     display: flex;
     align-items: flex-start;
     gap: $space-2;
-    font-size: $fs-sm;
+    font-family: var(--ui-font);
+    font-size: 13px;
     line-height: $lh-snug;
-    color: $text-muted;
+    color: var(--ui-muted);
 
     > svg {
       flex-shrink: 0;
       margin-top: $space-0-5;
+      color: var(--ui-faint);
     }
   }
 
-  // ----- Inline refresh-failure banner -----
+  // ----- Inline refresh-failure banner (urgent → red) -----
   &__banner {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: $space-3;
     padding: $space-3 $space-4;
-    background: $warning-soft;
-    border: 1px solid $warning-border;
-    border-radius: $radius-md;
-    font-size: $fs-sm;
-    color: $warning;
+    background: var(--ui-red-soft);
+    border: 1px solid rgba(213, 72, 75, 0.28);
+    border-radius: var(--ui-radius-panel);
+    font-family: var(--ui-font);
+    font-size: 13px;
+    color: var(--ui-red);
 
     > span {
       flex: 1;
@@ -167,8 +356,22 @@
   }
 
   @include down('md') {
+    // Stacked cells with horizontal dividers instead of vertical ones
+    &__stats {
+      grid-template-columns: minmax(0, 1fr);
+      padding: $space-2 $space-3;
+    }
+
+    &__stat:not(:last-child)::after {
+      display: none;
+    }
+
+    &__stat + &__stat {
+      border-top: 1px solid var(--ui-border);
+    }
+
     &__toolbar {
-      padding: $space-3 $space-4;
+      padding: $space-3;
     }
 
     &__toolbar .search-field {
@@ -182,6 +385,16 @@
     &__banner > span {
       min-width: 0;
       flex-basis: 100%;
+    }
+  }
+
+  @include down('sm') {
+    .page-head__title {
+      font-size: 24px;
+    }
+
+    &__stat-value {
+      font-size: 24px;
     }
   }
 }

@@ -9,6 +9,7 @@ import { ListSkeleton } from '../../components/common/ListSkeleton/ListSkeleton'
 import { SearchField } from '../../components/common/SearchField/SearchField';
 import { Pagination } from '../../components/jobs/Pagination/Pagination';
 import { CompanyCard } from '../../components/placements/CompanyCard/CompanyCard';
+import { Card } from '../../components/ui/Card/Card';
 import type { CompanyRow } from '../../types/dashboard.types';
 import './Placements.scss';
 
@@ -97,25 +98,29 @@ export function Placements() {
       </section>
 
       {/* ----- Summary strip (summed over the loaded rows only) ----- */}
-      <section className="placements-page__stats" aria-label="Placement summary">
+      <Card as="section" className="placements-page__stats" ariaLabel="Placement summary">
         <div className="placements-page__stat">
+          <span className="placements-page__stat-value placements-page__stat-value--accent">
+            {data ? data.totalCount.toLocaleString() : '-'}
+          </span>
           <span className="placements-page__stat-label">Companies</span>
-          <span className="placements-page__stat-value">{data ? data.totalCount.toLocaleString() : '-'}</span>
           <span className="placements-page__stat-hint">with at least one job</span>
         </div>
         <div className="placements-page__stat">
+          <span className="placements-page__stat-value placements-page__stat-value--green">
+            {data ? totals.placed.toLocaleString() : '-'}
+          </span>
           <span className="placements-page__stat-label">Placement records</span>
-          <span className="placements-page__stat-value">{data ? totals.placed.toLocaleString() : '-'}</span>
           <span className="placements-page__stat-hint">{placedHint}</span>
         </div>
         <div className="placements-page__stat">
-          <span className="placements-page__stat-label">Companies with placements</span>
           <span className="placements-page__stat-value">
             {data ? totals.withPlacements.toLocaleString() : '-'}
           </span>
+          <span className="placements-page__stat-label">Companies with placements</span>
           <span className="placements-page__stat-hint">{data ? scopeHint : 'waiting for data'}</span>
         </div>
-      </section>
+      </Card>
 
       {/* ----- Toolbar ----- */}
       <section className="placements-page__toolbar" aria-label="Search and sort companies">
@@ -127,15 +132,25 @@ export function Placements() {
           id="placements-search"
         />
 
-        <button
-          type="button"
-          className={`placements-page__toggle${placedOnly ? ' is-on' : ''}`}
-          aria-pressed={placedOnly}
-          onClick={() => setPlacedOnly((value) => !value)}
-        >
-          <Icon name="users" size={14} />
-          With placements
-        </button>
+        <div className="placements-page__segmented" role="group" aria-label="Filter companies">
+          <button
+            type="button"
+            className="placements-page__segment"
+            aria-pressed={placedOnly}
+            onClick={() => setPlacedOnly((value) => !value)}
+          >
+            <Icon name="users" size={14} />
+            With placements
+          </button>
+          <button
+            type="button"
+            className="placements-page__segment"
+            aria-pressed={!placedOnly}
+            onClick={() => setPlacedOnly(false)}
+          >
+            All companies
+          </button>
+        </div>
 
         <label className="placements-page__select">
           <span>

@@ -31,7 +31,6 @@ function JobCardSkeleton() {
         <Skeleton width="xl" height="sm" />
         <Skeleton width="md" height="sm" />
       </div>
-      <div className="job-card__divider" />
       <div className="job-card__footer">
         <Skeleton width="sm" height="sm" />
         <Skeleton width="xs" height="sm" />

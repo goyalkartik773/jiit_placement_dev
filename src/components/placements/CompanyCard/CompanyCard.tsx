@@ -2,10 +2,10 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, statusTone } from '../../common/Badge/Badge';
 import { Button } from '../../common/Button/Button';
-import { Chip } from '../../common/Chip/Chip';
-import { CompanyAvatar } from '../../common/CompanyAvatar/CompanyAvatar';
 import { CtcChip } from '../../common/CtcChip/CtcChip';
 import { Icon } from '../../common/Icon/Icon';
+import { Avatar } from '../../ui/Avatar/Avatar';
+import { Card } from '../../ui/Card/Card';
 import { PlacedStudents } from '../PlacedStudents/PlacedStudents';
 import { formatDate, formatDateTime } from '../../../utils/format';
 import type { CompanyRow } from '../../../types/dashboard.types';
@@ -34,7 +34,7 @@ export function CompanyCard({ row }: CompanyCardProps) {
   }
 
   return (
-    <article className="company-card">
+    <Card as="article" className="company-card">
       <h3 className="company-card__heading">
         <button
           type="button"
@@ -43,14 +43,17 @@ export function CompanyCard({ row }: CompanyCardProps) {
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
         >
-          <CompanyAvatar name={row.company} size="md" />
+          <Avatar name={row.company} size={44} radius={12} />
 
           <span className="company-card__identity">
             <span className="company-card__name">{row.company}</span>
             <span className="company-card__meta">
-              <Chip tone="muted" title={`${row.jobcount} job(s), ${row.activejobs} active`}>
+              <span className="company-card__jobcount" title={`${row.jobcount} job(s), ${row.activejobs} active`}>
                 {jobLabel}
-              </Chip>
+              </span>
+              <span className="company-card__meta-dot" aria-hidden="true">
+                ·
+              </span>
               {row.lastplacedat ? (
                 <span className="company-card__last">Last offer {formatDate(row.lastplacedat)}</span>
               ) : (
@@ -81,7 +84,7 @@ export function CompanyCard({ row }: CompanyCardProps) {
                     {role.role}
                   </span>
                   <span className="company-card__role-count">
-                    {role.students} placed
+                    {role.students} <span className="company-card__role-count-suffix">placed</span>
                   </span>
                   {typeof role.ctcmax === 'number' && role.ctcmax > 0 ? (
                     <CtcChip package={role.ctcmax} size="sm" />
@@ -145,6 +148,6 @@ export function CompanyCard({ row }: CompanyCardProps) {
           </p>
         ) : null}
       </div>
-    </article>
+    </Card>
   );
 }

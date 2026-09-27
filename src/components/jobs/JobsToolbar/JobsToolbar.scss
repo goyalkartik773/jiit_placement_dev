@@ -1,174 +1,276 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
+// ============================================================================
+// Filter bar — rows live INSIDE the shared white panel (.jobs-filter-panel in
+// Jobs.scss), so this file owns no surface: only the search row and the
+// labelled filter groups. Every control shares ONE neutral pill look; colour
+// appears only on the selected state, driven by meaning (see JobsToolbar.tsx).
+// ============================================================================
 .jobs-toolbar {
-  @include stack($space-4);
-  padding: $space-4 $space-5;
-  background: $surface;
-  border: 1px solid $border;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-xs;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  font-family: var(--ui-font);
 
-  // ----- Search row -----
+  // ----- Search row: bordered field + the existing Clear action -----
   &__search {
-    position: relative;
     display: flex;
     align-items: center;
+    gap: 12px;
+  }
+
+  &__field {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
 
     input {
       width: 100%;
-      padding: 11px 40px;
-      border: 1px solid $border-strong;
-      border-radius: $radius-md;
-      background: $surface-subtle;
-      font-size: $fs-base;
-      color: $ink;
-      transition: border-color $transition-fast, box-shadow $transition-fast, background $transition-fast;
+      padding: 10px 38px;
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-field); // 11px
+      background: var(--ui-panel);
+      color: var(--ui-ink);
+      font-family: var(--ui-font);
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: border-color $transition-fast, box-shadow $transition-fast;
 
       &::placeholder {
-        color: $text-muted;
+        color: var(--ui-faint);
+        font-weight: 400;
       }
 
       &:focus {
         outline: none;
-        background: $surface;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.15);
+        border-color: var(--ui-accent);
+        box-shadow: 0 0 0 3px rgba(62, 99, 221, 0.14);
       }
     }
   }
 
   &__search-icon {
     position: absolute;
-    left: 14px;
+    left: 13px;
     display: flex;
-    color: $text-muted;
+    color: var(--ui-faint);
     pointer-events: none;
   }
 
   &__clear {
     @include flex-center;
     position: absolute;
-    right: 10px;
+    right: 8px;
     width: 26px;
     height: 26px;
     border: 0;
     border-radius: 50%;
-    background: $surface-muted;
-    color: $text-secondary;
+    background: transparent;
+    color: var(--ui-faint);
     transition: background $transition-fast, color $transition-fast;
 
     &:hover {
-      background: $border;
-      color: $ink;
+      background: var(--ui-pill);
+      color: var(--ui-ink);
     }
   }
 
-  // ----- Filter row -----
+  &__clear-filters {
+    flex-shrink: 0;
+  }
+
+  // ----- Filter groups row (wraps on narrow screens) -----
   &__filters {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: $space-3;
-    padding-top: $space-4;
-    border-top: 1px solid $border;
+    gap: 10px 12px;
   }
 
   &__filters-label {
     display: inline-flex;
     align-items: center;
-    gap: $space-2;
-    font-size: $fs-xs;
-    font-weight: $fw-bold;
+    gap: 6px;
+    padding-right: 4px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  &__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    // Hairline divider between distinct groups inside the same bar
+    + .jobs-toolbar__group {
+      position: relative;
+      padding-left: 16px;
+    }
+
+    + .jobs-toolbar__group::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 1px;
+      height: 20px;
+      background: var(--ui-border);
+      transform: translateY(-50%);
+    }
+  }
+
+  &__group-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ui-faint);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  &__pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  // ----- The one shared pill look (pills AND the select trigger) -----
+  &__pill {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-pill);
+    color: var(--ui-muted);
+    font-family: var(--ui-font);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover:not(:disabled):not(&--selected) {
+      background: var(--ui-track);
+      color: var(--ui-ink);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+
+    // Selected state — meaning-based colour, never one colour per option
+    &--accent {
+      background: var(--ui-accent-soft);
+      color: var(--ui-accent);
+    }
+
+    &--green {
+      background: var(--ui-green-soft);
+      color: var(--ui-green);
+    }
+
+    &--red {
+      background: var(--ui-red-soft);
+      color: var(--ui-red);
+    }
   }
 
   &__select {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: $space-2;
-
-    > span {
-      display: inline-flex;
-      align-items: center;
-      gap: $space-1;
-      font-size: $fs-sm;
-      font-weight: $fw-semibold;
-      color: $text-secondary;
-      white-space: nowrap;
-    }
+    max-width: 100%;
 
     select {
       appearance: none;
       -webkit-appearance: none;
-      max-width: 220px;
-      padding: 7px 30px 7px 11px;
-      border: 1px solid $border-strong;
-      border-radius: $radius-sm;
-      background: $surface
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='#{$text-muted}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-        no-repeat right 10px center;
-      font-size: $fs-sm;
-      font-weight: $fw-semibold;
-      color: $text;
+      max-width: 230px;
+      padding: 6px 32px 6px 12px;
+      border: 0;
+      border-radius: var(--ui-radius-pill);
+      background: var(--ui-pill)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1b0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        no-repeat right 12px center;
+      color: var(--ui-muted);
+      font-family: var(--ui-font);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
       cursor: pointer;
-      transition: border-color $transition-fast, box-shadow $transition-fast;
+      transition: background-color $transition-fast, color $transition-fast;
 
-      &:focus {
-        outline: none;
-        border-color: $primary;
-        box-shadow: 0 0 0 3px rgba($primary, 0.15);
+      &:focus-visible {
+        outline: 2px solid var(--ui-accent);
+        outline-offset: 2px;
       }
 
       &:disabled {
-        opacity: 0.55;
+        opacity: 0.5;
         cursor: not-allowed;
       }
     }
 
-    &--sort {
-      margin-left: auto;
+    &--accent select {
+      background-color: var(--ui-accent-soft);
+      color: var(--ui-accent);
     }
-  }
 
-  &__hint {
-    display: inline-flex;
-    align-items: center;
-    gap: $space-1;
-    font-size: $fs-xs;
-    color: $text-muted;
+    &--green select {
+      background-color: var(--ui-green-soft);
+      color: var(--ui-green);
+    }
+
+    &--red select {
+      background-color: var(--ui-red-soft);
+      color: var(--ui-red);
+    }
   }
 }
 
 // ----- Responsive -----
 @include down('lg') {
-  .jobs-toolbar__select--sort {
-    margin-left: 0;
+  // Dividers only read correctly while the groups sit on one line
+  .jobs-toolbar__group + .jobs-toolbar__group {
+    padding-left: 0;
+  }
+
+  .jobs-toolbar__group + .jobs-toolbar__group::before {
+    display: none;
   }
 }
 
 @include down('md') {
-  .jobs-toolbar__filters {
-    gap: $space-2;
-  }
+  .jobs-toolbar {
+    padding: 14px 16px;
 
-  .jobs-toolbar__select {
-    flex: 1 1 auto;
-
-    select {
-      max-width: none;
-      width: 100%;
+    &__search {
+      flex-wrap: wrap;
     }
 
-    > span {
-      // Keep the label for screen readers, hide it visually to save width
-      @include visually-hidden;
+    &__field {
+      flex-basis: 100%;
+    }
+
+    &__filters {
+      gap: 10px;
+    }
+
+    &__group {
+      flex-wrap: wrap;
     }
   }
 
-  .jobs-toolbar__filters-label {
-    width: 100%;
+  .jobs-toolbar__select select {
+    max-width: 190px;
   }
 }

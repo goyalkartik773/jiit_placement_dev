@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '../../common/Button/Button';
 import { Icon } from '../../common/Icon/Icon';
 import { Skeleton } from '../../common/Skeleton/Skeleton';
+import { Pill } from '../../ui/Pill/Pill';
 import { isAbortError } from '../../../services/apiClient';
 import { fetchPlacedStudents, type FetchedPlacedStudents } from '../../../services/placementService';
 import { formatDate, formatINR } from '../../../utils/format';
@@ -91,26 +92,27 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
           <caption className="sr-only">Students placed through this job</caption>
           <thead>
             <tr>
-              <th scope="col">Roll no</th>
               <th scope="col">Student</th>
               <th scope="col">Branch</th>
               <th scope="col">Role</th>
-              <th scope="col">CTC</th>
+              <th scope="col" className="placed-students__ctc">CTC</th>
               <th scope="col">Offer date</th>
             </tr>
           </thead>
           <tbody>
             {students.map((student) => (
               <tr key={student.id}>
-                <td className="placed-students__roll">{student.rollno}</td>
                 <td className="placed-students__person">
                   <span className="placed-students__name">{student.studentname}</span>
+                  <span className="placed-students__roll">{student.rollno}</span>
                   {student.email ? <span className="placed-students__email">{student.email}</span> : null}
                 </td>
-                <td>{student.branch || '-'}</td>
+                <td className="placed-students__branch-cell">
+                  {student.branch ? <Pill className="placed-students__branch">{student.branch}</Pill> : '-'}
+                </td>
                 <td className="placed-students__role">{student.role || '-'}</td>
                 <td className="placed-students__ctc">{ctcLabel(student.ctcraw, student.ctctotal)}</td>
-                <td>{formatDate(student.placedat)}</td>
+                <td className="placed-students__date">{formatDate(student.placedat)}</td>
               </tr>
             ))}
           </tbody>

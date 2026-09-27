@@ -1,9 +1,9 @@
 import './TierLegend.scss';
 
 /**
- * Compact legend that teaches the fixed color coding to first-time users:
- * CTC tiers (slate → blue → violet → gold → emerald) and criteria
- * strictness (green / amber / red). Rendered above the job grid.
+ * Compact legend inside the filter panel: CTC bands as neutral pills (the
+ * calm design system carries no tier colours) and the criteria thresholds
+ * meaning-based — relaxed/moderate eligible (green), "above" restrictive (red).
  */
 export function TierLegend() {
   return (

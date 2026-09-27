@@ -4,6 +4,7 @@ import { useJobs } from '../../hooks/useJobs';
 import { Button } from '../../components/common/Button/Button';
 import { EmptyState } from '../../components/common/EmptyState/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState/ErrorState';
+import { Icon } from '../../components/common/Icon/Icon';
 import { JobList } from '../../components/jobs/JobList/JobList';
 import { JobListSkeleton } from '../../components/jobs/JobList/JobListSkeleton';
 import { JobsToolbar } from '../../components/jobs/JobsToolbar/JobsToolbar';
@@ -79,19 +80,32 @@ export function Jobs() {
         </div>
       </section>
 
-      <JobsToolbar
-        searchInput={searchInput}
-        onSearchChange={setSearchInput}
-        filters={filters}
-        onFiltersChange={updateFilters}
-        onClearFilters={() => setFilters(DEFAULT_FILTERS)}
-        filtersActive={filtersActive}
-        refineAvailable={refineAvailable}
-        options={options}
-      />
+      {/* ----- One white filter panel: search + groups + legend + hint ----- */}
+      <div className="jobs-filter-panel">
+        <JobsToolbar
+          searchInput={searchInput}
+          onSearchChange={setSearchInput}
+          filters={filters}
+          onFiltersChange={updateFilters}
+          onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+          filtersActive={filtersActive}
+          refineAvailable={refineAvailable}
+          options={options}
+        />
 
-      {/* Fixed color-coding key — teaches tiers/criteria before the grid */}
-      <TierLegend />
+        {/* Fixed color-coding key — teaches tiers/criteria before the grid */}
+        <TierLegend />
+
+        {!refineAvailable ? (
+          <p
+            className="jobs-filter-hint"
+            title="Refinement runs on the complete result set. The API caps a page at 100 jobs — raise “Per page” or search to load everything."
+          >
+            <Icon name="info" size={14} />
+            Refine unlocks when all results are loaded
+          </p>
+        ) : null}
+      </div>
 
       {/* ----- Result states ----- */}
       {error && !data ? (
