@@ -4,9 +4,9 @@ import { fetchSupersetNotices, type FetchedSupersetNotices } from '../services/n
 
 export interface UseSupersetNoticesState {
   data: FetchedSupersetNotices | null;
-  /** True only for the first load (no data yet) — drives skeletons. */
+  /** True only for the first load (no data yet) - drives skeletons. */
   initialLoading: boolean;
-  /** True while re-fetching with data already on screen — drives subtle progress. */
+  /** True while re-fetching with data already on screen - drives subtle progress. */
   refreshing: boolean;
   error: ApiError | Error | null;
 }

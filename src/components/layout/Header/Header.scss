@@ -5,7 +5,7 @@
   position: sticky;
   top: 0;
   z-index: $z-header;
-  height: $header-height;
+  min-height: $header-height;
   background: rgba($surface, 0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -17,7 +17,7 @@
     justify-content: space-between;
     gap: $space-4;
     max-width: $content-max;
-    height: 100%;
+    min-height: $header-height;
     margin: 0 auto;
     padding: 0 $space-6;
   }
@@ -56,7 +56,9 @@
     flex-shrink: 0;
   }
 
-  &__admin {
+  // One chip look shared by the Admin pill and the section links below.
+  &__admin,
+  &__nav-link {
     padding: $space-1 $space-2;
     border: 1px solid $border;
     border-radius: $radius-sm;
@@ -77,11 +79,43 @@
       text-decoration: none;
     }
 
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+
     &[aria-current='page'] {
       color: $primary;
       border-color: $primary-border;
       background: $primary-soft;
+      box-shadow: inset 0 -2px 0 0 $primary;
     }
+  }
+
+  // ---------- Section navigation (wraps / scrolls instead of overflowing) ----------
+  &__nav {
+    border-top: 1px solid rgba($border, 0.8);
+  }
+
+  &__nav-list {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    max-width: $content-max;
+    margin: 0 auto;
+    padding: $space-1-5 $space-6 $space-2;
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  &__nav-item {
+    flex: 0 0 auto;
+  }
+
+  &__nav-link {
+    white-space: nowrap;
   }
 }
 
@@ -148,6 +182,11 @@
   .app-header__inner {
     gap: $space-3;
     padding: 0 $space-4;
+  }
+
+  // The section row keeps its rhythm but scrolls inside the narrower viewport.
+  .app-header__nav-list {
+    padding: $space-1-5 $space-4 $space-2;
   }
 
   .api-status {

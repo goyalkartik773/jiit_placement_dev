@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * EXACT backend API contract — DO NOT invent fields.
+ * EXACT backend API contract - DO NOT invent fields.
  * ============================================================================
  *
  * Source of truth (traced live against http://localhost:5104):
@@ -16,11 +16,11 @@
  *   GET /api/notices?page&pageSize&search                 -> SupersetNoticeListData
  *
  * All four answer with the shared wrapper { status, Message, Data }
- * (ApiEnvelope<T> from job.types.ts) — Data may be null with status = true.
+ * (ApiEnvelope<T> from job.types.ts) - Data may be null with status = true.
  *
  * NOTE: the `type` filter of the email feed must be sent UPPERCASE
  * (e.g. "SHORTLIST"); `Facets` reflect the current `search` but ignore `type`.
- * The email feed intentionally EXCLUDES congratulation / final-offer emails —
+ * The email feed intentionally EXCLUDES congratulation / final-offer emails - 
  * that data is surfaced by GET /api/placements/company-wise instead.
  *
  * The admin offer-student sync (POST /api/admin/jobs/sync-offer-students)
@@ -56,7 +56,7 @@ export interface CompanyRole {
   ctcmax: number | null;
 }
 
-/** GET /api/placements/company-wise item — one company + its jobs + its roles. */
+/** GET /api/placements/company-wise item - one company + its jobs + its roles. */
 export interface CompanyRow {
   company: string;
   jobcount: number;
@@ -185,14 +185,14 @@ export interface SupersetNoticeParams {
   search?: string;
 }
 
-/** GET /api/notices item — a notice synced from the Superset job portal. */
+/** GET /api/notices item - a notice synced from the Superset job portal. */
 export interface SupersetNotice {
   id: string;
   supersetidentifier: string;
   title: string;
   /**
    * Notice body. The contract calls it plain text, but live rows carry HTML
-   * markup — convert with htmlToPlainText() before rendering (never with
+   * markup - convert with htmlToPlainText() before rendering (never with
    * dangerouslySetInnerHTML).
    */
   content: string;

@@ -98,7 +98,7 @@ export async function startJobSync(signal?: AbortSignal): Promise<AdminSyncStart
 /**
  * Matches the offer-student records parsed from congratulation emails onto
  * the jobs already in the system (companies missing from the job listing are
- * skipped). Returns the counters of THIS run. Throws ApiError — including
+ * skipped). Returns the counters of THIS run. Throws ApiError - including
  * ApiError(401) when the admin session has expired.
  */
 export async function syncOfferStudents(signal?: AbortSignal): Promise<AdminOfferSyncResponse> {

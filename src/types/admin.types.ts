@@ -67,7 +67,7 @@ export interface AdminDeletePhase {
   durationMs: number;
 }
 
-/** POST /api/admin/jobs/sync-offer-students — counters from one real run. */
+/** POST /api/admin/jobs/sync-offer-students - counters from one real run. */
 export interface AdminOfferSyncResponse {
   success: boolean;
   message: string;

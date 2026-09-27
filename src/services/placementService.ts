@@ -9,7 +9,7 @@ import type {
 } from '../types/dashboard.types';
 
 /**
- * Placement API service — the ONLY place that knows placement endpoint paths.
+ * Placement API service - the ONLY place that knows placement endpoint paths.
  *
  * GET /api/placements/company-wise?page&pageSize&search
  * GET /api/placements/jobs/{jobId}/placed-students

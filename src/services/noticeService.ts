@@ -11,7 +11,7 @@ import type {
 } from '../types/dashboard.types';
 
 /**
- * Notice API service — the ONLY place that knows notice endpoint paths.
+ * Notice API service - the ONLY place that knows notice endpoint paths.
  *
  * GET /api/notices/email?page&pageSize&search&type   (parsed placement emails)
  * GET /api/notices?page&pageSize&search              (Superset portal notices)
