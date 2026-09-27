@@ -69,7 +69,7 @@
     max-height: 22rem;
     overflow-y: auto;
     font-family: $font-mono;
-    font-size: $fs-xs;
+    font-size: $fs-sm; // 13px terminal ramp
     line-height: $lh-normal;
 
     &::-webkit-scrollbar {
@@ -100,7 +100,7 @@
     }
 
     &--info {
-      color: $info-border;
+      color: $text-muted; // server's bulk narration — quiet by design
     }
 
     &--success {
@@ -125,8 +125,10 @@
     }
   }
 
+  // Dim HH:mm:ss gutter — fixed width keeps every row on the same column.
   &__time {
     flex: none;
+    width: 8ch;
     color: $text-muted;
     user-select: none;
   }

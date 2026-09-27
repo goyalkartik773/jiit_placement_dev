@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { FocusEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '../Icon/Icon';
 import { Loader, type LoaderSize } from '../Loader/Loader';
@@ -15,6 +15,8 @@ interface ButtonBaseProps {
   className?: string;
   title?: string;
   disabled?: boolean;
+  /** Focus left the button (e.g. an armed action disarming on blur). */
+  onBlur?: (event: FocusEvent<HTMLButtonElement>) => void;
 }
 
 function classesFor(variant: ButtonVariant, size: ButtonSize, className?: string): string {
@@ -41,6 +43,7 @@ export function Button({
   disabled,
   type = 'button',
   onClick,
+  onBlur,
   className,
   title,
   ariaLabel,
@@ -52,6 +55,7 @@ export function Button({
       className={classesFor(variant, size, className)}
       disabled={disabled || loading}
       onClick={onClick}
+      onBlur={onBlur}
       title={title}
       aria-label={ariaLabel}
       aria-busy={loading || undefined}

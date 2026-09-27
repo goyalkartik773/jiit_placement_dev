@@ -1,0 +1,126 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.runs__list {
+  @include stack(0);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runs__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: $space-3;
+  padding: $space-3 $space-2;
+  border-radius: $radius-sm;
+  transition: background $transition-fast;
+
+  & + & {
+    border-top: 1px solid $border;
+  }
+
+  &:hover {
+    background: $surface-subtle;
+  }
+
+  // The row whose output is open in the console.
+  &--active {
+    background: $primary-soft;
+    box-shadow: inset 3px 0 0 $primary;
+  }
+
+  @include down('sm') {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: $space-2-5 0;
+
+    // Replay moves onto its own line under the row body.
+    > .btn {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+}
+
+.runs__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-sm;
+  background: $surface-muted;
+  color: $text-secondary;
+}
+
+.runs__body {
+  @include stack($space-1);
+  min-width: 0;
+}
+
+.runs__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-1-5;
+}
+
+.runs__script {
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: $text;
+}
+
+.runs__message {
+  margin: 0;
+  font-size: $fs-xs;
+  line-height: $lh-snug;
+  color: $text-soft;
+  @include line-clamp(2);
+}
+
+.runs__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-1-5;
+  margin: 0;
+  font-size: $fs-xs;
+  color: $text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.runs__error {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  margin: 0 0 $space-3;
+  padding: $space-2-5 $space-3;
+  border: 1px solid $danger-border;
+  border-radius: $radius-sm;
+  background: $danger-soft;
+  color: $danger;
+  font-size: $fs-sm;
+
+  > span {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.runs__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+  margin-top: $space-3;
+  padding-top: $space-3;
+  border-top: 1px solid $border;
+}
+
+.runs__count {
+  font-size: $fs-xs;
+  color: $text-muted;
+  font-variant-numeric: tabular-nums;
+}

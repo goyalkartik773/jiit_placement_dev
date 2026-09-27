@@ -18,4 +18,16 @@
     gap: $space-2;
     flex-shrink: 0;
   }
+
+  // Scripts panel (wider) next to the run history; stacked below 1280px.
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-6;
+    align-items: start;
+
+    @include up('2xl') {
+      grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+    }
+  }
 }

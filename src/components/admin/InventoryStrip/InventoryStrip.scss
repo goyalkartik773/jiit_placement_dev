@@ -1,0 +1,84 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// Accuracy strip: equal-height stat tiles on an auto-fit grid
+.inventory {
+  @include stack($space-3);
+
+  &__grid {
+    display: grid;
+    gap: $space-3;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  // Stale-data warning (the tiles above stay on screen)
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-2-5 $space-3;
+    border: 1px solid $danger-border;
+    border-radius: $radius-md;
+    background: $danger-soft;
+    color: $danger;
+    font-size: $fs-sm;
+
+    > svg {
+      flex-shrink: 0;
+    }
+  }
+
+  &__error-text {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1-5;
+  // Data and skeleton tiles share this height — no shift when the API answers.
+  min-height: 120px;
+  @include card($space-4, $radius-md);
+
+  &__label {
+    @include field-label;
+    display: block;
+  }
+
+  &__value {
+    min-height: 32px;
+    font-family: $font-headline;
+    font-size: $fs-xl;
+    font-weight: $fw-bold;
+    line-height: $lh-tight;
+    letter-spacing: $tracking-tight;
+    color: $ink;
+    font-variant-numeric: tabular-nums; // numbers never jitter while polling
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-1-5;
+    min-height: 26px;
+    margin-top: auto;
+  }
+
+  &__note {
+    font-size: $fs-xs;
+    color: $text-muted;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @include down('sm') {
+    min-height: 112px;
+
+    &__value {
+      font-size: $fs-lg;
+      min-height: 26px;
+    }
+  }
+}

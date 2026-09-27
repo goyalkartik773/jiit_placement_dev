@@ -1,49 +1,101 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { toConsoleLines } from '../../components/admin/ScriptConsole/ScriptConsole';
+import { ActivityTimeline } from '../../components/admin/ActivityTimeline/ActivityTimeline';
 import { AdminLogin } from '../../components/admin/AdminLogin/AdminLogin';
-import { OfferSyncPanel } from '../../components/admin/OfferSyncPanel/OfferSyncPanel';
-import { SyncPanel } from '../../components/admin/SyncPanel/SyncPanel';
+import { InventoryStrip } from '../../components/admin/InventoryStrip/InventoryStrip';
+import { RunHistory } from '../../components/admin/RunHistory/RunHistory';
+import { ScriptsPanel } from '../../components/admin/ScriptsPanel/ScriptsPanel';
 import { Button } from '../../components/common/Button/Button';
 import { useToast } from '../../components/common/Toast/Toast';
-import { useAdminSync } from '../../hooks/useAdminSync';
-import { adminLogout, clearAdminToken, getAdminToken } from '../../services/adminService';
+import { useActivity } from '../../hooks/useActivity';
+import { useAdminOverview } from '../../hooks/useAdminOverview';
+import { useScriptRunner } from '../../hooks/useScriptRunner';
+import { adminLogout, clearAdminToken, getAdminToken, getAdminUsername } from '../../services/adminService';
+import type { AdminActivityItem, AdminOverview, AdminScriptAction } from '../../types/admin.types';
+import { formatDateTime, formatRelative } from '../../utils/format';
 import './Admin.scss';
 
-function countLine(count: number | null, loading: boolean): string {
-  if (count !== null) return `${count.toLocaleString()} ${count === 1 ? 'job' : 'jobs'} in the database`;
-  return loading ? 'Loading job count…' : 'Job count unavailable';
+/** Session facts of the header strip — every value comes from the overview. */
+function sessionLine(overview: AdminOverview | null, loading: boolean): string {
+  const parts: string[] = [];
+  const username = getAdminUsername();
+  const session = overview?.session;
+
+  if (username) parts.push(username);
+  if (session?.lastLogin) {
+    parts.push(`Last sign-in ${formatRelative(session.lastLogin) ?? formatDateTime(session.lastLogin)}`);
+  }
+  if (typeof session?.logins === 'number') {
+    parts.push(`${session.logins.toLocaleString()} sign-in${session.logins === 1 ? '' : 's'}`);
+  }
+
+  if (parts.length > 0) return parts.join(' · ');
+  return loading ? 'Loading session…' : 'Signed in';
 }
 
 /**
- * Admin console (container).
- * Auth state decides between the sign-in form and the sync console;
- * all fetching/polling lives in useAdminSync → adminService → apiClient.
+ * Admin console (container): sign-in gate, then the overview strip, the
+ * unified scripts panel, the run history and the activity timeline.
+ * All fetching/polling lives in useAdminOverview / useActivity /
+ * useScriptRunner → adminService → apiClient; this page only wires state.
  */
 export function Admin() {
   const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(() => getAdminToken());
+  const [replay, setReplay] = useState<AdminActivityItem | null>(null);
 
   // Parallel 401s must only sign out once.
   const handleUnauthorized = useCallback(() => {
     if (!getAdminToken()) return;
     clearAdminToken();
     setToken(null);
+    setReplay(null);
     showToast('Your session ended. Please sign in again.', 'error');
   }, [showToast]);
 
-  const sync = useAdminSync(token, handleUnauthorized);
+  const overview = useAdminOverview(token, handleUnauthorized);
+  const activity = useActivity(token, handleUnauthorized);
+  const { reload: reloadOverview } = overview;
+  const { reload: reloadActivity } = activity;
+
+  // A finished run changes both the inventory numbers and the history.
+  const handleSettled = useCallback(() => {
+    reloadOverview();
+    reloadActivity();
+  }, [reloadOverview, reloadActivity]);
+
+  const runner = useScriptRunner(token, handleUnauthorized, handleSettled);
 
   const handleLogin = useCallback((nextToken: string) => {
     setToken(nextToken);
+    setReplay(null);
   }, []);
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(async (): Promise<void> => {
     try {
       await adminLogout();
     } finally {
       setToken(null);
+      setReplay(null);
       showToast('Signed out.', 'success');
     }
   }, [showToast]);
+
+  const handleRun = useCallback((action: AdminScriptAction) => {
+    setReplay(null);
+    runner.start(action);
+  }, [runner]);
+
+  const handleRefresh = useCallback(() => {
+    reloadOverview();
+    reloadActivity();
+  }, [reloadOverview, reloadActivity]);
+
+  // The console shows the archived rows while replaying, the live merged log otherwise.
+  const consoleLines = useMemo(
+    () => (replay ? toConsoleLines(replay.output) : runner.lines),
+    [replay, runner.lines],
+  );
 
   if (!token) {
     return (
@@ -60,35 +112,65 @@ export function Admin() {
           <p className="page-head__eyebrow">Admin · Restricted</p>
           <h1 className="page-head__title">Admin console</h1>
           <p className="page-head__count" aria-live="polite">
-            {countLine(sync.count, sync.countLoading)}
+            {sessionLine(overview.overview, overview.initialLoading)}
           </p>
         </div>
         <div className="admin-page__actions">
+          <Button variant="ghost" size="sm" icon="refresh" loading={overview.refreshing} onClick={handleRefresh}>
+            Refresh
+          </Button>
           <Button variant="ghost" size="sm" icon="logout" onClick={() => void handleLogout()}>
             Log out
           </Button>
         </div>
       </section>
 
-      <SyncPanel
-        count={sync.count}
-        countLoading={sync.countLoading}
-        countError={sync.countError}
-        status={sync.status}
-        statusLoading={sync.statusLoading}
-        statusError={sync.statusError}
-        starting={sync.starting}
-        startError={sync.startError}
-        deleting={sync.deleting}
-        lines={sync.lines}
-        busy={sync.busy}
-        onStart={sync.start}
-        onDelete={sync.remove}
-        onRefresh={sync.reload}
+      <InventoryStrip
+        overview={overview.overview}
+        loading={overview.initialLoading}
+        error={overview.error}
+        onRetry={reloadOverview}
       />
 
-      {/* Only rendered for a signed-in session (the page returns the login form otherwise). */}
-      <OfferSyncPanel onUnauthorized={handleUnauthorized} />
+      <div className="admin-page__grid">
+        <ScriptsPanel
+          action={runner.action}
+          status={runner.status}
+          busy={runner.busy}
+          starting={runner.starting}
+          pendingAction={runner.pendingAction}
+          conflict={runner.conflict}
+          conflictScript={runner.conflictScript}
+          error={runner.error}
+          lines={consoleLines}
+          replay={replay}
+          onRun={handleRun}
+          onDismissReplay={() => setReplay(null)}
+        />
+
+        <RunHistory
+          items={activity.items}
+          totalCount={activity.totalCount}
+          loading={activity.loading}
+          loadingMore={activity.loadingMore}
+          error={activity.error}
+          hasMore={activity.hasMore}
+          activeId={replay?.id ?? null}
+          onReplay={setReplay}
+          onLoadMore={activity.loadMore}
+          onRetry={reloadActivity}
+        />
+      </div>
+
+      <ActivityTimeline
+        items={activity.items}
+        totalCount={activity.totalCount}
+        loading={activity.loading}
+        error={activity.error}
+        activeId={replay?.id ?? null}
+        onReplay={setReplay}
+        onRetry={reloadActivity}
+      />
     </div>
   );
 }
