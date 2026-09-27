@@ -52,6 +52,8 @@ _MONEY_CONTEXT_RE = re.compile(
 _LABELLED_LINE_RE = re.compile(
     r"^(?P<label>[^:\n]{2,60}):\s*(?P<value>.+)$"
 )
+# a heading alone on its line: "Salary Package:" / "Relocation Perks:"
+_LABEL_ONLY_RE = re.compile(r"^(?P<label>[^:\n]{2,60}):[ \t]*$")
 
 
 @dataclass
@@ -95,8 +97,12 @@ def _unit_basis(unit: str | None, amount: str, trailing_word: str = "") -> str:
 def extract_money(text: str) -> list[MoneyFact]:
     """Extract money mentions that sit in a money-ish context.
 
-    Lines are matched individually so a label (``Salary Package:``) can be
-    attached by the caller; bare numbers never in money context are skipped.
+    Lines are matched individually so a label can be attached. A labelled
+    line with no amount on it (``Salary Package:``) is a *heading*: it
+    labels the money lines below it until the next heading (observed:
+    ``Salary Package:`` + ``UG Candidates: INR 6.04 Lakhs``, while the
+    later ``Relocation Perks:`` heading keeps its own amounts out of the
+    salary pool). Bare numbers never in money context are skipped.
     """
     facts: list[MoneyFact] = []
     seen: set[tuple[int, str]] = set()
@@ -107,17 +113,25 @@ def extract_money(text: str) -> list[MoneyFact]:
             seen.add(key)
             facts.append(fact)
 
+    pending = ""  # current heading label (its line carried no amount)
     lines = text.split("\n")
     for line in lines:
         flat_line = re.sub(r"\s+", " ", line).strip()
         if not flat_line:
             continue
-        label = ""
+        label = pending
         lm = _LABELLED_LINE_RE.match(flat_line)
+        lonly = _LABEL_ONLY_RE.match(flat_line)
         search_line = flat_line
-        if lm and _MONEY_CONTEXT_RE.search(lm.group("label")):
-            label = lm.group("label").strip()
-            search_line = lm.group("value")
+        if lm:
+            inner = lm.group("label").strip()
+            if _MONEY_CONTEXT_RE.search(inner):
+                label = inner
+                search_line = lm.group("value")
+            if not _MONEY_RE.search(search_line):
+                pending = inner  # heading line — owns the amounts below
+        elif lonly:
+            pending = lonly.group("label").strip()
         elif not _MONEY_CONTEXT_RE.search(flat_line):
             continue
 
@@ -180,6 +194,10 @@ def pick_package(facts: list[MoneyFact]) -> MoneyFact | None:
     ]
     pool = labelled or facts
     totals = [f for f in pool if f.basis in {"total", "lpa", "lakh"}]
+    if not totals:
+        # a labelled pool with only monthly/bonus facts must not hide the
+        # actual package stated elsewhere in the body
+        totals = [f for f in facts if f.basis in {"total", "lpa", "lakh"}]
     if not totals:
         return None
     return max(totals, key=lambda f: (f.per_annum or 0))

@@ -10,8 +10,11 @@ Pipeline per message:
    attachment ``extractedtext`` (xlsx-only lists), deduplicated by
    roll/email/name.
 4. The category parser runs on the current section; the history section is
-   parsed too and only fills gaps (current wins, lists are unioned, the
-   latest deadline wins). Warnings resolved by history are dropped.
+   parsed too and only fills gaps (current wins, lists of links are
+   unioned, the latest deadline wins). Point-in-time facts — funnel
+   counts, interview/reporting dates, event stages, team rules — are the
+   current announcement's only; stale history versions never leak into
+   them. Warnings resolved by history are dropped.
 5. SHORTLIST sub-pattern is refined from parsed evidence: rows -> A,
    counts -> B, otherwise the classifier's call stands.
 6. ``deduplicate`` links crossposts/revisions; the latest member is
@@ -31,6 +34,7 @@ from typing import Any, Iterable, Optional
 
 from placement_pipeline.classifier import classify
 from placement_pipeline.company import extract_company
+from placement_pipeline.dates import parse_received
 from placement_pipeline.db import connect, save_email, save_extraction, save_meta, stats
 from placement_pipeline.dedup import cluster_stats, deduplicate
 from placement_pipeline.models import Category, Email, Extraction, SubPattern
@@ -49,14 +53,19 @@ _PARSER_BY_CATEGORY = {
     Category.OPPORTUNITY: parse_opportunity,
 }
 
-# scalar facts: current section wins, history only fills the gap
+# scalar facts: current section wins, history only fills the gap.
+# reporting_at is deliberately absent: a schedule stated in the current
+# announcement is authoritative, and a stale one from quoted history must
+# never fill it in.
 _FILL_KEYS = (
     "company_raw", "company", "role", "package_inr", "package_raw",
     "package_basis", "stipend_inr", "status", "venue", "duration",
-    "stage", "opportunity_type", "eligibility", "reporting_at",
+    "stage", "opportunity_type", "eligibility",
 )
-# list facts: unioned, current first
-_UNION_KEYS = ("links", "funnel_counts", "event_stages", "team_rules")
+# timeless resources: unioned, current first (an old registration link is
+# still worth keeping). Everything else list-shaped (funnel_counts,
+# event_stages, team_rules) belongs to the current announcement alone.
+_UNION_KEYS = ("links",)
 # warnings a filled gap makes obsolete
 _RESOLVES = {
     "role": "role not stated in body or table",
@@ -177,15 +186,22 @@ def _sender_email(sender: str) -> str:
 
 
 def _to_naive(value: Any) -> Optional[datetime]:
-    """PG returns tz-aware timestamps; stored dates are naive IST."""
+    """PG returns tz-aware timestamps; stored dates are naive IST.
+
+    ``receivedat`` is a text column holding either ISO or the RFC-822
+    header form (``Sat, 5 Sep 2026 10:10:32 +0530``).  Losing this date
+    would leave the parsers without the reference used to resolve
+    year-less deadlines, so fall back to the corpus RFC-822 parser.
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
         return value.replace(tzinfo=None) if value.tzinfo else value
+    text = str(value).strip()
     try:
-        return datetime.fromisoformat(str(value))
+        return datetime.fromisoformat(text)
     except ValueError:
-        return None
+        return parse_received(text)
 
 
 # ------------------------------------------------------------------- parsing
@@ -221,7 +237,13 @@ def _parse_section(category: Category, subject: str, body: str, *, reference, st
 
 
 def _merge(primary: dict[str, Any], secondary: dict[str, Any]) -> dict[str, Any]:
-    """Current section wins; history fills gaps. Lists union, deadline latest."""
+    """Current section wins; history fills gaps. Links union, deadline latest.
+
+    Point-in-time facts (interview dates, reporting time, funnel counts,
+    event stages, team rules) never inherit from history: the current
+    announcement is the state of the world, quoted history is a snapshot
+    of an older one.
+    """
     merged = dict(primary)
     warnings = list(primary.get("warnings") or [])
 
@@ -236,9 +258,10 @@ def _merge(primary: dict[str, Any], secondary: dict[str, Any]) -> dict[str, Any]
     elif d2:
         merged["deadline"] = d2
 
-    # stale history dates never displace the current section's schedule
-    if not merged.get("interview_dates") and secondary.get("interview_dates"):
-        merged["interview_dates"] = secondary["interview_dates"]
+    # funnel counts: history only fills a total gap, never appends stale
+    # point-in-time numbers to the current ones
+    if not merged.get("funnel_counts") and secondary.get("funnel_counts"):
+        merged["funnel_counts"] = secondary["funnel_counts"]
 
     for key in _UNION_KEYS:
         primary_list = list(merged.get(key) or [])

@@ -82,3 +82,25 @@ def test_ug_pg_split_extracts_both():
     facts = extract_money("UG Candidates: INR 6.04 Lakhs\nPG Candidates: INR 7.30 Lakhs")
     values = sorted(f.value for f in facts)
     assert values == [604000, 730000]
+
+
+def test_heading_label_carries_to_the_amount_lines_below():
+    # verbatim Keyence block: "Salary Package:" alone on its line labels the
+    # UG/PG amounts below it; the later "Relocation Perks:" heading keeps its
+    # own amounts out of the salary pool
+    body = (
+        "*Salary Package*:\n"
+        "UG Candidates: INR 6.04 Lakhs\n"
+        "PG Candidates: INR INR 7.30 Lakhs\n\n"
+        "*Relocation Perks*: (Salary Package, given below, If the candidate\n"
+        "relocated to another City by the company)\n"
+        "UG Candidates: INR 7.04 Lakhs (depending on location)\n"
+        "PG Candidates: INR 8.34 Lakhs (depending on location)\n"
+    )
+    facts = extract_money(body)
+    salary = {f.value for f in facts if "salary" in f.label.lower()}
+    reloc = {f.value for f in facts if "relocation" in f.label.lower()}
+    assert salary >= {604000, 730000}
+    assert reloc >= {704000, 834000}
+    pkg = pick_package(facts)
+    assert pkg and pkg.value == 730000

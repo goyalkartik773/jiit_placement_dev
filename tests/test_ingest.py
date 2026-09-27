@@ -242,3 +242,55 @@ def test_run_ingest_reports_section_and_warning_counters(tmp_path: Path):
     assert report.students == 2
     assert report.emails_with_students == 2
     assert report.seconds >= 0
+
+
+# ------------------------------------------------- history must not leak ----
+
+REVISION_SUBJECT = "Y Corp - Drive Update"
+REVISION_BODY = """\
+Update for the batch.
+
+A total of 141 students cleared the online assessment and will be
+shortlisted for Round 1. Interviews are scheduled for 3 March 2026.
+Register by 10 March 2026 at https://forms.gle/new-round1
+
+---------- Forwarded message ---------
+From: tnp@example.com
+Date: Mon, 1 Feb 2026 at 9:00 AM
+Subject: Y Corp - Drive Update
+To: <grp@googlegroups.com>
+
+A total of 96 students cleared the online assessment and will be
+shortlisted for Round 1. Interviews are scheduled for 5 March 2026.
+Register by 20 March 2026 at https://forms.gle/old-round1
+"""
+
+
+def test_history_fills_never_leaks_point_in_time_facts():
+    ext = extract_email(_email("e5", REVISION_SUBJECT, REVISION_BODY)).extraction
+    assert ext.category is Category.SHORTLIST
+    # interview dates belong to the current announcement alone
+    assert [d.when.date() for d in ext.interview_dates] == [date(2026, 3, 3)]
+    # funnel counts are filled, never unioned with the stale revision
+    assert {f.count for f in ext.funnel_counts} == {141}
+    # deadlines: the latest stated date wins across sections
+    assert ext.deadline == date(2026, 3, 20)
+    # links are timeless resources: both survive, current first
+    assert [lnk.url for lnk in ext.links] == [
+        "https://forms.gle/new-round1",
+        "https://forms.gle/old-round1",
+    ]
+
+
+def test_to_naive_parses_iso_and_rfc_received_values():
+    from placement_pipeline.ingest import _to_naive
+
+    # ISO strings and tz-aware datetimes
+    assert _to_naive("2026-09-05 10:10:32") == datetime(2026, 9, 5, 10, 10, 32)
+    assert _to_naive(None) is None
+    # RFC-822 corpus format: this reference date is what year-less
+    # deadlines ("close on 6 September") resolve against
+    assert _to_naive("Sat, 5 Sep 2026 10:10:32 +0530") == datetime(
+        2026, 9, 5, 10, 10, 32
+    )
+    assert _to_naive("not a date") is None

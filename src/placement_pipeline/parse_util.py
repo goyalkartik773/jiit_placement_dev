@@ -126,14 +126,51 @@ def labelled_value(text: str, label_pattern: str) -> str:
         remainder = remainder[1:]  # the match stops before the newline
     rest = remainder.split("\n")
     joined = 0
-    while joined < 3 and joined < len(rest):
-        nxt = _plain(rest[joined])
-        if not nxt:  # true blank line ends the value
+    i = 0
+    while joined < 3 and i < len(rest):
+        # blank lines are soft in this corpus (Google Groups separates every
+        # physical line with one): look through them at the next non-blank
+        # line and let _needs_join decide whether it continues the value
+        k = i
+        while k < len(rest) and not _plain(rest[k]):
+            k += 1
+        if k >= len(rest):
             break
+        nxt = _plain(rest[k])
+        if k > i:
+            unfinished = (
+                not value
+                or value.endswith(("-", ","))
+                or value.count("(") > value.count(")")
+            )
+            if not unfinished:
+                # a blank-separated line continues a *finished* value only
+                # when it looks like a wrap fragment ("Solutions Associate
+                # (BTSA)"), never a fresh sentence ("Ready to sharpen your
+                # communication skills … corporate world.") — and the whole
+                # candidate sentence counts, not just its first line, so a
+                # multi-line sentence cannot slip through one fragment at a
+                # time ("… into the" alone looks like a wrap)
+                cand_lines = [nxt]
+                j = k + 1
+                while (
+                    j < len(rest)
+                    and _plain(rest[j])
+                    and not re.search(r"[.!?]+(?=\s|$)", cand_lines[-1])
+                ):
+                    cand_lines.append(_plain(rest[j]))
+                    j += 1
+                cand = " ".join(cand_lines)
+                if (
+                    re.search(r"[.!?]+(?=\s|$)", cand)
+                    or len(cand.split()) > 10
+                ):
+                    break
         if not _needs_join(value, nxt):
             break
         value = f"{value} {nxt}".strip()
         joined += 1
+        i = k + 1
     return value
 
 

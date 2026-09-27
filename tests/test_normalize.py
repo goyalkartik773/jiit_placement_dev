@@ -1,5 +1,7 @@
 """Normalization tests pinned to excerpts from the real corpus."""
 
+from time import time
+
 from placement_pipeline.normalize import (
     clean_subject,
     current_section,
@@ -235,3 +237,27 @@ def test_current_section_cuts_gmail_quoted_header_block():
     assert "25 May 2026" in out
     assert "Apr 28" not in out
     assert "Earlier body text." not in out
+
+
+# Corpus email 19f920412fa78290: a ``---/From:`` block with no blank-line
+# terminator. A lazy continuation group used to backtrack through every
+# split of every quoted line (3.8 s on a 2.5 kB body; 41 s on this 24-line
+# excerpt; other corpus bodies never finished). The possessive group must
+# fail fast — and an unterminated block still cuts nothing.
+QUOTED_HEADER_NO_TERMINATOR = (
+    "Register by 25 May 2026.\n"
+    "\n"
+    "---\n"
+    "From: someone@example.com\n"
+    + "".join(f"> quoted line {i} carries content\n" for i in range(24))
+)
+
+
+def test_quoted_header_without_terminator_fails_fast():
+    start = time()
+    out = current_section(QUOTED_HEADER_NO_TERMINATOR)
+    elapsed = time() - start
+    assert elapsed < 1.0, f"catastrophic backtracking regressed: {elapsed:.2f}s"
+    # unterminated block: nothing is cut, current text survives
+    assert "Register by 25 May 2026" in out
+    assert "quoted line 23 carries content" in out

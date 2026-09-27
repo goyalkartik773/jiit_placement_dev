@@ -605,3 +605,64 @@ def test_links_drop_gmail_linkified_header_tokens():
     assert links == [
         ("https://app.brazenconnect.com/a/asp-sdengineering/e/28N38", "Join")
     ]
+
+
+# --------------------------------------------------- cognizant (prose role) --
+
+COGNIZANT_SUBJECT = (
+    "Cognizant Mass Recruitment Drive-Hiring for Full Time Role from 2027 Batch"
+)
+COGNIZANT_BODY = """\
+Dear Students,
+
+Students who have cleared the technical interview and have been selected by
+Cognizant for the *GenC *profile at a package of *INR 4 Lakhs* through the
+2027 campus hiring process.
+"""
+
+
+def test_selected_prose_role_and_package():
+    out = _parse(parse_offer, COGNIZANT_SUBJECT, COGNIZANT_BODY)
+    assert out["company"] == "Cognizant"
+    # "have been selected" is an offer-in-progress, not a withdrawal
+    assert out["status"] == "selected"
+    # prose role with no colon: "… for the *GenC *profile"
+    assert out["role"] == "GenC"
+    assert out["package_inr"] == 400000
+    assert out["warnings"] == []
+
+
+def test_conditional_withdrawal_is_not_a_withdrawal():
+    body = (
+        "Congratulations! The following students have been offered by Acme.\n\n"
+        "The offer will be withdrawn if not accepted by 10 March 2026.\n"
+    )
+    out = _parse(parse_offer, "Acme Corp - Offers", body)
+    # fine print about a conditional withdrawal never overrules the offer
+    assert out["status"] == "extended"
+
+
+def test_designation_label_supplies_the_role():
+    body = "*Designation*: Consulting Sales Engineer\n"
+    out = _parse(parse_offer, "Keyence India - Offers", body)
+    assert out["role"] == "Consulting Sales Engineer"
+
+
+def test_blank_line_look_through_joins_values_but_never_next_sentence():
+    # label line with no value: join the next non-blank line …
+    text = (
+        "*Venue*:\n\n"
+        "PES University, Bengaluru\n\n"
+        "Welcome to the annual placement drive.\n"
+    )
+    assert labelled_value(text, r"venue") == "PES University, Bengaluru"
+    # … but a finished value never glues the fresh sentence after the blank
+    # (verbatim guest-lecture wrap: the candidate line exceeds 10 words)
+    text = (
+        "Kind attention: Students of 2027 Graduating Batches\n\n"
+        "Ready to sharpen your communication skills and gain insights into the\n"
+        "corporate world.\n"
+    )
+    assert labelled_value(text, r"kind\s+attention") == (
+        "Students of 2027 Graduating Batches"
+    )

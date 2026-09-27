@@ -28,7 +28,24 @@ from placement_pipeline.normalize import normalize_punct, strip_invisible, strip
 
 _EMAIL_CELL_RE = re.compile(r"^[^@\s|<>]+@[^@\s|<>]+\.[A-Za-z]{2,}$")
 _ROLL_CELL_RE = re.compile(r"^(?:\d{8,12}|\d{3}[A-Z]\d{3})$")
-_SERIAL_CELL_RE = re.compile(r"^\d{1,3}$")
+_SERIAL_TOKEN_RE = re.compile(r"\d{1,4}")
+
+
+def _serial_token(tok: str) -> int | None:
+    """Parse a serial cell/line.
+
+    Lists in the corpus run past 999 (the Infosys registration list has
+    1069 rows), so serials may be four digits — but a year-like value
+    (``2026``/``1900``) sitting where a serial is expected is a batch
+    year in prose, never a row number, so that window is rejected.
+    """
+    tok = tok.strip()
+    if not re.fullmatch(_SERIAL_TOKEN_RE.pattern, tok):
+        return None
+    value = int(tok)
+    if 1900 <= value <= 2100:
+        return None
+    return value
 _DEGREE_CELL_RE = re.compile(
     r"^(?:b\.?\s?tech|m\.?\s?tech|mca|mba|bca|bba|b\.?sc|m\.?sc|integrated|"
     r"ph\.?\s?d|b\.?arch|b\.?pharm|b\.?des|m\.?des|b\.?\s?t\b)"
@@ -71,7 +88,7 @@ _BRANCH_FULL_RE = re.compile(
 # status phrases can span several cells: "Pre-Placement" "Offer" "-" "FTE"
 _STATUS_START_RE = re.compile(
     r"^(?:not\s+(?:selected|shortlisted|cleared|qualified|invited|registered|submitted|selected\s+for)"
-    r"|no\s*show|did\s+not\s+(?:attend|show)|absent"
+    r"|no[\s_-]*show|did\s+not\s+(?:attend|show)|absent"
     r"|selected|shortlisted|cleared|qualified|offered"
     r"|offers?\s+(?:released|extended|made)"
     r"|pending|registered|invited|waitlists?|withdraw\w*|rejected|disqualified"
@@ -80,6 +97,20 @@ _STATUS_START_RE = re.compile(
     r"|selected\s+for|shortlisted\s+for)",
     re.IGNORECASE,
 )
+
+# "SELECTED Digital Specialist Engineer (Trainee)" — a status word leading a
+# role tail. Split so the status column stays a status and the tail becomes
+# the role column.
+_SPLIT_STATUS_RE = re.compile(
+    r"^(?P<status>not\s+(?:selected|shortlisted|cleared|qualified)"
+    r"|no[\s_-]*show|selected|shortlisted|cleared|qualified|rejected"
+    r"|pending|withdrawn|waitlisted|disqualified)"
+    r"\s+(?P<rest>\S.*)$",
+    re.IGNORECASE,
+)
+
+# remainder tokens that are NOT a role ("REJECTED NA", "NO_SHOW NA")
+_NOT_A_ROLE = {"na", "n/a", "none", "-", "nil"}
 
 # ------------------------------------------------------------- header phrases --
 
@@ -236,8 +267,9 @@ def _header_is_table(keys: list[str]) -> bool:
 # ------------------------------------------------------------------ row starts --
 
 # serial numbers may sit alone on a line (vertical tables put every cell on
-# its own line) — but "1900"/"2026" style numbers must not match.
-_ROW_START_RE = re.compile(r"^\s*(\d{1,3})(?:[.)](?=\s|$)|\s|$)")
+# its own line) — but "1900"/"2026" style numbers must not match
+# (see _serial_token).
+_ROW_START_RE = re.compile(r"^\s*(\d{1,4})(?:[.)](?=\s|$)|\s|$)")
 _ROLL_START_RE = re.compile(r"^\s*(?:\d{8,12}|\d{3}[A-Z]\d{3})\s+\S")
 
 _LABEL_END_RE = re.compile(r"\S\s*:$")
@@ -285,8 +317,8 @@ def _row_start(line: str) -> tuple[str | None, int | None]:
     """
     m = _ROW_START_RE.match(line)
     if m:
-        serial = int(m.group(1))
-        if serial <= 999:
+        serial = _serial_token(m.group(1))
+        if serial is not None:
             return "serial", serial
     if _ROLL_START_RE.match(line) or re.fullmatch(
         r"\d{8,12}|\d{3}[A-Z]\d{3}", line
@@ -413,6 +445,34 @@ def _find_status(cells: list[str], anchors: set[int]) -> tuple[int, int, str] | 
             end += 1
         value = " ".join(c.strip(",.;") for c in cells[i:end])
         value = re.sub(r"\s+", " ", value).strip(" -")
+        # status word + role tail: claim only the status words so the tail
+        # can surface as the role column ("REJECTED NA"/"NO_SHOW NA" keep
+        # their full span — NA is not a role)
+        m = _SPLIT_STATUS_RE.match(value)
+        if m:
+            rest = m.group("rest").strip(" -,.")
+            if (
+                rest
+                and (rest[:1].isupper() or rest[:1] == "(")
+                and rest.lower() not in _NOT_A_ROLE
+            ):
+                status_text = m.group("status")
+                acc = ""
+                end2 = i
+                while end2 < end:
+                    piece = cells[end2].strip(",.;")
+                    cand = f"{acc} {piece}".strip()
+                    if status_text.lower()[: len(cand)] != cand.lower():
+                        break
+                    acc = cand
+                    end2 += 1
+                    if acc.lower() == status_text.lower():
+                        break
+                if (
+                    acc.lower() == status_text.lower()
+                    and i < end2 <= end
+                ):
+                    return i, end2, status_text
         return i, end, value
     return None
 
@@ -449,9 +509,7 @@ def _parse_vertical(
         return v or None
 
     serial_s = val("serial")
-    serial = (
-        int(serial_s) if serial_s and re.fullmatch(r"\d{1,3}", serial_s) else None
-    )
+    serial = _serial_token(serial_s) if serial_s else None
 
     email = None
     for cand in [val("email"), *cells]:
@@ -509,7 +567,20 @@ def _parse_record(
     positions: dict[str, list[int]] | None = None,
     n_cols: int | None = None,
 ) -> StudentRow | None:
-    if positions and n_cols and len(record) == n_cols:
+    if (
+        positions
+        and n_cols
+        and len(record) == n_cols
+        and not any(
+            _row_start(ln)[0] == "serial"
+            and re.search(r"@\S|\d{8,12}|\d{3}[A-Z]\d{3}", ln)
+            for ln in record
+        )
+    ):
+        # a wrapped horizontal row can coincidentally span exactly n_cols
+        # lines ("107 Shreyans kalantagdiya …@gmail.com 9923102086 JIIT," /
+        # "Noida"): a serial line that also carries an email/roll is a row,
+        # never a vertical cell
         return _parse_vertical(record, schema, positions)
     if any("|" in ln for ln in record):
         joined = " ".join(record)
@@ -524,8 +595,9 @@ def _parse_record(
 
     serial_i: int | None = None
     serial: int | None = None
-    if _SERIAL_CELL_RE.match(cells[0]) and len(cells) > 2:
-        serial_i, serial = 0, int(cells[0])
+    first_serial = _serial_token(cells[0]) if len(cells) > 2 else None
+    if first_serial is not None:
+        serial_i, serial = 0, first_serial
 
     email_i, email = _find_email(cells)
     roll_i, roll = _find_roll(cells)
@@ -624,7 +696,16 @@ def _parse_record(
             and (name_span is None or e <= name_span[0] or s >= name_span[1])
         ]
         if status is not None:
-            role_runs = [(s, e) for s, e in role_runs if e <= status[0]]
+            # most layouts put the role before the status, but a status word
+            # that leads the value ("SELECTED Digital Specialist Engineer")
+            # leaves the role immediately behind it — still bounded by the
+            # roll, so a wrapped campus tail ("… 8825501013" / "JU-Anoopshahr")
+            # never becomes the role
+            role_runs = [
+                (s, e) for s, e in role_runs
+                if e <= status[0]
+                or (s >= status[1] and (roll_i is None or e <= roll_i))
+            ]
         role_cells: list[str] = []
         for s, e in role_runs:
             cand = cells[s:e]
@@ -825,6 +906,11 @@ def _scan_vertical_header(
         blanks = 0
         ks = _parse_header(line)
         if ks:
+            if len(ks) >= 3:
+                # several column labels on ONE line is a horizontal header
+                # ("S.No. Candidate Name user_email Enrollment No. Campus") —
+                # claiming it as a vertical column mis-splits every record
+                break
             keys.extend(ks)
             pos.setdefault(ks[0], []).append(col)
             col += 1
@@ -832,7 +918,7 @@ def _scan_vertical_header(
             continue
         if not _cell_like(line):
             break
-        if re.fullmatch(r"\d{1,3}", line):
+        if re.fullmatch(r"\d{1,4}", line):
             break
         if "@" in line or re.search(r"\d{8,12}|\d{3}[A-Z]\d{3}", line):
             break
@@ -867,7 +953,7 @@ def extract_students(text: str) -> TableResult:
             kind, _ = _row_start(line)
             if kind and re.search(r"@|\d{8,12}|\d{3}[A-Z]\d{3}", line):
                 starts_headerless = True
-            elif kind == "serial" and re.fullmatch(r"\d{1,3}", line):
+            elif kind == "serial" and _serial_token(line) is not None:
                 # vertical table without a header: cells live on following
                 # lines — look a little ahead for the first roll/email
                 k = i + 1
@@ -1078,6 +1164,11 @@ def _rows_for_block(
     seen: set[str] = set()
     label_is_status = bool(
         block.label
+        # a section heading ends with ':' and long headings name a
+        # population, not a status ("List of Students' status of pending
+        # Interviews as on 24 June 2026:")
+        and not block.label.rstrip().endswith(":")
+        and len(block.label) <= 60
         and re.search(
             r"selected|shortlisted|cleared|offer|withdraw|no show|pending|"
             r"registered|waitlist|reject|disqualif|round",

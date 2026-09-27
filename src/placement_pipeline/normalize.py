@@ -65,11 +65,15 @@ _ORIGINAL_MESSAGE_RE = re.compile(
 #   To: <jiitengg2027@googlegroups.com>
 #                                                 <- first blank line ends it
 # The block runs from the ``From:`` line to the first blank line (subjects
-# wrap), so continuation lines are consumed too.
+# wrap), so continuation lines are consumed too.  The continuation group is
+# possessive (``*+``): a line either is non-blank or the block ends there, so
+# backtracking across lines can never change the outcome — without it a
+# message with no blank terminator walked every split of every quoted line
+# (minutes of CPU on a 2 kB body).
 _QUOTED_HEADER_RE = re.compile(
     r"^[ \t>]*-{3,}(?:[ \t]*Forwarded message[ \t]*-{3,})?[ \t]*\r?\n"
     r"[ \t>]*From:[ \t][^\r\n]*\r?\n"
-    r"(?:[ \t>]*\S[^\r\n]*\r?\n)*?"
+    r"(?:[ \t>]*\S[^\r\n]*\r?\n)*+"
     r"[ \t]*\r?\n",
     re.MULTILINE,
 )

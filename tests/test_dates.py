@@ -92,3 +92,47 @@ def test_no_clock_like_dates():
     # "10 AM" is a time, not a date; "12 weeks" not a date
     assert all(f.when.year != 10 for f in facts)
     assert len(facts) == 0
+
+
+def test_roles_are_sentence_scoped():
+    # Amazon funnel mail: a bare date in a later sentence must not inherit
+    # the previous sentence's interview role (corpus: stray "December 2026")
+    facts = extract_dates(
+        "Interview on 3 March 2026. The final list will be published in "
+        "December 2026.",
+        reference=datetime(2026, 2, 1),
+    )
+    march = [f for f in facts if f.when.month == 3]
+    dec = [f for f in facts if f.when.month == 12]
+    assert march and march[0].role == "interview"
+    assert dec and dec[0].role == "mention"
+
+
+def test_yearless_day_month_uses_reference_year():
+    # Accenture: "students can close on 6 September" — no year in the mail
+    facts = extract_dates(
+        "Students can close on 6 September",
+        reference=datetime(2026, 9, 1),
+    )
+    assert facts and facts[0].when == datetime(2026, 9, 6)
+    assert facts[0].role == "deadline"
+
+
+def test_yearless_range_resolved_from_reference():
+    facts = extract_dates(
+        "Interviews will be conducted from 11 to 12 March",
+        reference=datetime(2026, 3, 1),
+    )
+    days = [f.when.day for f in facts if f.when.month == 3]
+    assert days == [11, 12]
+    assert all(f.when.year == 2026 for f in facts)
+
+
+def test_as_on_snapshot_date_is_never_a_schedule():
+    # section heading "…pending Interviews as on 24 June 2026:" is a
+    # snapshot, not an interview date (corpus: HackWithInfy status mail)
+    facts = extract_dates(
+        "List of Students' status of pending Interviews as on 24 June 2026:"
+    )
+    assert facts and facts[0].when == datetime(2026, 6, 24)
+    assert facts[0].role == "mention"

@@ -351,3 +351,74 @@ SELECTED FOR QUALIFIER ROUND 2
 
 def test_windows_line_endings_are_handled():
     assert len(_rows(CAELIUS.replace("\n", "\r\n"))) == 1
+
+
+# ----------------------------------------------- hackwithinfy (status tables) --
+
+# A section heading + a one-line multi-column header must NOT be claimed as
+# a vertical (one-cell-per-line) table: that mis-split wrapped records and
+# silently dropped rows (corpus: serial 107 of the 2026 pending list).
+PENDING_WRAPPED = """\
+List of Students' status of pending Interviews as on 24 June 2026:
+
+S.No. Candidate Name user_email Enrollment No. Campus
+
+1 Aviral Nausran aviralnausran@gmail.com 9923102081 JIIT,
+Noida
+2 Aman Gupta amanguptax@gmail.com 23103421 JIIT,
+Noida
+"""
+
+
+def test_section_title_and_horizontal_header_stay_a_horizontal_table():
+    rows = _rows(PENDING_WRAPPED)
+    assert len(rows) == 2
+    assert rows[0].serial == 1
+    assert rows[0].roll_no == "9923102081"
+    assert rows[0].raw_name == "Aviral Nausran"
+    # the heading labels the rows but its trailing ':' marks it as a
+    # section title — it must never surface as a status value
+    assert rows[0].status is None
+    assert rows[0].section and "pending" in rows[0].section
+
+
+def test_serials_beyond_999_still_start_rows():
+    text = (
+        "S.No. Candidate Name Candidate Email Enrollment no. Campus\n"
+        "1043 Ananya Verma ananya.v@x.com 23104043 JIIT, Noida\n"
+    )
+    rows = _rows(text)
+    assert len(rows) == 1
+    assert rows[0].serial == 1043
+    assert rows[0].roll_no == "23104043"
+
+
+STATUS_SPLIT = """\
+S.No. Candidate Name Candidate Email Final Interview Result/Status Shortlisted
+For Role Of Enrollment no. Campus
+1 Madan Gopal Jha madanjha2468@gmail.com SELECTED Digital Specialist
+Engineer (Trainee) 22803018 JIIT, Noida
+2 Shaurya Goyal shauryagoyal1404@gmail.com NO_SHOW NA 9923103164 JIIT,
+Noida
+3 Kajal Kumari kajal345rajput@gmail.com REJECTED NA 8825501013
+JU-Anoopshahr
+"""
+
+
+def test_status_word_leading_splits_the_role_tail():
+    rows = _rows(STATUS_SPLIT)
+    assert len(rows) == 3
+    # "SELECTED Digital Specialist Engineer (Trainee)": status word first,
+    # the role tail lands in the role column
+    first = rows[0]
+    assert first.status == "SELECTED"
+    assert first.role == "Digital Specialist Engineer (Trainee)"
+    assert first.roll_no == "22803018"
+
+
+def test_status_tokens_are_never_the_role_column():
+    rows = _rows(STATUS_SPLIT)
+    # "NO_SHOW NA" / "REJECTED NA" are statuses; and a wrapped campus tail
+    # behind the roll ("… 8825501013" / "JU-Anoopshahr") is not a role
+    assert rows[1].status == "NO_SHOW NA" and rows[1].role is None
+    assert rows[2].status == "REJECTED NA" and rows[2].role is None

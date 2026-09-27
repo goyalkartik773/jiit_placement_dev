@@ -50,10 +50,20 @@ _MDY_RE = re.compile(
     re.IGNORECASE,
 )
 
-# day range: "11 & 12 March 2026", "5 & 6 February 2026"
+# day range: "11 & 12 March 2026", "17 and 18 August 2026", "5 & 6 February
+# at JIIT" (the year may be absent — resolved from the receive date)
 _RANGE_RE = re.compile(
-    rf"\b(?P<d1>\d{{1,2}})(?:st|nd|rd|th)?\s*&\s*(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+"
-    rf"(?P<month>{_MONTH_PATTERN})\.?,?\s+(?P<year>20\d{{2}})\b",
+    rf"\b(?P<d1>\d{{1,2}})(?:st|nd|rd|th)?\s*(?:&|and|to|-|–|—)\s*"
+    rf"(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+"
+    rf"(?P<month>{_MONTH_PATTERN})\.?,?(?:\s+(?P<year>20\d{{2}}))?\b",
+    re.IGNORECASE,
+)
+
+# day month with no year ("the registration window will close on 6 September
+# at 10:00 PM") — corpus mail is same-year mail, so the receive year applies
+_DMY_NY_RE = re.compile(
+    rf"\b(?P<day>\d{{1,2}}(?:st|nd|rd|th)?|Ist)\s+"
+    rf"(?P<month>{_MONTH_PATTERN})\.?,?(?!\s*(?:19|20)\d{{2}})",
     re.IGNORECASE,
 )
 
@@ -134,10 +144,56 @@ def _ordinal_to_int(token: str) -> Optional[int]:
 
 def _role_for(context: str) -> str:
     low = context.lower()
+    if re.search(r"\bas\s+(?:on|of)\b", low):
+        # a snapshot date, not a schedule: "…status of pending Interviews
+        # as on 24 June 2026" must never become an interview date
+        return "mention"
     for role, keys in _ROLE_RULES:
         if any(k in low for k in keys):
             return role
     return "mention"
+
+
+_SENTENCE_END_RE = re.compile(r"[.!?]+(?=\s)")
+_PARA_BREAK_RE = re.compile(r"\r?\n[ \t]*\r?\n")
+
+
+def _sentence_spans(text: str) -> list[tuple[int, int]]:
+    """Spans of the sentence/paragraph containing each date.
+
+    Role words must share the *segment* with the date: "…Internship
+    (July–December 2026): Campus Update" must not inherit "assessment"
+    from the next paragraph, and "…invited for interviews. … apply by 11 AM,
+    08 Aug 2026" must stay a deadline. Boundaries are sentence ends and
+    blank lines (the corpus often omits terminal punctuation); dotted
+    abbreviations ("Aug.", "e.g.", "PM.") never end a sentence — a skipped
+    boundary only widens the context, which is the safe direction.
+    """
+    cuts: list[tuple[int, int]] = []  # (end of segment, start of next)
+    for m in _SENTENCE_END_RE.finditer(text):
+        if m.end() >= len(text):
+            continue
+        if m.group(0).startswith("."):
+            j = m.start() - 1
+            while j >= 0 and text[j].isalpha():
+                j -= 1
+            word = text[j + 1 : m.start()]
+            if 0 < len(word) <= 3:  # "Aug." / "e.g." / "PM."
+                continue
+        cuts.append((m.start(), m.end()))
+    for m in _PARA_BREAK_RE.finditer(text):
+        cuts.append((m.start(), m.end()))
+    cuts.sort()
+
+    spans: list[tuple[int, int]] = []
+    start = 0
+    for cut_end, next_start in cuts:
+        if cut_end <= start:
+            continue
+        spans.append((start, cut_end))
+        start = next_start
+    spans.append((start, len(text)))
+    return spans
 
 
 def _find_time(context: str) -> Optional[tuple[int, int]]:
@@ -159,20 +215,28 @@ def _find_time(context: str) -> Optional[tuple[int, int]]:
 def extract_dates(text: str, *, reference: Optional[datetime] = None) -> list[DateFact]:
     """Extract dated mentions from ``text``.
 
-    ``reference`` (usually the email's receive date) resolves month-year-only
-    mentions and keeps sanity bounds. Time-of-day is attached when a clock
-    time sits next to the date.
+    ``reference`` (usually the email's receive date) resolves yearless
+    day-month mentions and month-year-only mentions and keeps sanity
+    bounds. Time-of-day is attached when a clock time sits next to the
+    date; the role of a date comes from the sentence/paragraph it sits in
+    (never from a neighbouring paragraph).
     """
     facts: list[DateFact] = []
     seen: set[tuple[int, int, int, str]] = set()
+    segments = _sentence_spans(text)
+
+    def _segment_for(span: tuple[int, int]) -> str:
+        for s, e in segments:
+            if s <= span[0] < e:
+                return text[s:e]
+        return text[span[0] : span[1]]
 
     def _add(year: int, month: int, day: int, raw: str, span: tuple[int, int]) -> None:
         try:
             when = datetime(year, month, day)
         except ValueError:
             return
-        ctx_start = max(0, span[0] - 90)
-        context = text[ctx_start : min(len(text), span[1] + 90)]
+        context = _segment_for(span)
         role = _role_for(context)
         clock = _find_time(context)
         if clock:
@@ -187,9 +251,13 @@ def extract_dates(text: str, *, reference: Optional[datetime] = None) -> list[Da
     range_spans: list[tuple[int, int]] = []
     for m in _RANGE_RE.finditer(text):
         month = _month_num(m.group("month"))
-        year = int(m.group("year"))
+        year = int(m.group("year")) if m.group("year") else None
         if month is None:
             continue
+        if year is None:
+            if reference is None:
+                continue  # yearless range without a receive date: skip honestly
+            year = reference.year
         range_spans.append(m.span())
         for day_token in (m.group("d1"), m.group("d2")):
             day = int(day_token)
@@ -209,6 +277,25 @@ def extract_dates(text: str, *, reference: Optional[datetime] = None) -> list[Da
             if day is None or month is None:
                 continue
             _add(int(m.group("year")), month, day, m.group(0), m.span())
+
+    # day month with no year: corpus mail states same-year deadlines
+    # ("close on 6 September at 10:00 PM") — the receive date supplies it
+    if reference is not None:
+        for m in _DMY_NY_RE.finditer(text):
+            if _in_range(m.span()):
+                continue
+            day = _ordinal_to_int(m.group("day"))
+            month = _month_num(m.group("month"))
+            if day is None or month is None:
+                continue
+            if any(
+                f.when.year == reference.year
+                and f.when.month == month
+                and f.when.day == day
+                for f in facts
+            ):
+                continue
+            _add(reference.year, month, day, m.group(0), m.span())
 
     # month-year only (never overrides a concrete day-date already found)
     concrete = {(f.when.year, f.when.month, f.when.day) for f in facts}
