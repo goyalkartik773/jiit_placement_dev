@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
-import { toConsoleLines } from '../../components/admin/ScriptConsole/ScriptConsole';
+import { useCallback, useState } from 'react';
 import { ActivityTimeline } from '../../components/admin/ActivityTimeline/ActivityTimeline';
 import { AdminLogin } from '../../components/admin/AdminLogin/AdminLogin';
 import { InventoryStrip } from '../../components/admin/InventoryStrip/InventoryStrip';
 import { RunHistory } from '../../components/admin/RunHistory/RunHistory';
-import { ScriptsPanel } from '../../components/admin/ScriptsPanel/ScriptsPanel';
+import { ScriptActions } from '../../components/admin/ScriptActions/ScriptActions';
 import { Button } from '../../components/common/Button/Button';
 import { useToast } from '../../components/common/Toast/Toast';
 import { useActivity } from '../../hooks/useActivity';
@@ -34,8 +33,8 @@ function sessionLine(overview: AdminOverview | null, loading: boolean): string {
 }
 
 /**
- * Admin console (container): sign-in gate, then the overview strip, the
- * unified scripts panel, the run history and the activity timeline.
+ * Admin console (container): sign-in gate, then one vertical column —
+ * inventory strip, script actions, run history, activity timeline.
  * All fetching/polling lives in useAdminOverview / useActivity /
  * useScriptRunner → adminService → apiClient; this page only wires state.
  */
@@ -81,21 +80,18 @@ export function Admin() {
     }
   }, [showToast]);
 
-  const handleRun = useCallback((action: AdminScriptAction) => {
-    setReplay(null);
-    runner.start(action);
-  }, [runner]);
+  const handleRun = useCallback(
+    (action: AdminScriptAction) => {
+      setReplay(null);
+      runner.start(action);
+    },
+    [runner],
+  );
 
   const handleRefresh = useCallback(() => {
     reloadOverview();
     reloadActivity();
   }, [reloadOverview, reloadActivity]);
-
-  // The console shows the archived rows while replaying, the live merged log otherwise.
-  const consoleLines = useMemo(
-    () => (replay ? toConsoleLines(replay.output) : runner.lines),
-    [replay, runner.lines],
-  );
 
   if (!token) {
     return (
@@ -107,7 +103,7 @@ export function Admin() {
 
   return (
     <div className="page admin-page">
-      <section className="page-head">
+      <section className="page-head admin-page__head">
         <div className="page-head__text">
           <p className="page-head__eyebrow">Admin · Restricted</p>
           <h1 className="page-head__title">Admin console</h1>
@@ -119,7 +115,13 @@ export function Admin() {
           <Button variant="ghost" size="sm" icon="refresh" loading={overview.refreshing} onClick={handleRefresh}>
             Refresh
           </Button>
-          <Button variant="ghost" size="sm" icon="logout" onClick={() => void handleLogout()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="logout"
+            className="admin-page__logout"
+            onClick={() => void handleLogout()}
+          >
             Log out
           </Button>
         </div>
@@ -132,35 +134,35 @@ export function Admin() {
         onRetry={reloadOverview}
       />
 
-      <div className="admin-page__grid">
-        <ScriptsPanel
-          action={runner.action}
-          status={runner.status}
-          busy={runner.busy}
-          starting={runner.starting}
-          pendingAction={runner.pendingAction}
-          conflict={runner.conflict}
-          conflictScript={runner.conflictScript}
-          error={runner.error}
-          lines={consoleLines}
-          replay={replay}
-          onRun={handleRun}
-          onDismissReplay={() => setReplay(null)}
-        />
+      <ScriptActions
+        action={runner.action}
+        status={runner.status}
+        busy={runner.busy}
+        starting={runner.starting}
+        pendingAction={runner.pendingAction}
+        conflict={runner.conflict}
+        conflictScript={runner.conflictScript}
+        error={runner.error}
+        lines={runner.lines}
+        replay={replay}
+        items={activity.items}
+        lastRuns={overview.overview?.lastRuns}
+        onRun={handleRun}
+        onDismissReplay={() => setReplay(null)}
+      />
 
-        <RunHistory
-          items={activity.items}
-          totalCount={activity.totalCount}
-          loading={activity.loading}
-          loadingMore={activity.loadingMore}
-          error={activity.error}
-          hasMore={activity.hasMore}
-          activeId={replay?.id ?? null}
-          onReplay={setReplay}
-          onLoadMore={activity.loadMore}
-          onRetry={reloadActivity}
-        />
-      </div>
+      <RunHistory
+        items={activity.items}
+        totalCount={activity.totalCount}
+        loading={activity.loading}
+        loadingMore={activity.loadingMore}
+        error={activity.error}
+        hasMore={activity.hasMore}
+        activeId={replay?.id ?? null}
+        onReplay={setReplay}
+        onLoadMore={activity.loadMore}
+        onRetry={reloadActivity}
+      />
 
       <ActivityTimeline
         items={activity.items}

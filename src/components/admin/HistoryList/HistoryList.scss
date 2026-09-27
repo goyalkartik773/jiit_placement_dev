@@ -1,0 +1,165 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Reusable run list — one row per stored activity, hairline dividers between
+// rows (never after the last one), category icon badge, status pill on the
+// right of the title line and a mono Replay button on the far right.
+// ============================================================================
+.history-list {
+  @include stack(0);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: $space-3;
+  padding: 11px 6px;
+  transition: background $transition-fast;
+
+  & + & {
+    border-top: 1px solid var(--line);
+  }
+
+  &:hover {
+    background: var(--bg);
+  }
+
+  // The row whose stored output is open in a card.
+  &--active {
+    background: var(--blue-soft);
+    box-shadow: inset 3px 0 0 var(--blue);
+  }
+
+  // ----- Category identity of the icon badge -----
+  &--blue {
+    --accent: var(--blue);
+    --accent-soft: var(--blue-soft);
+  }
+
+  &--indigo {
+    --accent: var(--indigo);
+    --accent-soft: var(--indigo-soft);
+  }
+
+  &--purple {
+    --accent: var(--purple);
+    --accent-soft: var(--purple-soft);
+  }
+
+  &--green {
+    --accent: var(--green);
+    --accent-soft: var(--green-soft);
+  }
+
+  &--red {
+    --accent: var(--red);
+    --accent-soft: var(--red-soft);
+  }
+
+  &--neutral {
+    --accent: var(--muted);
+    --accent-soft: var(--surface-muted);
+  }
+
+  &__icon {
+    @include flex-center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: $radius-sm;
+    background: var(--accent-soft, var(--surface-muted));
+    color: var(--accent, $text-secondary);
+  }
+
+  &__body {
+    @include stack($space-1);
+    min-width: 0;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: $fs-row-title;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-title;
+    color: var(--ink);
+    @include truncate;
+  }
+
+  // Status pill sits on the same line, pushed to the right.
+  &__pill {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  &__desc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-1-5;
+    margin: 0;
+    font-size: $fs-body-compact;
+    line-height: $lh-snug;
+    color: var(--muted);
+  }
+
+  &__message {
+    min-width: 0;
+    @include line-clamp(1);
+  }
+
+  &__meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: $fs-foot;
+    letter-spacing: $tracking-label;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Mono, blue, thin-bordered Replay button.
+  &__replay.btn {
+    align-self: center;
+    padding: 4px 9px;
+    border: 1px solid $primary-border;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: var(--blue);
+    font-family: var(--font-mono);
+    font-size: $fs-foot;
+    font-weight: $fw-medium;
+    letter-spacing: $tracking-label;
+
+    &:hover:not(:disabled) {
+      background: var(--blue-soft);
+      border-color: $primary-border-strong;
+      color: var(--blue);
+    }
+
+    &:disabled {
+      border-color: var(--line);
+      color: var(--faint);
+    }
+  }
+
+  @include down('sm') {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 10px 4px;
+
+    // Replay moves onto its own line under the row body.
+    > .btn {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+}

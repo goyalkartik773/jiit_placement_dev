@@ -60,15 +60,44 @@
 }
 
 .timeline__glyph {
+  --accent: #{$text-secondary};
+  --accent-soft: #{$surface};
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid $border;
+  border: 1px solid var(--line);
   border-radius: $radius-pill;
-  background: $surface;
-  color: $text-secondary;
+  background: var(--accent-soft);
+  color: var(--accent);
+
+  // Category identity — same accents as the action cards and history rows.
+  &--blue {
+    --accent: var(--blue);
+    --accent-soft: var(--blue-soft);
+  }
+
+  &--indigo {
+    --accent: var(--indigo);
+    --accent-soft: var(--indigo-soft);
+  }
+
+  &--purple {
+    --accent: var(--purple);
+    --accent-soft: var(--purple-soft);
+  }
+
+  &--green {
+    --accent: var(--green);
+    --accent-soft: var(--green-soft);
+  }
+
+  &--red {
+    --accent: var(--red);
+    --accent-soft: var(--red-soft);
+  }
 }
 
 .timeline__dot {
@@ -116,23 +145,26 @@
 }
 
 .timeline__script {
-  font-size: $fs-sm;
-  font-weight: $fw-semibold;
-  color: $text;
+  font-size: $fs-row-title;
+  font-weight: $fw-bold;
+  letter-spacing: $tracking-title;
+  color: var(--ink);
 }
 
 .timeline__message {
   margin: 0;
-  font-size: $fs-xs;
+  font-size: $fs-body-compact;
   line-height: $lh-snug;
-  color: $text-soft;
+  color: var(--muted);
   @include line-clamp(2);
 }
 
 .timeline__timing {
   margin: 0;
-  font-size: $fs-xs;
-  color: $text-muted;
+  font-family: var(--font-mono);
+  font-size: $fs-foot;
+  letter-spacing: $tracking-label;
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 

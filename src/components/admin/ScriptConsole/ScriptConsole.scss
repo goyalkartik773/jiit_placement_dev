@@ -1,10 +1,16 @@
 @use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
 
+// ============================================================================
+// Terminal window — the ONLY place the dark console tokens are used:
+// --term-bg body · --term-line borders · --term-text log text.
+// macOS-style dots + mono action title + RUNNING… / DONE / FAILED badge.
+// ============================================================================
 .script-console {
-  border: 1px solid $ink;
-  border-radius: $radius-md;
+  border: 1px solid var(--term-line);
+  border-radius: $radius-compact;
   overflow: hidden;
-  background: $ink;
+  background: var(--term-bg);
   box-shadow: $shadow-sm;
 
   // ----- Title bar -----
@@ -13,13 +19,14 @@
     align-items: center;
     gap: $space-3;
     padding: $space-2 $space-3;
-    background: $text; // slate-800 — title bar above the slate-900 body
-    border-bottom: 1px solid $text-soft;
+    background: $term-bar;
+    border-bottom: 1px solid var(--term-line);
   }
 
   &__dots {
     display: inline-flex;
     gap: $space-1-5;
+    flex-shrink: 0;
   }
 
   &__dot {
@@ -28,49 +35,76 @@
     border-radius: $radius-pill;
 
     &--close {
-      background: $danger-strong;
+      background: #ff5f57;
     }
 
     &--min {
-      background: $warning;
+      background: #febc2e;
     }
 
     &--max {
-      background: $success-strong;
+      background: #28c840;
     }
   }
 
   &__title {
     flex: 1;
     min-width: 0;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    color: $text-faint;
+    font-family: var(--font-mono);
+    font-size: $fs-tag;
+    letter-spacing: $tracking-label;
+    color: #8b93a7;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  // Small status badge on the right of the title bar.
   &__state {
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $text-muted;
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border: 1px solid var(--term-line);
+    border-radius: $radius-pill;
+    background: rgba(#fff, 0.04);
+    font-family: var(--font-mono);
+    font-size: $fs-tag;
+    font-weight: $fw-medium;
+    letter-spacing: 0.06em;
+    color: $text-faint;
 
-    &--busy {
-      color: $success-strong;
+    &--running {
+      border-color: rgba($amber, 0.5);
+      background: rgba($amber, 0.14);
+      color: #f0c274;
+    }
+
+    &--done {
+      border-color: rgba($green, 0.45);
+      background: rgba($green, 0.14);
+      color: var(--term-text);
+    }
+
+    &--failed {
+      border-color: rgba($danger, 0.5);
+      background: rgba($danger, 0.16);
+      color: $term-error;
+    }
+
+    &--interrupted {
+      border-color: rgba($amber, 0.45);
+      background: rgba($amber, 0.1);
+      color: #d8b06a;
     }
   }
 
   // ----- Output body -----
   &__body {
     padding: $space-3 $space-4;
-    max-height: 22rem;
+    max-height: 20rem;
     overflow-y: auto;
-    font-family: $font-mono;
-    font-size: $fs-sm; // 13px terminal ramp
-    line-height: $lh-normal;
+    font-family: var(--font-mono);
+    font-size: $fs-xs; // 12px terminal ramp
+    line-height: 1.8;
 
     &::-webkit-scrollbar {
       width: 8px;
@@ -81,7 +115,7 @@
     }
 
     &::-webkit-scrollbar-thumb {
-      background: $text-soft;
+      background: $term-line;
       border-radius: $radius-pill;
     }
   }
@@ -90,34 +124,38 @@
     display: flex;
     gap: $space-3;
     margin: 0;
-    padding: $space-0-5 0;
+    padding: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 
     &--cmd {
-      color: $primary-border;
+      color: $term-cmd;
       font-weight: $fw-medium;
     }
 
+    // Server narration — the log colour, quietly.
     &--info {
-      color: $text-muted; // server's bulk narration — quiet by design
+      color: rgba($term-text, 0.82);
     }
 
+    // "✓ …" success rows.
     &--success {
-      color: $success-strong;
+      color: var(--term-text);
+      font-weight: $fw-medium;
     }
 
     &--warn {
-      color: $warning-border;
+      color: $term-warn;
     }
 
+    // "✗ …" failure rows.
     &--error {
-      color: $danger-strong;
+      color: $term-error;
       font-weight: $fw-medium;
     }
 
     &--dim {
-      color: $text-muted;
+      color: rgba($term-text, 0.5);
     }
 
     &--cursor {
@@ -129,7 +167,7 @@
   &__time {
     flex: none;
     width: 8ch;
-    color: $text-muted;
+    color: $term-muted;
     user-select: none;
   }
 
@@ -141,7 +179,7 @@
     display: inline-block;
     width: 0.55em;
     height: 1.05em;
-    background: $success-strong;
+    background: var(--term-text);
     vertical-align: text-bottom;
     animation: caret-blink 1.1s step-end infinite;
   }

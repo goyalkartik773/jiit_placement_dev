@@ -59,6 +59,43 @@ export function scriptIcon(script: AdminScriptKey | null | undefined): IconName 
   return (script && SCRIPT_META[script]?.icon) || 'terminal';
 }
 
+/**
+ * Category identity of a script — one accent per category, used by the
+ * coloured icon badges on the action cards, the history rows and the
+ * timeline (jobs = blue · mailbox = indigo · placements = purple ·
+ * sign-in = green · destructive = red · sign-out = neutral).
+ */
+export type ScriptAccent = 'blue' | 'indigo' | 'purple' | 'green' | 'red' | 'neutral';
+
+const SCRIPT_ACCENT: Record<AdminScriptKey, ScriptAccent> = {
+  login: 'green',
+  logout: 'neutral',
+  jobs_sync: 'blue',
+  gmail_sync: 'indigo',
+  offer_sync: 'purple',
+  delete_gmail: 'red',
+  delete_mappings: 'red',
+  delete_jobs: 'red',
+};
+
+export function scriptAccent(script: AdminScriptKey | null | undefined): ScriptAccent {
+  return (script && SCRIPT_ACCENT[script]) || 'neutral';
+}
+
+/** Accent of a console action (the same map, keyed by the runnable action). */
+export const ACTION_ACCENT: Record<AdminScriptAction, ScriptAccent> = {
+  jobs_sync: 'blue',
+  gmail_sync: 'indigo',
+  offer_sync: 'purple',
+  delete_gmail: 'red',
+  delete_mappings: 'red',
+};
+
+/** HTTP verb + path of a console action (the `$ …` prefix is console-only). */
+export function actionEndpoint(action: AdminScriptAction): string {
+  return SCRIPT_COMMANDS[action].replace(/^\$\s*/, '');
+}
+
 export interface StatusMeta {
   label: string;
   tone: BadgeTone;
@@ -87,7 +124,8 @@ export function liveStatusMeta(status: AdminSyncState | null | undefined): Statu
     case 'idle':
       return { label: 'Idle', tone: 'neutral' };
     case 'running':
-      return { label: 'Running', tone: 'info' };
+      // Design system: "running" is amber, never blue.
+      return { label: 'Running', tone: 'warning' };
     case 'completed':
       return { label: 'Completed', tone: 'success' };
     case 'failed':

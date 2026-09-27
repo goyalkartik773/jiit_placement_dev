@@ -1,0 +1,358 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// One API action = one card. Collapsed row (icon badge · name · endpoint ·
+// status pill · Run) with the terminal block rendered only while expanded.
+// The accent (icon badge, progress fill) identifies the action's category.
+// ============================================================================
+.action-card {
+  @include stack($space-3);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: $radius-compact;
+  background: var(--panel);
+  transition: border-color $transition-fast;
+
+  &--open {
+    border-color: $border-strong;
+  }
+
+  // ----- Category accents -----
+  &--blue {
+    --accent: var(--blue);
+    --accent-soft: var(--blue-soft);
+  }
+
+  &--indigo {
+    --accent: var(--indigo);
+    --accent-soft: var(--indigo-soft);
+  }
+
+  &--purple {
+    --accent: var(--purple);
+    --accent-soft: var(--purple-soft);
+  }
+
+  &--green {
+    --accent: var(--green);
+    --accent-soft: var(--green-soft);
+  }
+
+  &--red {
+    --accent: var(--red);
+    --accent-soft: var(--red-soft);
+  }
+
+  &--neutral {
+    --accent: var(--muted);
+    --accent-soft: var(--surface-muted);
+  }
+
+  // ----- Collapsed row -----
+  &__row {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  &__icon {
+    @include flex-center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: $radius-compact;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  &__id {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: $fs-section-title;
+    font-weight: $fw-bold;
+    line-height: 1.35;
+    letter-spacing: $tracking-title;
+    color: var(--ink);
+  }
+
+  &__desc {
+    margin: 2px 0 0;
+    font-size: $fs-body-compact;
+    line-height: 1.5;
+    color: var(--muted);
+
+    > span {
+      color: $text-soft;
+    }
+  }
+
+  // The actual method + path this action calls.
+  &__endpoint {
+    display: inline;
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: $radius-xs;
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: $fs-label;
+    letter-spacing: 0.03em;
+    color: $text-secondary;
+    white-space: nowrap;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: $space-2;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  &__run--armed {
+    animation: arm-pulse 1s ease-in-out infinite;
+  }
+
+  // ----- Arm hint / alerts / replay banner -----
+  &__arm,
+  &__replay,
+  &__alert {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-2;
+    margin: 0;
+    padding: $space-2-5 $space-3;
+    border-radius: $radius-sm;
+    font-size: $fs-sm;
+    line-height: $lh-snug;
+
+    > svg {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    > span {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn {
+      flex-shrink: 0;
+    }
+  }
+
+  &__arm {
+    border: 1px solid $danger-border;
+    background: $danger-soft;
+    color: $danger;
+  }
+
+  &__alert--warn {
+    border: 1px solid $warning-border;
+    background: $warning-soft;
+    color: $warning;
+  }
+
+  &__alert--error {
+    border: 1px solid $danger-border;
+    background: $danger-soft;
+    color: $danger;
+  }
+
+  &__replay {
+    border: 1px solid $info-border;
+    background: $info-soft;
+    color: $info;
+    align-items: center;
+  }
+
+  // ----- Expanded block -----
+  &__panel {
+    @include stack($space-3);
+    padding-top: $space-3;
+    border-top: 1px solid var(--line);
+    min-width: 0;
+  }
+
+  // ----- Live strip (only while this action runs) -----
+  &__live {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-3;
+    padding: $space-2 $space-3;
+    border: 1px solid var(--line);
+    border-radius: $radius-sm;
+    background: var(--bg);
+    font-size: $fs-sm;
+  }
+
+  &__live-msg {
+    flex: 1 1 200px;
+    min-width: 0;
+    color: $text-secondary;
+    @include truncate;
+  }
+
+  &__live-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: $space-1-5;
+  }
+
+  // Progress: 20 CSS-only 5% segments (no inline styles anywhere in the app).
+  &__progress {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+  }
+
+  &__bar {
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  &__seg {
+    width: 6px;
+    height: 9px;
+    border-radius: 1px;
+    background: $border-strong;
+    transition: background $transition-fast;
+
+    &--on {
+      background: var(--accent, var(--blue));
+    }
+  }
+
+  &__progress-num,
+  &__elapsed {
+    font-family: var(--font-mono);
+    font-size: $fs-foot;
+    letter-spacing: $tracking-label;
+    color: $text-muted;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__elapsed {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1;
+  }
+
+  // ----- What changed -----
+  &__result {
+    @include stack($space-2);
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: $radius-compact;
+    background: var(--bg);
+  }
+
+  &__result-label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: $fs-tag;
+    font-weight: $fw-semibold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: var(--faint);
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-1-5;
+  }
+
+  &__phases {
+    @include stack($space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__phase {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: $space-2;
+    font-family: var(--font-mono);
+    font-size: $fs-foot;
+    color: $text-secondary;
+  }
+
+  &__phase-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: $radius-pill;
+    background: var(--green);
+  }
+
+  &__phase-name {
+    @include truncate;
+  }
+
+  &__phase-time {
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // One-line plain-text summary of the run.
+  &__summary {
+    margin: 0;
+    font-size: $fs-sm;
+    line-height: $lh-snug;
+    color: $text-secondary;
+  }
+
+  &__failure {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-2;
+    margin: 0;
+    font-size: $fs-sm;
+    color: $danger;
+
+    > svg {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-1-5;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: $fs-foot;
+    letter-spacing: $tracking-label;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+    padding-top: $space-2;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@keyframes arm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba($danger, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba($danger, 0);
+  }
+}

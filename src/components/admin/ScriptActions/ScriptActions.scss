@@ -1,0 +1,14 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// "Script actions" section — a vertical stack of independent action cards.
+// ============================================================================
+.script-actions {
+  // One card per API action; never a shared/merged console panel.
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

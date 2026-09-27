@@ -1,4 +1,3 @@
-import { Badge, type BadgeTone } from '../../common/Badge/Badge';
 import { Button } from '../../common/Button/Button';
 import { ErrorState } from '../../common/ErrorState/ErrorState';
 import { Icon } from '../../common/Icon/Icon';
@@ -14,22 +13,25 @@ interface InventoryStripProps {
   onRetry: () => void;
 }
 
-interface InventoryRatio {
-  tone: BadgeTone;
-  text: string;
-}
-
 interface InventoryTile {
   key: string;
+  /** Category accent — the tile's 2px solid top border. */
+  accent: 'blue' | 'indigo' | 'green' | 'purple' | 'teal' | 'pink';
   label: string;
   value: string;
-  note?: string | null;
-  ratios?: InventoryRatio[];
-  verdict?: InventoryRatio;
+  /** Single faint footer line (every part below comes from the API). */
+  foot?: string | null;
 }
 
-/** Skeleton tile keys — the loading grid keeps the final tile count. */
-const TILE_KEYS = ['jobs', 'mailbox', 'emails', 'placements', 'integrity', 'shortlist'];
+/** Skeleton tile keys — the loading grid keeps the final tile count and accents. */
+const TILE_ACCENT: Record<string, InventoryTile['accent']> = {
+  jobs: 'blue',
+  mailbox: 'indigo',
+  emails: 'green',
+  placements: 'purple',
+  integrity: 'teal',
+  shortlist: 'pink',
+};
 
 /** Server number → tabular string; unknown renders an em dash, never a guess. */
 function num(value: number | null | undefined): string {
@@ -40,6 +42,12 @@ function num(value: number | null | undefined): string {
 function sumKnown(...values: (number | null | undefined)[]): number | null {
   const known = values.filter((value): value is number => typeof value === 'number');
   return known.length > 0 ? known.reduce((total, value) => total + value, 0) : null;
+}
+
+/** One footer line: known parts only, joined with a middot. */
+function footLine(...parts: (string | null | undefined)[]): string | null {
+  const known = parts.filter((part): part is string => Boolean(part));
+  return known.length > 0 ? known.join(' · ') : null;
 }
 
 /** Reads `overview.data` into the fixed set of tiles (missing data → em dash). */
@@ -55,69 +63,64 @@ function buildTiles(overview: AdminOverview): InventoryTile[] {
   const blanks = sumKnown(integrity?.blankRolls);
   const flagged = sumKnown(orphans, duplicates, blanks);
   const complete = orphans !== null && duplicates !== null && blanks !== null;
-  const verdict: InventoryRatio | undefined = !complete
-    ? { tone: 'neutral', text: 'unknown' }
-    : flagged === 0
-      ? { tone: 'success', text: 'clean' }
-      : { tone: 'danger', text: 'flagged' };
+  const verdict = !complete ? 'unknown' : flagged === 0 ? 'clean' : 'flagged';
 
-  const mailboxRatios: InventoryRatio[] = [];
-  if (typeof mailbox?.finishedRate === 'number') {
-    mailboxRatios.push({ tone: 'info', text: `${mailbox.finishedRate}% finished` });
-  }
-  if (typeof mailbox?.reviewRate === 'number') {
-    mailboxRatios.push({ tone: 'warning', text: `${mailbox.reviewRate}% awaiting review` });
-  }
+  const mailboxParts: string[] = [];
+  if (typeof mailbox?.finishedRate === 'number') mailboxParts.push(`${mailbox.finishedRate}% finished`);
+  if (typeof mailbox?.reviewRate === 'number') mailboxParts.push(`${mailbox.reviewRate}% awaiting review`);
 
-  const placementRatios: InventoryRatio[] = [];
-  if (typeof matching?.companiesMatched === 'number') {
-    placementRatios.push({ tone: 'neutral', text: `${num(matching.companiesMatched)} matched` });
-  }
-  if (typeof matching?.companiesSkipped === 'number') {
-    placementRatios.push({ tone: 'neutral', text: `${num(matching.companiesSkipped)} skipped` });
-  }
+  const placementParts: string[] = [];
+  if (typeof matching?.studentsMapped === 'number') placementParts.push(`${num(matching.studentsMapped)} students mapped`);
+  if (typeof matching?.companiesMatched === 'number') placementParts.push(`${num(matching.companiesMatched)} matched`);
+  if (typeof matching?.companiesSkipped === 'number') placementParts.push(`${num(matching.companiesSkipped)} skipped`);
 
   return [
     {
       key: 'jobs',
+      accent: 'blue',
       label: 'Jobs',
       value: num(counts?.jobs),
-      note: typeof counts?.jobsActive === 'number' ? `${num(counts.jobsActive)} active` : null,
+      foot: typeof counts?.jobsActive === 'number' ? `${num(counts.jobsActive)} active` : null,
     },
     {
       key: 'mailbox',
+      accent: 'indigo',
       label: 'Mailbox',
       value: num(mailbox?.total),
-      ratios: mailboxRatios,
+      foot: footLine(...mailboxParts),
     },
     {
       key: 'emails',
+      accent: 'green',
       label: 'Parsed e-mails',
       value: num(counts?.emails),
-      ratios:
-        typeof classification?.coverage === 'number'
-          ? [{ tone: 'info', text: `${classification.coverage}% classified` }]
-          : [],
+      foot: typeof classification?.coverage === 'number' ? `${classification.coverage}% classified` : null,
     },
     {
       key: 'placements',
+      accent: 'purple',
       label: 'Placements',
       value: num(counts?.mappings),
-      note: typeof matching?.studentsMapped === 'number' ? `${num(matching.studentsMapped)} students mapped` : null,
-      ratios: placementRatios,
+      foot: footLine(...placementParts),
     },
     {
       key: 'integrity',
+      accent: 'teal',
       label: 'Integrity',
       value: flagged === null ? '—' : num(flagged),
-      note: `${num(orphans)} orphans · ${num(duplicates)} duplicates · ${num(blanks)} blank rolls`,
-      verdict,
+      foot: footLine(
+        typeof orphans === 'number' ? `${num(orphans)} orphans` : null,
+        typeof duplicates === 'number' ? `${num(duplicates)} duplicates` : null,
+        typeof blanks === 'number' ? `${num(blanks)} blank rolls` : null,
+        verdict,
+      ),
     },
     {
       key: 'shortlist',
+      accent: 'pink',
       label: 'Shortlist',
       value: num(counts?.shortlistStudents),
-      note: typeof counts?.shortlistEvents === 'number' ? `${num(counts.shortlistEvents)} events` : null,
+      foot: typeof counts?.shortlistEvents === 'number' ? `${num(counts.shortlistEvents)} events` : null,
     },
   ];
 }
@@ -140,8 +143,8 @@ export function InventoryStrip({ overview, loading, error, onRetry }: InventoryS
     return (
       <section className="inventory" aria-label="System inventory">
         <div className="inventory__grid" role="status" aria-label="Loading inventory">
-          {TILE_KEYS.map((key) => (
-            <article className="stat-tile" key={key} aria-hidden="true">
+          {Object.entries(TILE_ACCENT).map(([key, accent]) => (
+            <article className={`stat-tile stat-tile--${accent}`} key={key} aria-hidden="true">
               <span className="stat-tile__label">
                 <Skeleton width="sm" height="xs" />
               </span>
@@ -175,18 +178,10 @@ export function InventoryStrip({ overview, loading, error, onRetry }: InventoryS
 
       <div className="inventory__grid">
         {tiles.map((tile) => (
-          <article className="stat-tile" key={tile.key}>
+          <article className={`stat-tile stat-tile--${tile.accent}`} key={tile.key}>
             <span className="stat-tile__label">{tile.label}</span>
             <span className="stat-tile__value">{tile.value}</span>
-            <span className="stat-tile__foot">
-              {tile.note ? <span className="stat-tile__note">{tile.note}</span> : null}
-              {tile.ratios?.map((ratio) => (
-                <Badge key={ratio.text} tone={ratio.tone}>
-                  {ratio.text}
-                </Badge>
-              ))}
-              {tile.verdict ? <Badge tone={tile.verdict.tone}>{tile.verdict.text}</Badge> : null}
-            </span>
+            <span className="stat-tile__foot">{tile.foot ?? ''}</span>
           </article>
         ))}
       </div>

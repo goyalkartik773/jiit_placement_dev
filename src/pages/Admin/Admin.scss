@@ -1,16 +1,40 @@
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+// ============================================================================
+// Admin console — one vertical column, no two-column split anywhere:
+// page header → inventory strip → script actions → run history → timeline.
+// ============================================================================
 .admin-page {
   @include stack($space-6);
 
-  // The shared page heading doubles as a toolbar row on this page
-  .page-head {
+  // ----- Page header: blue mono eyebrow → 26px title → muted session line -----
+  &__head {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: $space-4;
+
+    .page-head__eyebrow {
+      font-family: var(--font-mono);
+      font-size: $fs-tag;
+      font-weight: $fw-medium;
+      letter-spacing: 0.08em;
+      color: var(--blue);
+    }
+
+    .page-head__title {
+      font-size: $fs-page-title; // 26px
+      font-weight: $fw-bold;
+      line-height: 1.2;
+      letter-spacing: $tracking-title;
+    }
+
+    .page-head__count {
+      font-size: $fs-body-compact;
+      color: var(--muted);
+    }
   }
 
   &__actions {
@@ -19,15 +43,16 @@
     flex-shrink: 0;
   }
 
-  // Scripts panel (wider) next to the run history; stacked below 1280px.
-  &__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: $space-6;
-    align-items: start;
+  // Solid dark "Log out" — the outlined "Refresh" keeps the ghost variant.
+  &__logout.btn {
+    background: $ink;
+    border-color: $ink;
+    color: $surface;
 
-    @include up('2xl') {
-      grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+    &:hover:not(:disabled) {
+      background: #000;
+      border-color: #000;
+      color: $surface;
     }
   }
 }

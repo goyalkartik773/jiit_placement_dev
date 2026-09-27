@@ -40,17 +40,33 @@ interface ScriptConsoleProps {
   lines: ConsoleLine[];
   /** True while an operation runs — shows the blinking block cursor. */
   running?: boolean;
-  /** Window title shown in the title bar. */
+  /** Window title shown in the title bar (the live action name). */
   title?: string;
+  /** Terminal status badge: RUNNING… / DONE / FAILED / INTERRUPTED / READY. */
+  state?: 'running' | 'done' | 'failed' | 'interrupted' | 'idle';
 }
+
+const STATE_LABEL: Record<NonNullable<ScriptConsoleProps['state']>, string> = {
+  running: 'RUNNING…',
+  done: 'DONE',
+  failed: 'FAILED',
+  interrupted: 'INTERRUPTED',
+  idle: 'READY',
+};
 
 /**
  * Terminal-style output surface for the admin scripts. Presentation only:
  * every row comes from the server's stored `output[]` (plus the single `cmd`
  * row a click appends), and the body auto-scrolls like a live console.
  */
-export function ScriptConsole({ lines, running = false, title = 'admin console' }: ScriptConsoleProps) {
+export function ScriptConsole({
+  lines,
+  running = false,
+  title = 'admin console',
+  state,
+}: ScriptConsoleProps) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const badge = state ?? (running ? 'running' : 'idle');
 
   // Keep the newest line on screen whenever output grows or a run starts.
   useEffect(() => {
@@ -67,8 +83,8 @@ export function ScriptConsole({ lines, running = false, title = 'admin console' 
           <span className="script-console__dot script-console__dot--max" />
         </span>
         <span className="script-console__title">{title}</span>
-        <span className={`script-console__state${running ? ' script-console__state--busy' : ''}`}>
-          {running ? 'running' : 'ready'}
+        <span className={`script-console__state script-console__state--${badge}`}>
+          {STATE_LABEL[badge]}
         </span>
       </header>
 

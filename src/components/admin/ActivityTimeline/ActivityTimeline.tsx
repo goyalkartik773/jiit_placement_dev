@@ -10,6 +10,7 @@ import { ACTIVITY_PAGE_SIZE } from '../../../hooks/useActivity';
 import {
   activityStatusMeta,
   formatDuration,
+  scriptAccent,
   scriptIcon,
   scriptLabel,
 } from '../../../utils/adminScripts';
@@ -88,9 +89,12 @@ export function ActivityTimeline({
               .join(' · ');
 
             return (
-              <li className={`timeline__item${active ? ' timeline__item--active' : ''}`} key={item.id ?? index}>
+              <li
+                className={`timeline__item${active ? ' timeline__item--active' : ''}`}
+                key={item.id ?? index}
+              >
                 <span className="timeline__marker" aria-hidden="true">
-                  <span className="timeline__glyph">
+                  <span className={`timeline__glyph timeline__glyph--${scriptAccent(item.script)}`}>
                     <Icon name={scriptIcon(item.script)} size={13} />
                   </span>
                   <span className={`timeline__dot timeline__dot--${status.tone}`} />
@@ -99,7 +103,9 @@ export function ActivityTimeline({
                 <div className="timeline__body">
                   <div className="timeline__row">
                     <span className="timeline__script">{scriptLabel(item.script)}</span>
-                    <Badge tone={status.tone}>{status.label}</Badge>
+                    <Badge tone={status.tone} className="badge--pill">
+                      {status.label}
+                    </Badge>
                   </div>
                   {item.message ? <p className="timeline__message">{item.message}</p> : null}
                   {timing ? (
