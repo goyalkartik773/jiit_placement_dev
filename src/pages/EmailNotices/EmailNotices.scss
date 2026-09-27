@@ -1,0 +1,132 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.email-notices-page {
+  @include stack($space-5);
+
+  &__intro {
+    font-size: $fs-body-sm;
+    line-height: $lh-normal;
+    color: $text-soft;
+  }
+
+  &__intro-link {
+    color: $primary;
+    font-weight: $fw-semibold;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+  }
+
+  // ----- Classification facet chips -----
+  &__facets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__facet {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    padding: $space-1 $space-2-5;
+    border: 1px solid $border;
+    border-radius: $radius-sm;
+    background: $surface;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-secondary;
+    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+
+    &:hover {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+
+    &.is-on {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+      box-shadow: inset 0 -2px 0 0 $primary;
+    }
+  }
+
+  &__facet-count {
+    padding: 0 $space-1;
+    border-radius: $radius-xs;
+    background: $surface-muted;
+    color: $text-muted;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ----- Search row -----
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-4 $space-5;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-xs;
+  }
+
+  // ----- Inline refresh-failure banner -----
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3 $space-4;
+    background: $warning-soft;
+    border: 1px solid $warning-border;
+    border-radius: $radius-md;
+    font-size: $fs-sm;
+    color: $warning;
+
+    > span {
+      flex: 1;
+      min-width: 240px;
+    }
+  }
+
+  // ----- Result list -----
+  &__list {
+    @include stack($space-4);
+    transition: opacity $transition-base;
+
+    &.is-refreshing {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+  }
+
+  @include down('md') {
+    &__toolbar {
+      padding: $space-3 $space-4;
+    }
+
+    &__toolbar .search-field {
+      flex-basis: 100%;
+    }
+
+    &__banner > span {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+  }
+}
