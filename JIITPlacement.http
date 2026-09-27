@@ -23,8 +23,13 @@ GET {{JIITPlacement_HostAddress}}/api/admin/jobs/count
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
-### Sync offered students onto the Jobs table (authenticated; idempotent)
+### Start the job <-> student sync as a console script (authenticated; 409 when another script runs)
 POST {{JIITPlacement_HostAddress}}/api/admin/jobs/sync-offer-students
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Job <-> student sync status: console output, stats, delta, integrity (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/jobs/sync-offer-students/status
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
@@ -59,8 +64,43 @@ GET {{JIITPlacement_HostAddress}}/api/admin/jobs/sync/status
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
-### Delete every job + its stored documents (authenticated; 409 while a sync runs)
+### Delete every job + its stored documents (authenticated; 409 while another script runs)
 DELETE {{JIITPlacement_HostAddress}}/api/admin/jobs
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Start the mailbox sync as a console script (authenticated; 409 when another script runs)
+POST {{JIITPlacement_HostAddress}}/api/admin/gmail/sync
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "maxResults": 500
+}
+
+### Mailbox sync status: console output + before/after counters (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/gmail/sync/status
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Wipe the synced mailbox only - messages, attachments, extractions (authenticated; 409 while another script runs)
+DELETE {{JIITPlacement_HostAddress}}/api/admin/gmail
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Wipe every job <-> student mapping (authenticated; rebuildable via sync-offer-students)
+DELETE {{JIITPlacement_HostAddress}}/api/admin/jobs/placed-students
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Activity history / timeline of every admin action (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/activity?page=1&pageSize=12&script=
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Overview: live counts, accuracy ratios, integrity, session, last runs (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/overview
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
