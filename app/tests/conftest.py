@@ -13,6 +13,7 @@ state never leaks between tests.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -24,6 +25,24 @@ for _path in (REPO_ROOT, Path(__file__).parent):
         sys.path.insert(0, str(_path))
 
 TEST_SCHEMA = "app_test"
+
+# The hybrid LLM layer stays OFF for the suite: no network calls, no cost, and
+# the deterministic output stays byte-for-byte comparable.  Router behaviour
+# (round-robin, failover, breaker, schema retry) is covered directly by
+# app/tests/test_llm_router.py against a fake transport.  Production default
+# is ON and fails fast when a *_API_KEY_* variable is missing (app/config.py).
+os.environ.setdefault("PLACEMENT_HYBRID_LLM", "false")
+
+
+@pytest.fixture()
+def hybrid_enabled(monkeypatch):
+    """Turn the hybrid layer on for one test (keys come from .env)."""
+    from app.config import load_llm_config
+
+    monkeypatch.setenv("PLACEMENT_HYBRID_LLM", "true")
+    cfg = load_llm_config()
+    yield cfg
+    monkeypatch.setenv("PLACEMENT_HYBRID_LLM", "false")
 
 
 @pytest.fixture(scope="session")

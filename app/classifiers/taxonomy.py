@@ -234,3 +234,34 @@ def classify_taxonomy(ext: Extraction, *, subject: str, body: str) -> TaxonomyRe
 def offer_event_type(subject: str) -> str:
     """''offer'' vs ''final_selection'' from the email's own wording."""
     return "final_selection" if _FINAL_WORDING_RE.search(subject or "") else "offer"
+
+
+#: Subject wording that makes an email a *suspected* final-selection email even
+#: when the coarse parser landed on another category.  This is the only thing
+#: that widens the LLM's scope beyond ``Category.OFFER`` - it never narrows it.
+_CANDIDATE_SUBJECT_RE = re.compile(
+    r"\boffer(ed|s)?\b|selection status|final (selection|list|offer|result)s?"
+    r"|selected for|placed at|congratulations|appointment letter|placement letter",
+    re.IGNORECASE,
+)
+
+
+def is_final_selection_candidate(
+    ext: Extraction, category: str, *, subject: str, body: str = ""
+) -> bool:
+    """Is this email a FINAL_SELECTION / congratulations-type candidate?
+
+    ``True`` routes the email through the LLM layer (which is authoritative
+    for this category); ``False`` keeps it on the deterministic-only path.
+    Candidates are: the parser's ``OFFER`` category, the taxonomy's
+    ``FINAL_SELECTION`` label, and subjects that *suspect* a final selection
+    (the exact failure mode found in Phase 0: an offer email carrying
+    round-progress sections, or a shortlist email with offer-flavoured
+    wording).  Nothing outside this set ever reaches the LLM, so the cost
+    assumption holds by construction.
+    """
+    if ext.category == Category.OFFER:
+        return True
+    if category == "FINAL_SELECTION":
+        return True
+    return bool(_CANDIDATE_SUBJECT_RE.search(subject or ""))

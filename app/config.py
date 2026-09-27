@@ -86,6 +86,157 @@ def _default_token_path() -> Path:
     return PROJECT_ROOT / ".gmail_token.json"
 
 
+# --------------------------------------------------------------------------- #
+# LLM provider router (hybrid extraction for offer-type emails)
+# --------------------------------------------------------------------------- #
+
+#: Provider priority order.  Every provider is tried before giving up.
+LLM_PROVIDER_ORDER: tuple[str, ...] = ("gemini", "groq", "deepseek")
+
+#: ``provider -> (account count, env var template)``.  One variable per
+#: account; accounts round-robin inside their provider.
+LLM_ACCOUNT_SPECS: dict[str, tuple[int, str]] = {
+    "gemini": (3, "GEMINI_API_KEY_{n}"),
+    "groq": (3, "GROQ_API_KEY_{n}"),
+    "deepseek": (4, "DEEPSEEK_API_KEY_{n}"),
+}
+
+#: Expected variables - the names only ever leave this module, never values.
+LLM_ENV_VARS: tuple[str, ...] = tuple(
+    template.format(n=n)
+    for _, (count, template) in LLM_ACCOUNT_SPECS.items()
+    for n in range(1, count + 1)
+)
+
+
+class LLMConfigError(RuntimeError):
+    """Raised at startup when the hybrid layer is enabled but keys are missing.
+
+    The message lists **variable names only** - never a key value.
+    """
+
+
+@dataclass(frozen=True)
+class LLMAccount:
+    provider: str
+    #: Human-readable log label: ``gemini_1``, ``groq_2``, ``deepseek_4``.
+    label: str
+    key: str
+
+
+@dataclass(frozen=True)
+class LLMConfig:
+    #: False disables the hybrid layer (offline tests); never silently partial.
+    enabled: bool
+    #: Ordered by :data:`LLM_PROVIDER_ORDER`, round-robin inside a provider.
+    accounts: tuple[LLMAccount, ...]
+    models: dict[str, str]
+    base_urls: dict[str, str]
+    timeout: float
+    #: Exponential backoff between retries (seconds).
+    backoff_base: float
+    backoff_cap: float
+    #: Circuit breaker: skip an account for this long after N failures.
+    breaker_threshold: int
+    breaker_seconds: int
+    #: A long-lived outage (auth / no balance) opens the breaker for longer.
+    breaker_seconds_hard: int
+    #: Below this the result is still accepted but flagged ``low_confidence``.
+    low_confidence: float
+    #: Body characters sent to the model (the rest is truncated, never lost -
+    #: the deterministic parser still sees the full text).
+    max_body_chars: int
+
+
+_DEFAULT_MODELS = {
+    "gemini": "gemini-2.5-flash",
+    "groq": "openai/gpt-oss-120b",
+    "deepseek": "deepseek-chat",
+}
+
+_DEFAULT_BASE_URLS = {
+    "gemini": "https://generativelanguage.googleapis.com",
+    "groq": "https://api.groq.com/openai/v1",
+    "deepseek": "https://api.deepseek.com",
+}
+
+
+def load_llm_config() -> LLMConfig:
+    """Build the router configuration from the environment.
+
+    Every expected variable must be present when the hybrid layer is enabled;
+    a missing one raises :class:`LLMConfigError` naming it (fail fast instead
+    of silently running a provider short).  Values are never echoed.
+    """
+    enabled = _env("PLACEMENT_HYBRID_LLM", "true").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+    if not enabled:
+        return LLMConfig(
+            enabled=False,
+            accounts=(),
+            models=dict(_DEFAULT_MODELS),
+            base_urls=dict(_DEFAULT_BASE_URLS),
+            timeout=float(_env("PLACEMENT_LLM_TIMEOUT", "60")),
+            backoff_base=float(_env("PLACEMENT_LLM_BACKOFF_BASE", "0.5")),
+            backoff_cap=float(_env("PLACEMENT_LLM_BACKOFF_CAP", "8")),
+            breaker_threshold=_env_int("PLACEMENT_LLM_BREAKER_THRESHOLD", 2),
+            breaker_seconds=_env_int("PLACEMENT_LLM_BREAKER_SECONDS", 120),
+            breaker_seconds_hard=_env_int(
+                "PLACEMENT_LLM_BREAKER_HARD_SECONDS", 1800
+            ),
+            low_confidence=float(_env("PLACEMENT_LLM_LOW_CONFIDENCE", "0.5")),
+            max_body_chars=_env_int("PLACEMENT_LLM_MAX_BODY_CHARS", 24000),
+        )
+
+    accounts: list[LLMAccount] = []
+    missing: list[str] = []
+    for provider in LLM_PROVIDER_ORDER:
+        count, template = LLM_ACCOUNT_SPECS[provider]
+        for n in range(1, count + 1):
+            name = template.format(n=n)
+            value = os.environ.get(name)
+            if not value:
+                missing.append(name)
+                continue
+            accounts.append(
+                LLMAccount(provider=provider, label=f"{provider}_{n}", key=value)
+            )
+    if missing:
+        raise LLMConfigError(
+            "Hybrid LLM extraction is enabled but these environment variables "
+            "are missing: " + ", ".join(missing) + ". Set them (see "
+            ".env.example) or set PLACEMENT_HYBRID_LLM=false to run the "
+            "deterministic parser only."
+        )
+
+    return LLMConfig(
+        enabled=True,
+        accounts=tuple(accounts),
+        models={
+            provider: _env(f"PLACEMENT_LLM_MODEL_{provider.upper()}", default_model)
+            for provider, default_model in _DEFAULT_MODELS.items()
+        },
+        base_urls={
+            provider: _env(
+                f"PLACEMENT_LLM_URL_{provider.upper()}", default_url
+            ).rstrip("/")
+            for provider, default_url in _DEFAULT_BASE_URLS.items()
+        },
+        timeout=float(_env("PLACEMENT_LLM_TIMEOUT", "60")),
+        backoff_base=float(_env("PLACEMENT_LLM_BACKOFF_BASE", "0.5")),
+        backoff_cap=float(_env("PLACEMENT_LLM_BACKOFF_CAP", "8")),
+        breaker_threshold=_env_int("PLACEMENT_LLM_BREAKER_THRESHOLD", 2),
+        breaker_seconds=_env_int("PLACEMENT_LLM_BREAKER_SECONDS", 120),
+        breaker_seconds_hard=_env_int("PLACEMENT_LLM_BREAKER_HARD_SECONDS", 1800),
+        low_confidence=float(_env("PLACEMENT_LLM_LOW_CONFIDENCE", "0.5")),
+        max_body_chars=_env_int("PLACEMENT_LLM_MAX_BODY_CHARS", 24000),
+    )
+
+
 @dataclass(frozen=True)
 class GmailConfig:
     credentials_path: Path
@@ -111,6 +262,9 @@ class Settings:
     gemini_api_key: Optional[str]
     gemini_model: str
     gemini_base_url: str
+    #: Multi-account router used for offer-type emails (hybrid pipeline).
+    #: Loading it is what fails fast on missing ``*_API_KEY_*`` variables.
+    hybrid: LLMConfig
     table_prefix: str = field(default="")
 
 
@@ -141,4 +295,5 @@ def load_settings() -> Settings:
         gemini_base_url=_env(
             "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"
         ).rstrip("/"),
+        hybrid=load_llm_config(),
     )
