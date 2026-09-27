@@ -277,6 +277,14 @@ namespace JIITPlacement.Services
                 using var scope = _scopeFactory.CreateScope();
                 var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
 
+                // Snapshot the source tables BEFORE the sync writes, so the
+                // reported "… before" numbers are real before-counts (same
+                // discipline as the mailbox sync above).
+                var sourceBefore = ReadOverview(dataEntity);
+                int mappingsBefore = GetInt(sourceBefore, "counts", "mappings");
+                int studentsBefore = GetInt(sourceBefore, "counts", "offerStudents");
+                int jobsBefore = GetInt(sourceBefore, "counts", "jobs");
+
                 DataTable dt = dataEntity.ExecuteDataTableFN("fn_api_sync_offer_students_v1");
                 if (dt.Rows.Count == 0)
                     throw new InvalidOperationException("Offer-student sync produced no result");
@@ -351,7 +359,9 @@ namespace JIITPlacement.Services
                 {
                     source = new
                     {
-                        mappingsBefore = GetInt(after, "counts", "mappings"),
+                        mappingsBefore,
+                        studentsBefore,
+                        jobsBefore,
                         jobs = jobsTotal
                     },
                     stats = new

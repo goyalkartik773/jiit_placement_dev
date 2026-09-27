@@ -223,7 +223,7 @@ from `placed_at >= startedAt`:
   "message": "Job to student sync completed — no new mappings (906 total)",
   "durationMs": 203,
   "counters": {
-    "mappingsBefore": 906, "studentsBefore": 895, "jobsBefore": 96,   // while running
+    "source": { "mappingsBefore": 906, "studentsBefore": 895, "jobsBefore": 96, "jobs": 96 },
     "stats": { "jobsTotal": 96, "jobsMatched": 44, "jobsWithoutPlacements": 52,
                "studentsConsidered": 504, "studentsMapped": 417,
                "mappingsInserted": 0, "duplicatesSkipped": 906,
@@ -241,6 +241,10 @@ from `placed_at >= startedAt`:
               { "time": "18:00:41", "tone": "success", "text": "✓ integrity — 906 rows · 0 orphan · 0 duplicate (job_id, roll) · 0 blank roll" } ]
 }
 ```
+
+`source.*` is the snapshot read **before** the sync writes (the same three values sit at the
+root of `counters` while the run is still in flight, then move under `source` when it finishes),
+so `mappingsBefore + mappingsInserted` always adds up to `integrity.totalMappings`.
 
 `delta.changes[]` is the "what changed" list — it is computed from `placed_at`, so a re-run that
 inserts nothing honestly reports an empty delta instead of repeating the totals.
