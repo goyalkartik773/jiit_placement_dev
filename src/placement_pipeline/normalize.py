@@ -175,13 +175,26 @@ def current_section(text: str, *, strip_quotes: bool = True) -> str:
     if cut == -1:
         section = text
     elif not text[:cut].strip():
-        # Pure reply: body begins with the reply header itself.
-        nxt = -1
-        for regex in (_THREAD_RE, _ORIGINAL_MESSAGE_RE, _QUOTED_HEADER_RE):
-            m = regex.search(text, header_end)
-            if m and (nxt == -1 or m.start() < nxt):
-                nxt = m.start()
-        section = text[header_end : nxt if nxt != -1 else len(text)]
+        # Pure reply: body begins with the reply header itself.  Skip
+        # consecutive *header-only* quoted segments (nested "On ... wrote:"
+        # chains where each quoted level added only a header) until real
+        # content starts — otherwise a reply whose entire value sits two
+        # levels deep collapses to an empty section.
+        pos = header_end
+        while True:
+            nxt = None
+            for regex in (_THREAD_RE, _ORIGINAL_MESSAGE_RE, _QUOTED_HEADER_RE):
+                m = regex.search(text, pos)
+                if m and (nxt is None or m.start() < nxt.start()):
+                    nxt = m
+            if nxt is None:
+                section = text[pos:]
+                break
+            if not text[pos : nxt.start()].strip():
+                pos = nxt.end()  # header-only segment: descend one level
+                continue
+            section = text[pos : nxt.start()]
+            break
     else:
         section = text[:cut]
     if strip_quotes:

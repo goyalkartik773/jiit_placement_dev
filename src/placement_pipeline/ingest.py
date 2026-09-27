@@ -287,6 +287,11 @@ def extract_email(
 ) -> EmailResult:
     """Classify + parse one email into an :class:`Extraction`."""
     sections = prepare_parts(email.body_text)
+    if not sections:
+        # Degenerate body (only quotes/footers after prep): fall back to the
+        # raw text so classification still sees it and nothing crashes on
+        # ``sections[0]`` — extraction simply finds no tables in it.
+        sections = [email.body_text or ""]
     classification = classify(email.subject, email.body_text)
     category = classification.category
 
