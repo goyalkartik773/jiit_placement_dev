@@ -1,0 +1,109 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.superset-notice {
+  @include card($space-5, $radius-lg);
+  @include stack($space-3);
+
+  &__top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $space-2 $space-4;
+    font-size: $fs-xs;
+    color: $text-muted;
+  }
+
+  &__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  &__heading {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: baseline;
+    gap: $space-3;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    font-size: $fs-md;
+    font-weight: $fw-bold;
+    line-height: $lh-snug;
+    color: $ink;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      color: $primary;
+    }
+  }
+
+  &__hint {
+    flex-shrink: 0;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $primary;
+  }
+
+  &__chevron {
+    display: flex;
+    flex-shrink: 0;
+    color: $text-muted;
+    transition: transform $transition-fast;
+  }
+
+  &__toggle[aria-expanded='true'] &__chevron {
+    transform: rotate(180deg);
+  }
+
+  &__body {
+    padding-top: $space-3;
+    border-top: 1px dashed $border;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // The backend body is plain text (or de-tagged HTML): keep every line break
+  &__content {
+    font-size: $fs-body-sm;
+    line-height: $lh-relaxed;
+    color: $text-soft;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  @include down('sm') {
+    padding: $space-4;
+
+    &__toggle {
+      gap: $space-2;
+    }
+  }
+}

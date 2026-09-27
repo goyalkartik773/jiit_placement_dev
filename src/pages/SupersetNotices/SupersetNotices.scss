@@ -1,0 +1,83 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.superset-notices-page {
+  @include stack($space-5);
+
+  &__intro {
+    font-size: $fs-body-sm;
+    line-height: $lh-normal;
+    color: $text-soft;
+  }
+
+  &__intro-link {
+    color: $primary;
+    font-weight: $fw-semibold;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+  }
+
+  // ----- Search row -----
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-4 $space-5;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-xs;
+  }
+
+  // ----- Inline refresh-failure banner -----
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3 $space-4;
+    background: $warning-soft;
+    border: 1px solid $warning-border;
+    border-radius: $radius-md;
+    font-size: $fs-sm;
+    color: $warning;
+
+    > span {
+      flex: 1;
+      min-width: 240px;
+    }
+  }
+
+  // ----- Result list -----
+  &__list {
+    @include stack($space-4);
+    transition: opacity $transition-base;
+
+    &.is-refreshing {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+  }
+
+  @include down('md') {
+    &__toolbar {
+      padding: $space-3 $space-4;
+    }
+
+    &__toolbar .search-field {
+      flex-basis: 100%;
+    }
+
+    &__banner > span {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+  }
+}

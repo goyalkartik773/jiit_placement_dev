@@ -1,5 +1,40 @@
 /** Helpers for the HTML job description returned by the backend. */
 
+/**
+ * Converts backend notice content into plain text that can be rendered as
+ * text nodes (never as markup). Plain text is kept as-is, including its line
+ * breaks; HTML has its block boundaries turned into newlines first so the
+ * structure survives without a single tag in the output.
+ */
+export function htmlToPlainText(value: string | null | undefined): string {
+  if (!value) return '';
+
+  const looksLikeHtml = /<[a-z][^>]*>/i.test(value);
+  if (!looksLikeHtml) return value.replace(/\r\n?/g, '\n').trim();
+
+  const prepared = value
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/\s*(p|div|li|h[1-6]|tr|blockquote|section|ul|ol|table)\s*>/gi, '\n')
+    .replace(/<\s*li[^>]*>/gi, '- ');
+
+  let text: string;
+  try {
+    const doc = new DOMParser().parseFromString(prepared, 'text/html');
+    text = doc.body?.textContent ?? '';
+  } catch {
+    text = prepared.replace(/<[^>]*>/g, ' ');
+  }
+
+  return text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00A0/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /** Converts backend HTML into plain text (safe, executed in an isolated document). */
 export function stripHtml(html: string | null | undefined): string {
   if (!html) return '';
