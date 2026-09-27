@@ -153,6 +153,12 @@ def classify_taxonomy(ext: Extraction, *, subject: str, body: str) -> TaxonomyRe
         if _PROCESS_RE.search(subject) or _PROCESS_RE.search(body[:2500]):
             signals.append("rule:process logistics wording, no list/counts")
             return _result("SELECTION_PROCESS_NOTICE", 0.8, signals)
+        # Registration-stage wording with zero evidence rows -> registration.
+        if _REGISTER_RE.search(subject) or (
+            _REGISTER_RE.search(body[:2500]) and ext.deadline is not None
+        ):
+            signals.append("rule:registration wording, no list/counts")
+            return _result("REGISTRATION", 0.8, signals)
         signals.append("rule:shortlist wording without evidence rows")
         return _result("SHORTLIST", 0.75, signals)
 
@@ -169,6 +175,13 @@ def classify_taxonomy(ext: Extraction, *, subject: str, body: str) -> TaxonomyRe
     if _ADMIN_RE.search(subject) or _ADMIN_RE.search(body[:3000]):
         signals.append("rule:placement-cell administrative wording")
         return _result("GENERAL_PLACEMENT_NOTICE", 0.85, signals)
+
+    # Registration-stage notices (drive portal + deadline wording).
+    if _REGISTER_RE.search(subject) or (
+        _REGISTER_RE.search(body[:2500]) and ext.deadline is not None
+    ):
+        signals.append("rule:registration wording (+ deadline)")
+        return _result("REGISTRATION", 0.8, signals)
 
     # Junk heuristic (multi-signal): tiny body + no company/dates/links/rows.
     compact = len(re.sub(r"\s+", " ", body or "").strip())
