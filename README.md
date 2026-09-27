@@ -25,6 +25,7 @@ put a random ≥32-byte base64 value in `Secret` (e.g. from `Secret`/`openssl ra
 
 Database schema/functions: `migrations.sql` (base) + `SQL/*.sql` (gmail, placements, local documents,
 `migration_admin.sql` = job-count function, `migration_delete_jobs.sql` = delete-all-jobs function,
+`migration_job_placed_students.sql` = job ↔ offered-student mapping + the dashboard reads,
 `cleanup_obsolete.sql` = audited cleanup).
 
 ## Admin API contracts
@@ -147,6 +148,57 @@ folder tree is dropped too (recreated by the next sync). While a sync (or anothe
 failures (a non-empty value is logged per path). DB failure → `500 { "success": false, "message": ... }`
 and nothing is partially reported as deleted (the record deletion is transactional).
 
+### `POST /api/admin/jobs/sync-offer-students`
+
+Admin-triggered matching of the offer students parsed from congratulation emails onto the jobs that
+already exist in the system (`fn_api_sync_offer_students_v1`). One run:
+
+* a student is mapped **only** when his/her company exists in the `jobs` table — companies that were
+  never listed are counted in `companiesSkipped` and ignored (no job is created, no match is guessed);
+* the comparison uses one shared normaliser (trim, collapse spaces, lowercase, drop a single trailing
+  parenthetical), so `Josh Technology Group (JTG)` matches `Josh Technology Group`;
+* a job row is a company listing, so a student maps to every job row of that company;
+* idempotent: `UNIQUE (job_id, student_roll_no)` + `ON CONFLICT DO NOTHING` — a second run inserts
+  nothing and reports every candidate under `duplicatesSkipped`.
+
+```json
+{
+  "success": true,
+  "message": "Offer-student sync completed",
+  "jobsTotal": 96, "jobsMatched": 44, "jobsWithoutPlacements": 52,
+  "studentsConsidered": 504, "studentsMapped": 417,
+  "mappingsInserted": 0, "duplicatesSkipped": 906,
+  "companiesMatched": 33, "companiesSkipped": 21,
+  "totalMappings": 906, "lastRunAt": "2026-09-27T16:19:02.919301+05:30"
+}
+```
+
+### `GET /api/admin/jobs/{jobId}/placed-students`
+
+Who got placed against one job (`jobId` = jobs id **or** Superset job identifier), enriched with the
+role and compensation taken from the originating offer email:
+
+```json
+{
+  "success": true,
+  "message": "Placed students fetched successfully",
+  "job": { "id": "...", "company": "Zomato", "jobprofile": "...", "package": 5600000 },
+  "placedCount": 2,
+  "students": [
+    {
+      "id": "...", "rollno": "9923103020", "studentname": "Archit Tiwari", "branch": "CSE",
+      "program": "B.Tech", "email": "...", "role": "Software Development Engineer (SDE) Intern",
+      "ctcraw": "INR 56.00 Lakhs", "ctctotal": 5600000.00, "stipend": 100000.00,
+      "employmenttype": "internship_to_fulltime", "companyname": "Zomato",
+      "offeremailid": "...", "offersubject": "...", "offerreceivedat": "...",
+      "placedat": "..."
+    }
+  ]
+}
+```
+
+Unknown job → `404 { "success": false, "message": "Job not found" }`.
+
 ## Public job API (unchanged envelope)
 
 ```
@@ -154,9 +206,19 @@ GET /api/jobs?page&pageSize&company&search   → { status, Message, Data }
 GET /api/jobs/{id}                           → { status, Message, Data }
 GET /api/jobs/{jobId}/documents/{documentId} → raw file bytes
 GET /api/notices?page&pageSize&search        → { status, Message, Data }
+GET /api/notices/email?page&pageSize&search&type → { status, Message, Data }
+GET /api/placements/company-wise?page&pageSize&search → { status, Message, Data }
+GET /api/placements/jobs/{jobId}/placed-students      → { status, Message, Data }
 ```
 
 `pageSize` is capped at 100. Missing job → `404`.
+
+* **`/api/notices/email`** — canonical Gmail notices (shortlist, selection process, hackathon, event,
+  webinar, …) with `Facets` (count per classification) and a `type` filter; congratulation /
+  final-offer emails are excluded on purpose — that data is served by the placement endpoints.
+* **`/api/placements/company-wise`** — one row per company that has a job: its listings, the number of
+  distinct students placed and their role / CTC distribution (`roles[].ctcmax`).
+* **`/api/placements/jobs/{jobId}/placed-students`** — the public twin of the admin endpoint above.
 
 ## Cleanup performed in this revamp (dependency-audited)
 
