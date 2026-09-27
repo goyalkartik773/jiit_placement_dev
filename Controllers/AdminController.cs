@@ -1,6 +1,8 @@
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using JIITPlacement.Models;
+using JIITPlacement.Models.App_Code;
 using JIITPlacement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +24,7 @@ namespace JIITPlacement.Controllers
         private readonly IAdminTokenRevocationStore _revocationStore;
         private readonly IAdminSyncCoordinator _syncCoordinator;
         private readonly IJobCleanupService _cleanupService;
+        private readonly DataEntity _dataEntity;
         private readonly ILogger<AdminController> _logger;
 
         public AdminController(
@@ -30,6 +33,7 @@ namespace JIITPlacement.Controllers
             IAdminTokenRevocationStore revocationStore,
             IAdminSyncCoordinator syncCoordinator,
             IJobCleanupService cleanupService,
+            DataEntity dataEntity,
             ILogger<AdminController> logger)
         {
             _adminOptions = adminOptions.Value;
@@ -37,6 +41,7 @@ namespace JIITPlacement.Controllers
             _revocationStore = revocationStore;
             _syncCoordinator = syncCoordinator;
             _cleanupService = cleanupService;
+            _dataEntity = dataEntity;
             _logger = logger;
         }
 
@@ -169,6 +174,115 @@ namespace JIITPlacement.Controllers
         /// and then deletes the documents those records owned from disk.
         /// Rejects with 409 while a synchronization (or another deletion) runs.
         /// </summary>
+        /// <summary>
+        /// POST /api/admin/jobs/sync-offer-students - admin-triggered matching of the
+        /// offered students (extracted from congratulation emails) onto the Jobs rows
+        /// that already exist in the system.
+        ///
+        /// Rules: a student is mapped only when his/her company exists in the Jobs
+        /// table (unknown companies are reported in companiesSkipped and ignored -
+        /// never created, never guessed). The mapping is idempotent thanks to the
+        /// UNIQUE (job_id, student_roll_no) constraint, so re-running the sync only
+        /// ever adds genuinely new mappings.
+        /// </summary>
+        [HttpPost("jobs/sync-offer-students")]
+        [Authorize]
+        public ActionResult SyncOfferStudents()
+        {
+            try
+            {
+                DataTable dt = _dataEntity.ExecuteDataTableFN("fn_api_sync_offer_students_v1");
+                if (dt.Rows.Count == 0)
+                {
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "Offer-student sync produced no result"
+                    });
+                }
+
+                var result = Common.ParseJson(dt.Rows[0][0].ToString());
+                if (!PlacementController.IsSuccess(result, out string fnMessage))
+                {
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = string.IsNullOrEmpty(fnMessage) ? "Offer-student sync failed" : fnMessage
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Offer-student sync: {Inserted} mappings inserted, {Duplicates} duplicates skipped, {CompaniesSkipped} companies skipped",
+                    PlacementController.GetInt32(result, "mappingsInserted"),
+                    PlacementController.GetInt32(result, "duplicatesSkipped"),
+                    PlacementController.GetInt32(result, "companiesSkipped"));
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Offer-student sync completed",
+                    jobsTotal = PlacementController.GetInt32(result, "jobsTotal"),
+                    jobsMatched = PlacementController.GetInt32(result, "jobsMatched"),
+                    jobsWithoutPlacements = PlacementController.GetInt32(result, "jobsWithoutPlacements"),
+                    studentsConsidered = PlacementController.GetInt32(result, "studentsConsidered"),
+                    studentsMapped = PlacementController.GetInt32(result, "studentsMapped"),
+                    mappingsInserted = PlacementController.GetInt32(result, "mappingsInserted"),
+                    duplicatesSkipped = PlacementController.GetInt32(result, "duplicatesSkipped"),
+                    companiesMatched = PlacementController.GetInt32(result, "companiesMatched"),
+                    companiesSkipped = PlacementController.GetInt32(result, "companiesSkipped"),
+                    totalMappings = PlacementController.GetInt32(result, "totalMappings"),
+                    lastRunAt = PlacementController.GetProperty(result, "lastRunAt")
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Offer-student sync failed");
+                return StatusCode(500, new { success = false, message = "Offer-student sync failed: " + ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET /api/admin/jobs/{jobId}/placed-students - who got placed against this
+        /// job (job id or Superset job identifier), with role and compensation.
+        /// </summary>
+        [HttpGet("jobs/{jobId}/placed-students")]
+        [Authorize]
+        public ActionResult GetPlacedStudents(string jobId)
+        {
+            try
+            {
+                DataTable dt = _dataEntity.ExecuteDataTableFNParam(
+                    "fn_api_select_placed_students_v1", ("jobid", jobId));
+
+                if (dt.Rows.Count == 0)
+                    return NotFound(new { success = false, message = "Job not found" });
+
+                var result = Common.ParseJson(dt.Rows[0][0].ToString());
+                if (!PlacementController.IsSuccess(result, out string fnMessage))
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = string.IsNullOrEmpty(fnMessage) ? "Job not found" : fnMessage
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Placed students fetched successfully",
+                    job = PlacementController.GetProperty(result, "job"),
+                    placedCount = PlacementController.GetInt32(result, "placedCount"),
+                    students = PlacementController.GetProperty(result, "students")
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load placed students for job {JobId}", jobId);
+                return StatusCode(500, new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
         [HttpDelete("jobs")]
         [Authorize]
         public async Task<ActionResult> DeleteAllJobs()
