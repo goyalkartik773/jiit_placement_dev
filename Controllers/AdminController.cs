@@ -194,6 +194,7 @@ namespace JIITPlacement.Controllers
                 progress = s.Progress,
                 startedAt = s.StartedAt,
                 finishedAt = s.FinishedAt,
+                durationMs = s.DurationMs,
                 error = s.Error,
                 output = s.Output ?? new List<ScriptOutputLine>()
             });

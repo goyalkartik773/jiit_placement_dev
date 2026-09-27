@@ -28,6 +28,10 @@ namespace JIITPlacement.Models
 
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
+
+        /// <summary>Measured wall clock of the run; null until it finishes.</summary>
+        public long? DurationMs { get; set; }
+
         public string? Error { get; set; }
 
         /// <summary>

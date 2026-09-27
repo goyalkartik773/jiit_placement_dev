@@ -30,12 +30,128 @@ namespace JIITPlacement.Services
             _logger = logger;
         }
 
+        private bool _hydrated; // last persisted jobs_sync run already loaded
+
         public AdminSyncStatus GetStatus()
         {
             lock (_gate)
             {
+                if (_hydrated) return _status.Clone();
+                _hydrated = true; // claim the one-off load before doing IO
+            }
+
+            HydrateLastRun();
+
+            lock (_gate)
+            {
                 return _status.Clone();
             }
+        }
+
+        /// <summary>
+        /// Load the last persisted jobs_sync run after a restart, so the status
+        /// endpoint reports what actually happened instead of a fresh <c>idle</c>.
+        /// A run started in this process always wins over the loaded row.
+        /// </summary>
+        private void HydrateLastRun()
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dataEntity = scope.ServiceProvider.GetRequiredService<DataEntity>();
+                var dt = dataEntity.ExecuteDataTableFNParam(
+                    "fn_api_select_script_runs_v1", ("page", 1), ("pagesize", 1), ("script", "jobs_sync"));
+                if (dt.Rows.Count == 0) return;
+
+                var root = Common.ParseJson(dt.Rows[0][0].ToString() ?? "");
+                if (root.ValueKind != JsonValueKind.Object ||
+                    !root.TryGetProperty("Items", out var items) ||
+                    items.ValueKind != JsonValueKind.Array || items.GetArrayLength() == 0)
+                    return;
+
+                var row = items[0];
+                var status = new AdminSyncStatus
+                {
+                    SyncId = Str(row, "id"),
+                    Status = Str(row, "status") ?? "idle",
+                    Message = Str(row, "message"),
+                    Error = Str(row, "error"),
+                    StartedAt = Date(row, "startedat"),
+                    FinishedAt = Date(row, "finishedat"),
+                    DurationMs = Num(row, "durationms"),
+                    TotalJobsBeforeSync = Int(row, "counters", "totalJobsBeforeSync"),
+                    TotalJobsAfterSync = Int(row, "counters", "totalJobsAfterSync"),
+                    JobsTotal = Int(row, "counters", "jobsTotal"),
+                    JobsProcessed = Int(row, "counters", "jobsProcessed"),
+                    NewJobs = Int(row, "counters", "newJobs"),
+                    DocumentsDownloaded = Int(row, "counters", "documentsDownloaded"),
+                    DocumentsFailed = Int(row, "counters", "documentsFailed"),
+                    FailedJobs = Int(row, "counters", "failedJobs"),
+                    Output = ReadOutput(row)
+                };
+                status.Progress = ComputeProgress(status.JobsProcessed, status.JobsTotal);
+
+                // A row still marked "running" means the API restarted mid-run.
+                if (status.Status == "running")
+                {
+                    status.Status = "failed";
+                    status.Error ??= "Run interrupted — the API restarted while the script was running";
+                    status.Message ??= "Run interrupted";
+                }
+
+                lock (_gate)
+                {
+                    if (_status.Status != "idle" || _runRowId is not null) return; // a live run owns the status
+                    _status = status;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not hydrate the last jobs_sync run from the database");
+            }
+        }
+
+        private static List<ScriptOutputLine> ReadOutput(JsonElement row)
+        {
+            var lines = new List<ScriptOutputLine>();
+            if (!row.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)
+                return lines;
+
+            foreach (var line in output.EnumerateArray())
+            {
+                lines.Add(new ScriptOutputLine
+                {
+                    Time = Str(line, "time") ?? "",
+                    Tone = Str(line, "tone") ?? "info",
+                    Text = Str(line, "text") ?? ""
+                });
+            }
+            return lines;
+        }
+
+        private static string? Str(JsonElement row, string name) =>
+            row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        private static DateTimeOffset? Date(JsonElement row, string name)
+        {
+            var text = Str(row, name);
+            return text is not null && DateTimeOffset.TryParse(text, out var parsed) ? parsed : null;
+        }
+
+        private static long? Num(JsonElement row, string name) =>
+            row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
+                ? value.GetInt64()
+                : null;
+
+        private static int? Int(JsonElement row, string group, string name)
+        {
+            if (!row.TryGetProperty(group, out var value) || value.ValueKind != JsonValueKind.Object)
+                return null;
+            return value.TryGetProperty(name, out var nested) && nested.ValueKind == JsonValueKind.Number
+                ? nested.GetInt32()
+                : null;
         }
 
         public async Task<(bool started, AdminSyncStatus status, string? busyOperation)> TryStartAsync(string? username = null)
@@ -129,7 +245,7 @@ namespace JIITPlacement.Services
                     _status.Message = result.Message; // "Sync completed in Xs"
                     _status.TotalJobsAfterSync = totalAfter;
                     _status.Progress = ComputeProgress(_status.JobsProcessed, _status.JobsTotal);
-                    _status.FinishedAt = DateTimeOffset.UtcNow;
+                    MarkFinished(_status);
                     AppendLine(_status, "success",
                         $"✓ {_status.TotalJobsBeforeSync} → {totalAfter} jobs in the database");
                     AppendLine(_status, "info",
@@ -225,7 +341,7 @@ namespace JIITPlacement.Services
                 _status.Status = "failed";
                 _status.Message = "Job synchronization failed";
                 _status.Error = error;
-                _status.FinishedAt = DateTimeOffset.UtcNow;
+                MarkFinished(_status);
                 AppendLine(_status, "error", "✗ " + error);
             }
 
@@ -247,9 +363,10 @@ namespace JIITPlacement.Services
 
             if (string.IsNullOrEmpty(runId)) return;
 
-            long durationMs = snapshot.StartedAt is not null && snapshot.FinishedAt is not null
-                ? (long)Math.Max((snapshot.FinishedAt.Value - snapshot.StartedAt.Value).TotalMilliseconds, 0)
-                : 0;
+            long durationMs = snapshot.DurationMs
+                ?? (snapshot.StartedAt is not null && snapshot.FinishedAt is not null
+                    ? (long)Math.Max((snapshot.FinishedAt.Value - snapshot.StartedAt.Value).TotalMilliseconds, 0)
+                    : 0);
 
             var counters = new
             {
@@ -274,6 +391,15 @@ namespace JIITPlacement.Services
             {
                 _logger.LogWarning(ex, "Could not persist the jobs_sync history row");
             }
+        }
+
+        /// <summary>Clock a run off: finish time and the measured duration.</summary>
+        private static void MarkFinished(AdminSyncStatus status)
+        {
+            status.FinishedAt = DateTimeOffset.UtcNow;
+            status.DurationMs = status.StartedAt is null
+                ? null
+                : (long)Math.Max((status.FinishedAt.Value - status.StartedAt.Value).TotalMilliseconds, 0);
         }
 
         /// <summary>Append a console line while holding the status lock.</summary>
