@@ -35,11 +35,18 @@ TAXONOMY = (
 )
 
 _OFFCAMPUS_RE = re.compile(r"off[\s-]?campus", re.IGNORECASE)
+_WEBINAR_RE = re.compile(r"\bwebinars?\b", re.IGNORECASE)
 _INTERN_RE = re.compile(r"\bintern(ship|e)?\b|\bsummer trainee\b", re.IGNORECASE)
 _WORKSHOP_RE = re.compile(r"\bworkshop\b|\bhands[- ]on\b", re.IGNORECASE)
 _REGISTER_RE = re.compile(
     r"\bregistration\b|\bregister (now|here|at|on)\b|\bregistration (deadline|link|portal)\b",
     re.IGNORECASE,
+)
+#: Subject wording that claims a selection shortlist explicitly - it outranks
+#: registration wording when both appear (e.g. "Shortlisted Students ... + next
+#: steps: registration ...").
+_SHORTLIST_SUBJECT_RE = re.compile(
+    r"shortlist|selection|selected|final list", re.IGNORECASE
 )
 _PROCESS_RE = re.compile(
     r"selection process|reporting (time|venue)|report (to|at)|be on time|onboarding "
@@ -84,6 +91,12 @@ def _opportunity_taxonomy(
     if _OFFCAMPUS_RE.search(hay):
         signals.append("rule:off-campus wording")
         return _result("OFF_CAMPUS_OPPORTUNITY", 0.9, signals)
+
+    # A subject that *announces a webinar* is a webinar even when the parent
+    # program is a hackathon/challenge ("InnoVent-27 | Exclusive Webinar ...").
+    if _WEBINAR_RE.search(subject):
+        signals.append("rule:webinar wording in subject")
+        return _result("WEBINAR", 0.9, signals)
 
     kind = (ext.opportunity_type or "").lower()
     if kind == "hackathon":
@@ -141,6 +154,18 @@ def classify_taxonomy(ext: Extraction, *, subject: str, body: str) -> TaxonomyRe
 
     # ---- type 2: shortlist / selection-process notices -------------------
     if ext.category == Category.SHORTLIST:
+        # Subject-strong registration stage ("Complete Registration by 8 PM",
+        # "Pending Registration ... Deadline") outranks a registration-status
+        # table: such a table lists who has/hasn't registered, it is not a
+        # selection shortlist.  Subjects that explicitly claim a shortlist
+        # win back over this rule.
+        if _REGISTER_RE.search(subject) and not _SHORTLIST_SUBJECT_RE.search(
+            subject
+        ):
+            signals.append(
+                "rule:registration wording in subject (registration-status list)"
+            )
+            return _result("REGISTRATION", 0.85, signals)
         if ext.students:
             signals.append(f"rule:named shortlist table ({len(ext.students)} rows)")
             return _result("SHORTLIST", max(ext.confidence, 0.95), signals)
@@ -167,6 +192,12 @@ def classify_taxonomy(ext: Extraction, *, subject: str, body: str) -> TaxonomyRe
         return _opportunity_taxonomy(ext, subject, body, signals)
 
     # ---- Category.OTHER: notices vs junk vs unknown ----------------------
+    # Subject-strong webinar announcement (no link/deadline detected by the
+    # parser, so the email never became an OPPORTUNITY).
+    if _WEBINAR_RE.search(subject):
+        signals.append("rule:webinar wording in subject")
+        return _result("WEBINAR", 0.85, signals)
+
     if _PROCESS_RE.search(subject) or _PROCESS_RE.search(body[:2500]):
         if ext.company or _PROCESS_RE.search(subject):
             signals.append("rule:selection-process logistics wording")
