@@ -23,6 +23,32 @@ GET {{JIITPlacement_HostAddress}}/api/admin/jobs/count
 Authorization: Bearer {{admin_token}}
 Accept: application/json
 
+### Sync offered students onto the Jobs table (authenticated; idempotent)
+POST {{JIITPlacement_HostAddress}}/api/admin/jobs/sync-offer-students
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Students placed against one job (authenticated)
+GET {{JIITPlacement_HostAddress}}/api/admin/jobs/{job_id}/placed-students
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### Company-wise placement rollup (public - dashboard Link 2)
+GET {{JIITPlacement_HostAddress}}/api/placements/company-wise?page=1&pageSize=20&search=
+Accept: application/json
+
+### Placed students for one job (public - dashboard Link 2 detail)
+GET {{JIITPlacement_HostAddress}}/api/placements/jobs/{job_id}/placed-students
+Accept: application/json
+
+### Gmail notices - excludes congratulation / final-offer data (public - dashboard Link 3)
+GET {{JIITPlacement_HostAddress}}/api/notices/email?page=1&pageSize=20&search=&type=
+Accept: application/json
+
+### Superset notices (public - dashboard Link 4)
+GET {{JIITPlacement_HostAddress}}/api/notices?page=1&pageSize=20&search=
+Accept: application/json
+
 ### Start sync (authenticated; 409 when a sync is already running)
 POST {{JIITPlacement_HostAddress}}/api/admin/jobs/sync
 Authorization: Bearer {{admin_token}}

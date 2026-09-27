@@ -54,5 +54,53 @@ namespace JIITPlacement.Controllers
                 return StatusCode(500, response);
             }
         }
+
+        /// <summary>
+        /// GET /api/notices/email - notices extracted from the Gmail corpus
+        /// (shortlists, selection process, hackathons, events, webinars, ...).
+        /// The congratulation / final-offer data is intentionally excluded: it is
+        /// shown by the Company-Wise Placement section instead.
+        /// Optional ?type= filters by the classifier label (see ?facets in Data).
+        /// </summary>
+        [HttpGet("notices/email")]
+        public ActionResult GetEmailNotices(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string search = "",
+            [FromQuery] string type = "")
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                page = Math.Max(page, 1);
+                pageSize = Math.Min(Math.Max(pageSize, 1), 100);
+                search = (search ?? string.Empty).Trim();
+                type = (type ?? string.Empty).Trim().ToUpperInvariant();
+
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_email_notices_v1", page, pageSize, search, type);
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Email notices fetched successfully";
+                    response.Data = result;
+                    return Ok(response);
+                }
+
+                response.status = true;
+                response.Message = "No email notices found";
+                response.Data = null;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
     }
 }
