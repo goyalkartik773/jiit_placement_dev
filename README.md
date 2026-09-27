@@ -23,11 +23,12 @@ never force-fits a category.
 ## Layout
 
 ```
-src/placement_pipeline/   library code (normalize, classify, parse, dedup, db)
-api/                      FastAPI app
-scripts/                  ingestion, validation, corpus export CLIs
-tests/                    pytest suite (unit + full-corpus integration)
-reports/                  generated validation report
+src/placement_pipeline/   library code (normalize, classify, parse, tables,
+                          dates, numbers, dedup, ingest, db, config)
+src/placement_pipeline/api/  FastAPI app (placement_pipeline.api.app)
+scripts/run_validation.py    ground-truth validation over labelled samples
+tests/                    pytest suite (unit + parser/API regression tests)
+reports/                  generated validation report (validation.md)
 data/                     SQLite database (git-ignored, regenerated)
 ```
 
@@ -35,10 +36,28 @@ data/                     SQLite database (git-ignored, regenerated)
 
 ```powershell
 pip install -r requirements.txt
-python scripts/run_ingest.py            # PostgreSQL -> classify/parse -> SQLite
-python scripts/run_validation.py        # accuracy report over labelled samples
-python -m uvicorn api.app:app --port 8000
+python -m placement_pipeline.ingest        # PostgreSQL -> classify/parse -> SQLite
+python scripts/run_validation.py           # accuracy report over labelled samples
+python -m pytest tests -q                  # unit + regression suite
+python -m uvicorn placement_pipeline.api.app:app --port 8000
 ```
+
+## Read API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET  | `/` | route index |
+| GET  | `/companies` | per-company counts (offers, students, packages) |
+| GET  | `/companies/{name}/funnel` | funnel counts for one company |
+| GET  | `/offers`, `/offers/summary` | offer records + summary aggregates |
+| GET  | `/shortlists` | shortlist records (named lists + funnel counts) |
+| GET  | `/opportunities` | opportunity/event records |
+| GET  | `/students/{roll_no}` | one student's parsed rows across emails |
+| GET  | `/emails/{email_id}` | one email with rows, counts and links |
+| POST | `/sync` | run the PostgreSQL ingest on demand |
+
+List endpoints accept `limit`/`offset` paging plus category-specific filters
+(company, status, date ranges) and return honest pagination metadata.
 
 ## Configuration
 
