@@ -29,7 +29,7 @@ The header navigation exposes the four sections of the dashboard:
 | 2 | **Company-Wise Placement** | `/placements` | `GET /api/placements/company-wise` + `GET /api/placements/jobs/{jobId}/placed-students` |
 | 3 | **Email Notices** | `/email-notices` | `GET /api/notices/email` (congratulation / final-offer mails are excluded on purpose) |
 | 4 | **Superset Notices** | `/superset-notices` | `GET /api/notices` |
-| — | Admin console | `/admin` | job sync **plus** the new `POST /api/admin/jobs/sync-offer-students` panel |
+| — | Admin console | `/admin` | sign-in gate, inventory tiles from `GET /api/admin/overview`, the five script actions (3 syncs + 2 deletes) and the run history from `GET /api/admin/activity` |
 
 `/admin` and `*` (404) are unchanged. The section nav is
 `components/layout/Header/Header.tsx` (`aria-current="page"` on the active link,
@@ -149,14 +149,26 @@ The admin console talks to the backend's admin API (full contract in
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/admin/login` | `{username, password}` → `{success, message, token}`; 401 `Invalid credentials` |
-| `POST /api/admin/logout` | Revokes the session token server-side; 401 `Unauthorized` without one |
+| `POST /api/admin/login` | `{username, password}` → `{success, message, token, username, expiresAt}`; 401 `Invalid credentials`. Rejected attempts are audited too. |
+| `POST /api/admin/logout` | Revokes the session token server-side and records the sign-out; 401 `Unauthorized` without one |
+| `GET /api/admin/overview` | `{success, data}` — the whole inventory strip: `counts` (jobs, gmailMessages, emails, mappings, shortlist…), `mailbox` (`finishedRate` / `reviewRate`, null when the denominator is 0), `classification`, `matching`, `integrity` (orphans / duplicates / blank rolls), `session` (`lastLogin`, `previousLogin`, `lastLogout`, `logins`) and `lastRuns[]` |
+| `GET /api/admin/activity?page&pageSize&script` | `{success, data:{Items, TotalCount, Page, PageSize, TotalPages}}` — paged run history (newest first, `pageSize` ≤ 100). Each row carries `script`, `status`, `username`, `message`, `counters`, `output[]`, `durationms`, `startedat`, `finishedat` |
 | `GET /api/admin/jobs/count` | `{success, totalJobs}` from `fn_api_count_jobs_v001()` |
-| `POST /api/admin/jobs/sync` | Starts the single background sync; 409 `Job synchronization is already running` when one is live |
-| `GET /api/admin/jobs/sync/status` | `idle / running / completed / failed` + real counters (fields stay `null` until actually known) |
-| `DELETE /api/admin/jobs` | Deletes every job record **and** its stored documents; 409 while a sync (or another delete) runs. Returns honest counts (`jobsDeleted`, `documentRowsDeleted`, `filesDeleted`, `filesMissing`, `filesFailed`) plus real per-phase timings (`phases[]`) |
-| `POST /api/admin/jobs/sync-offer-students` | Maps the offer students parsed from congratulation emails onto the **existing** job rows (company match only — unknown companies are counted in `companiesSkipped`, never created). Idempotent: `mappingsInserted` is `0` on a re-run and every candidate shows up under `duplicatesSkipped`. |
+| `POST /api/admin/jobs/sync` | **jobs_sync** — starts the Superset job sync in the background |
+| `GET /api/admin/jobs/sync/status` | `idle / running / completed / failed` + flat counters (`jobsProcessed`, `newJobs`, `documentsDownloaded`, …), `output[]` and `progress` |
+| `POST /api/admin/gmail/sync` | **gmail_sync** — fetches the mailbox (optional body `{maxResults, query, groups[]}`); answers `200 {status: started}` |
+| `GET /api/admin/gmail/sync/status` | Live mailbox run: `progress`, nested `counters` (`messagesBefore/After/Added`, `fetched`, `processed`, `groups[]`) and `output[]` |
+| `POST /api/admin/jobs/sync-offer-students` | **offer_sync** — job ↔ student sync, now **start + status** (async): the POST only starts it, stats/delta come from the status endpoint. Maps offer students onto **existing** job rows by company only — unknown companies are counted in `companiesSkipped`, never created. Idempotent (`mappingsInserted` = 0 on a re-run). |
+| `GET /api/admin/jobs/sync-offer-students/status` | `counters.source` (real before-counts), `counters.stats`, `counters.delta` (`mappingsInserted`, `studentsAdded`, `companiesTouched`, `changes[]` = what **this** run changed) and `counters.integrity` |
+| `DELETE /api/admin/gmail` | **delete_gmail** (synchronous) — removes the synced mailbox only: `gmailmessages` + `gmailattachments` + `emailextractions`. Parsed corpus (`emails`, `offers`, `offer_students`) and `job_placed_students` are deliberately untouched and stated in the `output`. Inline `counters` + `phases[]`. |
+| `DELETE /api/admin/jobs/placed-students` | **delete_mappings** (synchronous) — clears only the job ↔ student mapping rows (rebuildable by re-running offer sync). Inline `counters` + `phases[]`. |
+| `DELETE /api/admin/jobs` | **delete_jobs** — deletes every job record **and** its stored documents. Honest counts (`jobsDeleted`, `documentRowsDeleted`, `filesDeleted`, `filesMissing`, `filesFailed`) plus real per-phase timings (`phases[]`). |
 | `GET /api/admin/jobs/{jobId}/placed-students` | Students placed for one job with role + CTC from the offer mail; 404 `Job not found` for an unknown id |
+
+**One shared run slot.** All five console actions compete for a single server-side
+slot; a conflicting command answers **409** with `{success:false, message, busyScript}`.
+The console adopts that `busyScript` and attaches to the run that already owns the
+slot instead of failing cold.
 
 ### Dashboard read APIs (public)
 
@@ -175,19 +187,41 @@ that know these paths), consumed through `hooks/useCompanyPlacements.ts`,
 The token lives in `sessionStorage` (per tab — never logged or rendered) and is
 attached by `services/adminService.ts`, the only file that knows these paths. The frontend
 treats it as an opaque bearer string (the backend issues a signed JWT — no frontend change
-needed). Progress is polled from the status endpoint every 2s while a run is active — the
-UI never invents percentages.
+needed). Live status is polled from the matching status endpoint every **1.5s** while a run
+is active — the UI never invents percentages: `progress` is rendered only when the server
+sends it.
+
+### Admin console layout (`/admin`)
+
+| Region | Component | Data |
+|---|---|---|
+| Sign-in gate | `components/admin/AdminLogin/` | `POST /api/admin/login` |
+| Session strip | `pages/Admin/Admin.tsx` (`sessionLine`) | `username` (login response) + `session.lastLogin` / `session.logins` from `/overview` |
+| Accuracy tiles | `components/admin/InventoryStrip/` | `/overview` → `counts`, `mailbox`, `classification`, `matching`, `integrity`; unknown values render `—`, never a guess |
+| Scripts + console | `components/admin/ScriptsPanel/` | toolbar of the five actions (deletes two-step armed), live status bar, “What changed” card, terminal |
+| Run history | `components/admin/RunHistory/` | `/activity` pages, headline counter chip, **Replay** of the stored `output[]` |
+| Activity timeline | `components/admin/ActivityTimeline/` | first `/activity` page as a hairline rail |
+
+State lives in `hooks/useAdminOverview.ts` (inventory), `hooks/useActivity.ts`
+(paged history) and `hooks/useScriptRunner.ts` (command → poll → settle);
+`utils/adminScripts.ts` turns server keys into labels, durations and counter chips.
 
 ### Script console
 
-`components/admin/ScriptConsole/` renders every operation as terminal output: timestamped,
-tone-colored lines (command / info / success / warn / error / dim) inside a dark console
-window with `role="log"` + `aria-live`, auto-scroll and a blinking cursor while busy.
-Lines are produced by `hooks/useAdminSync.ts` **from real server responses only** — the
-request that was sent, run milestones, polled progress bars built from server counters,
-delete phase timings, and failures. Nothing is fabricated; an empty console reads
-"Awaiting command…". The destructive action is two-step: the first click arms the button
-("Click again to confirm" + a live-count hint) and auto-disarms after 4 seconds.
+`components/admin/ScriptConsole/` renders every operation as terminal output:
+timestamped, tone-colored lines (command / info / success / warn / error / dim) inside a
+dark console window with `role="log"` + `aria-live`, auto-scroll and a blinking cursor
+while busy.
+
+Lines come from the server's **stored** `output[]` (`admin_script_runs.output`, written
+server-side by the runner) — the console renders them verbatim. The only client row is the
+single `cmd` line appended on click, and it is dropped as soon as the server echoes its own
+first row, so lines are never duplicated. Nothing else is fabricated; an empty console reads
+"Awaiting command…". A history row's stored output can be opened with **Replay**, which swaps
+the console into that archived run until dismissed.
+
+The destructive actions are two-step: the first click arms the button (scope explanation +
+“Click again within 4 seconds, or press Esc”), the second runs it.
 
 ---
 
@@ -325,8 +359,12 @@ frontend/
 │   │   ├── layout/
 │   │   │   ├── Header/  Footer/  MainLayout/   # app shell + skip link
 │   │   ├── admin/
-│   │   │   ├── AdminLogin/  SyncPanel/         # sign-in + operations panel
-│   │   │   └── ScriptConsole/                  # terminal-style output surface
+│   │   │   ├── AdminLogin/       # sign-in gate
+│   │   │   ├── InventoryStrip/   # accuracy tiles from GET /api/admin/overview
+│   │   │   ├── ScriptsPanel/     # five actions + live status + "what changed"
+│   │   │   ├── RunHistory/       # paged /activity rows + Replay
+│   │   │   ├── ActivityTimeline/ # first /activity page as a rail
+│   │   │   └── ScriptConsole/    # terminal rendering the stored output[]
 │   │   └── jobs/
 │   │       ├── JobCard/  JobList/  JobsToolbar/  Pagination/
 │   │       ├── JobHeader/  JobOverview/  JobDescription/
@@ -340,8 +378,8 @@ frontend/
 │   │   ├── JobDetails/     (JobDetails.tsx + JobDetailsSkeleton.tsx + .scss)
 │   │   └── NotFound/       (NotFound.tsx + NotFound.scss)
 │   ├── services/           # apiClient.ts, jobService.ts, documentService.ts, adminService.ts
-│   ├── hooks/              # useJobs, useJobDetails, useDebounce, useAdminSync
-│   ├── utils/              # format, html, jobList, tiers (color-coding rules)
+│   ├── hooks/              # useJobs, useJobDetails, useDebounce, useAdminOverview, useActivity, useScriptRunner
+│   ├── utils/              # format, html, jobList, tiers (color-coding), adminScripts (labels/chips)
 │   ├── types/job.types.ts  # exact backend contract (incl. key spellings)
 │   ├── types/admin.types.ts # admin API response shapes
 │   └── styles/
