@@ -38,6 +38,7 @@ const STATUS_FETCHER: Record<AdminScriptAction, StatusFetcher | null> = {
   offer_sync: getOfferSyncStatus,
   delete_gmail: null,
   delete_mappings: null,
+  delete_jobs: null,
 };
 
 /** Identity of one run: a new run always has a new id. */

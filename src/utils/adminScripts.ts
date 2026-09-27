@@ -40,6 +40,7 @@ export const SCRIPT_COMMANDS: Record<AdminScriptAction, string> = {
   offer_sync: '$ POST /api/admin/jobs/sync-offer-students',
   delete_gmail: '$ DELETE /api/admin/gmail',
   delete_mappings: '$ DELETE /api/admin/jobs/placed-students',
+  delete_jobs: '$ DELETE /api/admin/jobs',
 };
 
 /** What each destructive action may touch — shown as tooltip + arm hint. */
@@ -49,6 +50,8 @@ export const SCRIPT_SCOPE: Record<AdminScriptAction, string> = {
   offer_sync: 'Matches offer students onto existing job listings.',
   delete_gmail: 'Removes the synced mailbox only — parsed e-mails and placement mappings are untouched.',
   delete_mappings: 'Removes only the job ↔ student mapping — rebuild it by re-running the job ↔ student sync.',
+  delete_jobs:
+    'Removes every SuperSet job record and the documents those records own — listings come back by re-running the SuperSet job sync.',
 };
 
 export function scriptLabel(script: AdminScriptKey | null | undefined): string {
@@ -89,6 +92,7 @@ export const ACTION_ACCENT: Record<AdminScriptAction, ScriptAccent> = {
   offer_sync: 'purple',
   delete_gmail: 'red',
   delete_mappings: 'red',
+  delete_jobs: 'red',
 };
 
 /** HTTP verb + path of a console action (the `$ …` prefix is console-only). */

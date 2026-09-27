@@ -24,7 +24,13 @@ export type AdminScriptKey =
   | 'delete_jobs';
 
 /** The five console actions: three polled scripts and two synchronous deletes. */
-export type AdminScriptAction = 'jobs_sync' | 'gmail_sync' | 'offer_sync' | 'delete_gmail' | 'delete_mappings';
+export type AdminScriptAction =
+  | 'jobs_sync'
+  | 'gmail_sync'
+  | 'offer_sync'
+  | 'delete_gmail'
+  | 'delete_mappings'
+  | 'delete_jobs';
 
 /** Tones used by server `output[]` rows; unknown values are mapped to `info`. */
 export type AdminOutputTone = 'cmd' | 'info' | 'success' | 'warn' | 'error';

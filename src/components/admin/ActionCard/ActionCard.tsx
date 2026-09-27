@@ -24,7 +24,7 @@ import type {
 import './ActionCard.scss';
 
 /** The five console actions — the two deletes are armed before they run. */
-const DESTRUCTIVE_ACTIONS: AdminScriptAction[] = ['delete_gmail', 'delete_mappings'];
+const DESTRUCTIVE_ACTIONS: AdminScriptAction[] = ['delete_gmail', 'delete_mappings', 'delete_jobs'];
 
 /** How long a delete button stays armed before it disarms itself. */
 const ARM_MS = 4000;

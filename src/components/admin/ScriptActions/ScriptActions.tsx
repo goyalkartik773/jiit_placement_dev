@@ -21,7 +21,14 @@ import type {
 import './ScriptActions.scss';
 
 /** The five console actions, in toolbar order (three syncs, then two deletes). */
-const ACTIONS: AdminScriptAction[] = ['jobs_sync', 'gmail_sync', 'offer_sync', 'delete_gmail', 'delete_mappings'];
+const ACTIONS: AdminScriptAction[] = [
+  'jobs_sync',
+  'gmail_sync',
+  'offer_sync',
+  'delete_gmail',
+  'delete_mappings',
+  'delete_jobs',
+];
 
 function isAction(script: AdminScriptKey | null | undefined): script is AdminScriptAction {
   return typeof script === 'string' && (ACTIONS as string[]).includes(script);

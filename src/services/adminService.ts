@@ -2,6 +2,7 @@ import { API_BASE_URL, ApiError, deleteJson, getAuthJson, isAbortError, postJson
 import type {
   AdminActivityPage,
   AdminActivityQuery,
+  AdminCounters,
   AdminDeleteGmailResponse,
   AdminDeleteJobsResponse,
   AdminDeleteMappingsResponse,
@@ -301,16 +302,42 @@ const COMMAND_FOR: Record<AdminScriptAction, { method: 'POST' | 'DELETE'; path: 
   offer_sync: { method: 'POST', path: '/api/admin/jobs/sync-offer-students' },
   delete_gmail: { method: 'DELETE', path: '/api/admin/gmail' },
   delete_mappings: { method: 'DELETE', path: '/api/admin/jobs/placed-students' },
+  delete_jobs: { method: 'DELETE', path: '/api/admin/jobs' },
 };
 
-/** Runs any of the five console actions and returns the raw command answer. */
+/** Counter keys DELETE /api/admin/jobs returns on the payload root. */
+const DELETE_JOBS_COUNTERS = [
+  'jobsDeleted',
+  'documentRowsDeleted',
+  'filesDeleted',
+  'filesMissing',
+  'filesFailed',
+] as const;
+
+/**
+ * The job wipe answers its counters flat on the payload; nest them exactly the
+ * way the other deletes do so the console result chips read one uniform shape.
+ * No value is invented — only the existing fields are re-homed under `counters`.
+ */
+function nestDeleteJobsCounters(action: AdminScriptAction, command: AdminScriptCommandResponse): AdminScriptCommandResponse {
+  if (action !== 'delete_jobs' || command.counters) return command;
+  const flat = command as AdminScriptCommandResponse & AdminDeleteJobsResponse;
+  const counters: AdminCounters = {};
+  for (const key of DELETE_JOBS_COUNTERS) {
+    const value = flat[key];
+    if (typeof value === 'number') counters[key] = value;
+  }
+  return Object.keys(counters).length > 0 ? { ...command, counters } : command;
+}
+
+/** Runs any of the six console actions and returns the raw command answer. */
 export async function runScript(
   action: AdminScriptAction,
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<AdminScriptCommandResponse> {
   const command = COMMAND_FOR[action];
-  return sendScriptCommand(command.method, command.path, body, signal);
+  return nestDeleteJobsCounters(action, await sendScriptCommand(command.method, command.path, body, signal));
 }
 
 /** Starts the Superset job sync (409 → AdminScriptError with `busyScript`). */
