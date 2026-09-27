@@ -69,6 +69,14 @@ export function Placements() {
     ? `across all ${data?.totalCount ?? 0} companies`
     : `on this page (${items.length} of ${data?.totalCount ?? 0})`;
 
+  // A student who appears in two companies' offers is a record in both, so the
+  // figure is stated as placement records rather than unique students.
+  const placedHint = !data
+    ? 'waiting for data'
+    : allLoaded
+      ? 'students placed, counted per company'
+      : `students placed on this page (${items.length} of ${data.totalCount} companies)`;
+
   const heading = search ? `Results for "${search}"` : 'Company-wise placement';
   const countLabel = data
     ? `${data.totalCount} compan${data.totalCount === 1 ? 'y' : 'ies'} with a job posting`
@@ -96,9 +104,9 @@ export function Placements() {
           <span className="placements-page__stat-hint">with at least one job</span>
         </div>
         <div className="placements-page__stat">
-          <span className="placements-page__stat-label">Students placed</span>
+          <span className="placements-page__stat-label">Placement records</span>
           <span className="placements-page__stat-value">{data ? totals.placed.toLocaleString() : '-'}</span>
-          <span className="placements-page__stat-hint">{data ? scopeHint : 'waiting for data'}</span>
+          <span className="placements-page__stat-hint">{placedHint}</span>
         </div>
         <div className="placements-page__stat">
           <span className="placements-page__stat-label">Companies with placements</span>

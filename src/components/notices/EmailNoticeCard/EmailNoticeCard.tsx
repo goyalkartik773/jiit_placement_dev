@@ -86,7 +86,7 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
 
       <p className="email-notice__snippet">{notice.snippet}</p>
 
-      {studentCount !== null ? (
+      {studentCount !== null && studentCount > 0 ? (
         <p className="email-notice__count">
           <Icon name="users" size={14} />
           {studentCount} student{studentCount === 1 ? '' : 's'} shortlisted
