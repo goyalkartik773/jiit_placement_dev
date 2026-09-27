@@ -1,0 +1,56 @@
+// ============================================================================
+// Theme tokens as CSS custom properties.
+//
+// _variables.scss stays the single source of truth for every value — this
+// file only mirrors it into `var(--…)` so component styles (and any future
+// CSS-only work) can read the design system directly:
+//
+//   --bg / --panel / --line / --line-strong / --ink / --muted / --faint
+//   --blue --indigo --green --amber --purple --teal --pink --red (+ soft)
+//   --term-bg / --term-line / --term-text        (console panels only)
+//   --font-sans / --font-mono / --dot / --dot-step
+// ============================================================================
+@use 'variables' as *;
+
+:root {
+  // ----- Surfaces & structure -----
+  --bg: #{$app-bg};
+  --panel: #{$surface};
+  --line: #{$border};
+  --line-strong: #{$border-strong};
+
+  // ----- Text -----
+  --ink: #{$ink};
+  --muted: #{$text-muted};
+  --faint: #{$text-faint};
+
+  // ----- Category identity -----
+  --blue: #{$blue};
+  --blue-soft: #{$blue-soft};
+  --indigo: #{$indigo};
+  --indigo-soft: #{$indigo-soft};
+  --green: #{$green};
+  --green-soft: #{$green-soft};
+  --amber: #{$amber};
+  --amber-soft: #{$amber-soft};
+  --purple: #{$purple};
+  --purple-soft: #{$purple-soft};
+  --teal: #{$teal};
+  --teal-soft: #{$teal-soft};
+  --pink: #{$pink};
+  --red: #{$danger};
+  --red-soft: #{$danger-soft};
+
+  // ----- Terminal (console panels only) -----
+  --term-bg: #{$term-bg};
+  --term-line: #{$term-line};
+  --term-text: #{$term-text};
+
+  // ----- Type -----
+  --font-sans: #{$font-sans};
+  --font-mono: #{$font-mono};
+
+  // ----- Blueprint texture -----
+  --dot: #{$app-dot};
+  --dot-step: #{$app-dot-step};
+}

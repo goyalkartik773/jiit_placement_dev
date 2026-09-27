@@ -66,4 +66,22 @@
     border-color: $border;
     color: $text-secondary;
   }
+
+  // ----- Mono status pill (console design system) -----
+  // IBM Plex Mono, compact, pill-shaped — used for run states everywhere.
+  &--pill {
+    padding: 3px 9px;
+    border-radius: $radius-pill;
+    font-family: $font-mono;
+    font-size: $fs-foot;
+    font-weight: $fw-medium;
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+    text-transform: none;
+  }
+}
+
+// Only an amber "running" pill pulses its dot (in-progress state).
+.badge--pill.badge--warning .badge__dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
 }

@@ -66,7 +66,7 @@ export function Header() {
           </Link>
           <span className="api-status" title={`Backend API base URL — ${API_BASE_URL}`}>
             <span className="api-status__dot" aria-hidden="true" />
-            API {apiHostLabel()}
+            api · {apiHostLabel()}
           </span>
         </div>
       </div>

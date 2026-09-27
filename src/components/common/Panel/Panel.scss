@@ -2,16 +2,16 @@
 @use '../../../styles/mixins' as *;
 
 .panel {
-  background: $surface;
-  border: 1px solid $border;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
-  padding: $space-6;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: $radius-compact;
+  box-shadow: $shadow-xs;
+  padding: $space-5;
 
-  // Spec: main sections p-6 → p-8 (24 → 32) at ≥640px
+  // Main sections get a little more room at ≥640px (still compact).
   &--lg {
     @include up('md') {
-      padding: $space-7;
+      padding: $space-6;
     }
   }
 
@@ -20,9 +20,9 @@
     align-items: center;
     justify-content: space-between;
     gap: $space-3;
-    margin-bottom: $space-5;
+    margin-bottom: $space-4;
     padding-bottom: $space-3;
-    border-bottom: 1px solid $surface-muted; // spec border-slate-100
+    border-bottom: 1px solid var(--line);
   }
 
   &__head-main {
@@ -34,37 +34,35 @@
 
   &__icon {
     @include flex-center;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
-    border-radius: $radius-md;
-    background: $primary-soft;
-    color: $primary;
+    border-radius: $radius-tab;
+    background: var(--blue-soft);
+    color: var(--blue);
   }
 
+  // Section titles: 14px / 700 (design system).
   &__title {
     min-width: 0;
-    font-size: $fs-lg;
+    font-size: $fs-section-title;
     font-weight: $fw-bold;
-    letter-spacing: $tracking-tight;
-    color: $ink;
-  }
-
-  &--sm &__title {
-    font-size: $fs-md;
+    letter-spacing: $tracking-title;
+    color: var(--ink);
   }
 
   // Mono caption chip (stage count, batch-style labels)
   &__meta {
     flex-shrink: 0;
     padding: $space-1 $space-2;
-    border: 1px solid $border;
+    border: 1px solid var(--line);
     border-radius: $radius-sm;
-    background: $surface-muted;
-    color: $text-secondary;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
+    background: var(--bg);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: $fs-tag;
     font-weight: $fw-medium;
+    letter-spacing: $tracking-label;
     white-space: nowrap;
   }
 
@@ -76,12 +74,12 @@
     flex-shrink: 0;
     border-radius: 50%;
     background: $primary-soft-hover;
-    color: $primary;
+    color: var(--blue);
     font-size: $fs-2xs;
     font-weight: $fw-bold;
   }
 
   &__body {
-    @include stack($space-5);
+    @include stack($space-4);
   }
 }

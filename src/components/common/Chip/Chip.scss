@@ -33,4 +33,12 @@
     border-color: $border;
     color: $text-secondary;
   }
+
+  // Data / result chips — IBM Plex Mono (console design system).
+  &--mono {
+    font-family: $font-mono;
+    font-size: $fs-foot;
+    font-weight: $fw-medium;
+    letter-spacing: $tracking-label;
+  }
 }

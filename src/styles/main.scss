@@ -3,6 +3,7 @@
 // Component styles live next to their components (Component.scss).
 // ============================================================================
 @use 'reset';
+@use 'tokens';
 @use 'typography';
 @use 'utilities';
 @use 'animations';

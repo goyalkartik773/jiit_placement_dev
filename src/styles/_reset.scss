@@ -23,10 +23,10 @@ body {
   font-size: $fs-base;
   line-height: $lh-normal;
   color: $text;
-  // Spec canvas: slate-50 with a micro dot grid (24px cells)
-  background-color: $app-bg;
-  background-image: radial-gradient($app-dot $app-dot-size, transparent $app-dot-size);
-  background-size: $app-dot-step $app-dot-step;
+  // Technical blueprint canvas: very light cool gray with a faint dot grid.
+  background-color: var(--bg, $app-bg);
+  background-image: radial-gradient(circle, var(--dot, $app-dot) $app-dot-size, transparent $app-dot-size);
+  background-size: var(--dot-step, $app-dot-step) var(--dot-step, $app-dot-step);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

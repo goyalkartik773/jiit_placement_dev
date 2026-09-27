@@ -1,15 +1,18 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
+// ============================================================================
+// Top bar (sticky, white, bottom border) + horizontally scrollable tab bar.
+// Left: blue dot · product name · "/" · section name (mono, muted).
+// Right: filled ADMIN pill + connection chip (pulsing green dot · api host).
+// ============================================================================
 .app-header {
   position: sticky;
   top: 0;
   z-index: $z-header;
   min-height: $header-height;
-  background: rgba($surface, 0.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba($border, 0.8);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 
   &__inner {
     display: flex;
@@ -25,26 +28,28 @@
   &__brand {
     display: flex;
     align-items: center;
-    gap: $space-2; // brand ↔ slash ↔ context (spec space-x-2)
+    gap: $space-2; // brand ↔ slash ↔ context
     min-width: 0;
   }
 
   &__sep {
     flex-shrink: 0;
     font-size: $fs-xs;
-    color: $text-faint;
+    color: var(--faint);
   }
 
+  // Section name — breadcrumb text, mono by the design system.
   &__context {
     min-width: 0;
-    font-family: $font-mono;
-    font-size: $fs-xs;
-    color: $text-muted;
+    font-family: var(--font-mono);
+    font-size: $fs-label;
+    letter-spacing: $tracking-label;
+    color: var(--muted);
     text-decoration: none;
     @include truncate;
 
     &:hover {
-      color: $ink;
+      color: var(--ink);
       text-decoration: none;
     }
   }
@@ -52,48 +57,48 @@
   &__tools {
     display: flex;
     align-items: center;
-    gap: $space-4;
+    gap: $space-3;
     flex-shrink: 0;
   }
 
-  // One chip look shared by the Admin pill and the section links below.
-  &__admin,
-  &__nav-link {
-    padding: $space-1 $space-2;
-    border: 1px solid $border;
-    border-radius: $radius-sm;
-    background: $surface;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
+  // ---------- Filled ADMIN pill ----------
+  &__admin {
+    padding: $space-1 $space-2-5;
+    border: 1px solid $primary;
+    border-radius: $radius-pill;
+    background: var(--blue);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: $fs-tag;
+    font-weight: $fw-semibold;
     text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $text-muted;
+    letter-spacing: $tracking-label;
+    line-height: 1.5;
     text-decoration: none;
-    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+    transition: background $transition-fast, border-color $transition-fast;
 
     &:hover {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
+      background: $primary-hover;
+      border-color: $primary-hover;
+      color: #fff;
       text-decoration: none;
     }
 
     &:focus-visible {
-      @include focus-ring(1px);
+      @include focus-ring(2px);
     }
 
     &[aria-current='page'] {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
-      box-shadow: inset 0 -2px 0 0 $primary;
+      background: $primary-active;
+      border-color: $primary-active;
+      color: #fff;
     }
   }
 
-  // ---------- Section navigation (wraps / scrolls instead of overflowing) ----------
+  // ---------- Section navigation (scrollable, never overflows) ----------
   &__nav {
-    border-top: 1px solid rgba($border, 0.8);
+    background: var(--panel);
+    border-top: 1px solid var(--line);
   }
 
   &__nav-list {
@@ -102,7 +107,7 @@
     gap: $space-2;
     max-width: $content-max;
     margin: 0 auto;
-    padding: $space-1-5 $space-6 $space-2;
+    padding: $space-2 $space-6;
     list-style: none;
     overflow-x: auto;
     overflow-y: hidden;
@@ -114,66 +119,94 @@
     flex: 0 0 auto;
   }
 
+  // Tab: uppercase mono label — inactive has no background at all.
   &__nav-link {
+    display: inline-block;
+    padding: $space-1-5 $space-3;
+    border: 1px solid transparent;
+    border-radius: $radius-tab;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: $fs-xs;
+    font-weight: $fw-medium;
+    text-transform: uppercase;
+    letter-spacing: $tracking-label;
+    color: var(--muted);
     white-space: nowrap;
+    text-decoration: none;
+    transition: color $transition-fast, background $transition-fast, border-color $transition-fast;
+
+    &:hover {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    &:focus-visible {
+      @include focus-ring(2px);
+    }
+
+    // Active tab: soft blue field, blue label, light blue border.
+    &[aria-current='page'] {
+      background: var(--blue-soft);
+      border-color: $primary-border;
+      color: var(--blue);
+    }
   }
 }
 
-// ---------- Brand: dot mark + mono wordmark (spec) ----------
+// ---------- Brand: solid blue dot + product name ----------
 .brand {
   display: flex;
   align-items: center;
-  gap: $space-3; // mark ↔ text (spec space-x-3)
+  gap: $space-2;
   flex-shrink: 0;
-  color: $ink;
+  color: var(--ink);
   text-decoration: none;
 
   &:hover {
-    color: $ink;
+    color: var(--ink);
     text-decoration: none;
   }
 
   &__mark {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: $primary;
-    box-shadow: 0 0 0 $space-1 $primary-soft; // ring-4 blue-50
+    background: var(--blue);
   }
 
   &__name {
-    font-family: $font-mono;
-    font-size: $fs-xs;
-    font-weight: $fw-semibold;
-    letter-spacing: $tracking-caps;
-    text-transform: uppercase;
-    color: $ink;
+    font-size: $fs-row-title;
+    font-weight: $fw-bold;
+    letter-spacing: $tracking-title;
+    color: var(--ink);
     white-space: nowrap;
   }
 }
 
-// ---------- API status pill (spec trailing pill) ----------
+// ---------- Connection chip: api · host:port ----------
 .api-status {
   display: inline-flex;
   align-items: center;
-  gap: $space-1-5;
+  gap: $space-2;
   flex-shrink: 0;
-  padding: $space-0-5 $space-2-5;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  background: $surface;
-  box-shadow: $shadow-xs;
-  font-family: $font-mono;
-  font-size: $fs-xs;
-  color: $text-muted;
+  padding: $space-1 $space-2-5;
+  border: 1px solid var(--line);
+  border-radius: $radius-pill;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: $fs-tag;
+  letter-spacing: $tracking-label;
+  color: var(--muted);
 
   &__dot {
     width: 6px;
     height: 6px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: $success-strong;
+    background: var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
   }
 }
 
@@ -184,12 +217,12 @@
     padding: 0 $space-4;
   }
 
-  // The section row keeps its rhythm but scrolls inside the narrower viewport.
+  // The tab row keeps its rhythm but scrolls inside the narrower viewport.
   .app-header__nav-list {
-    padding: $space-1-5 $space-4 $space-2;
+    padding: $space-2 $space-4;
   }
 
   .api-status {
-    display: none; // spec hides the trailing pill below 640px
+    display: none; // the connection chip is desktop-only
   }
 }

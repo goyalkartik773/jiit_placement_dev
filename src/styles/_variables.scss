@@ -5,57 +5,88 @@
 // (Tailwind scale: slate neutrals, blue brand, emerald success, purple accent).
 // ============================================================================
 
+// ============================================================================
+// Design tokens follow the console design system exactly:
+// a light, technical, information-dense palette. Every value below is also
+// exported as a CSS custom property in styles/_tokens.scss.
+// ============================================================================
+
 // ---------- Brand ----------
-$primary: #2563eb; // blue-600
-$primary-hover: #1d4ed8; // blue-700
-$primary-active: #1e40af; // blue-800
-$primary-soft: #eff6ff; // blue-50
-$primary-soft-hover: #dbeafe; // blue-100
-$primary-border: #bfdbfe; // blue-200
-$primary-border-strong: #93c5fd; // blue-300 — hover accent (metric package card, doc rows)
-$indigo-deep: #3730a3; // indigo-800 — logo-tile gradient end
-$accent: #6b21a8; // purple-800 — placement-category chips
-$accent-soft: #f3e8ff; // purple-100
-$accent-border: #e9d5ff; // purple-200
+$primary: #2e5eff; // --blue — jobs / primary actions
+$primary-hover: #244bdb;
+$primary-active: #1d3fb8;
+$primary-soft: #eef2ff; // --blue soft bg
+$primary-soft-hover: #dfe6ff;
+$primary-border: #d3dcff;
+$primary-border-strong: #b9c7ff; // hover accent (metric package card, doc rows)
+$indigo: #4b4fd1; // --indigo — mailbox sync
+$indigo-soft: #eeeefc; // --indigo soft bg
+$indigo-deep: #3730a3; // logo-tile gradient end
+$accent: #7c4fe0; // --purple — placements / job ↔ student sync
+$accent-soft: #f3eefd; // --purple soft bg
+$accent-border: #e2d9fb;
 
-// ---------- Neutrals (slate ramp) ----------
-$ink: #0f172a; // slate-900 — headings, hero values
-$text: #1e293b; // slate-800 — body copy
-$text-secondary: #334155; // slate-700 — metadata, secondary copy
-$text-soft: #475569; // slate-600 — excerpts, quiet labels
-$text-muted: #64748b; // slate-500 — captions, icons, placeholders
-$text-faint: #94a3b8; // slate-400 — decorative hints, footer
-$border: #e2e8f0; // slate-200 — 1px precision border
-$border-strong: #cbd5e1; // slate-300
-$surface: #ffffff;
-$surface-subtle: #f8fafc; // slate-50
-$surface-muted: #f1f5f9; // slate-100
-$app-bg: #f8fafc; // page canvas — dot-grid base
+// ---------- Neutrals (cool technical ramp) ----------
+$ink: #12151c; // --ink — headings, hero values
+$text: #12151c; // body copy
+$text-secondary: #2f333b; // metadata, secondary copy
+$text-soft: #4a4f59; // excerpts, quiet labels
+$text-muted: #6b7380; // --muted — captions, icons, placeholders
+$text-faint: #9aa1ac; // --faint — decorative hints, timestamps
+$border: #e3e6eb; // --line — 1px precision border
+$border-strong: #cfd4dc; // --line-strong — button borders
+$surface: #ffffff; // --panel
+$surface-subtle: #f7f8fa;
+$surface-muted: #eef0f4;
+$app-bg: #f5f6f8; // --bg — page canvas, dot-grid base
 
-// ---------- Page dot grid (spec .bg-dot-grid) ----------
-$app-dot: #cbd5e1;
-$app-dot-size: 0.85px;
-$app-dot-step: 24px;
+// ---------- Page dot grid (technical blueprint texture) ----------
+$app-dot: #e4e7ec;
+$app-dot-size: 1px;
+$app-dot-step: 22px;
+
+// ---------- Category identity (one accent per data category) ----------
+$blue: $primary; // jobs
+$blue-soft: $primary-soft;
+$green: #1b9e5a; // --green — success / parsed / sign-in
+$green-soft: #e9f8ef;
+$purple: #7c4fe0; // --purple — placements
+$purple-soft: #f3eefd;
+$teal: #0f9e96; // --teal — integrity / health
+$teal-soft: #e7faf8;
+$pink: #c4437a; // --pink — shortlist
+$amber: #b9750c; // --amber — warnings / awaiting review
+$amber-soft: #fdf3e2;
 
 // ---------- Status ----------
-$success: #047857; // emerald-700
-$success-strong: #10b981; // emerald-500 — live dots
-$success-soft: #ecfdf5; // emerald-50
-$success-border: #a7f3d0; // emerald-200
+$success: #1b9e5a; // --green
+$success-strong: #1b9e5a; // live dots
+$success-soft: #e9f8ef;
+$success-border: #bde7d0;
 
-$warning: #a65b09;
-$warning-soft: #fff6e8;
-$warning-border: #f4d7a6;
+$warning: #b9750c; // --amber
+$warning-soft: #fdf3e2;
+$warning-border: #f1ddb9;
 
-$danger: #dc2626; // red-600
-$danger-hover: #b91c1c; // red-700 — destructive button hover
-$danger-strong: #ef4444; // red-500 — alert icons
-$danger-soft: #fef3f2;
-$danger-border: #fadcda;
+$danger: #c0392b; // --red — destructive actions, failures
+$danger-hover: #a33125;
+$danger-strong: #c0392b;
+$danger-soft: #fdecec;
+$danger-border: #f6d5d1;
 
-$info: #0369a1;
-$info-soft: #f0f9ff;
-$info-border: #b9e3f7;
+$info: #4b4fd1; // --indigo
+$info-soft: #eeeefc;
+$info-border: #d8d9f7;
+
+// ---------- Terminal (used ONLY inside a running console panel) ----------
+$term-bg: #0f1420; // --term-bg
+$term-line: #2a3142; // --term-line
+$term-text: #b9f2c4; // --term-text — terminal log / success text
+$term-bar: #151b2b; // title bar above the terminal body
+$term-muted: #6f788c; // dim timestamps
+$term-cmd: #9db8ff; // the `cmd` request row
+$term-warn: #e6b45c;
+$term-error: #ff8a80;
 
 // Deadline / urgency (rose) — details metrics
 $rose: #e11d48; // rose-600
@@ -119,11 +150,10 @@ $criteria-strict-fg: $danger;
 $criteria-strict-border: $danger-border;
 
 // ---------- Typography ----------
-$font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+$font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
   Arial, sans-serif;
-$font-headline: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-  Roboto, sans-serif;
-$font-mono: 'JetBrains Mono', ui-monospace, Consolas, 'Liberation Mono', Menlo, monospace;
+$font-headline: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+$font-mono: 'IBM Plex Mono', ui-monospace, Consolas, 'Liberation Mono', Menlo, monospace;
 
 $fs-2xs: 0.6875rem; // 11px
 $fs-xs: 0.75rem; // 12px
@@ -135,6 +165,16 @@ $fs-lg: 1.125rem; // 18px
 $fs-xl: 1.5rem; // 24px — spec "text-2xl" (card hero, h2)
 $fs-2xl: 1.75rem; // 28px
 $fs-3xl: 2.25rem; // 36px
+
+// ---------- Console type scale (compact, technical) ----------
+$fs-page-title: 1.625rem; // 26px — admin h1
+$fs-section-title: 0.875rem; // 14px — panel / section titles, action names
+$fs-stat: 1.1875rem; // 19px — stat card numbers (deliberately not oversized)
+$fs-row-title: 0.84375rem; // 13.5px — history row title
+$fs-body-compact: 0.78125rem; // 12.5px — descriptions
+$fs-label: 0.71875rem; // 11.5px — endpoint strings, small labels
+$fs-tag: 0.59375rem; // 9.5px — stat labels
+$fs-foot: 0.65625rem; // 10.5px — stat footer line, chips
 
 $fw-regular: 400;
 $fw-medium: 500;
@@ -148,7 +188,9 @@ $lh-normal: 1.5; // spec default
 $lh-relaxed: 1.625; // spec leading-relaxed
 
 $tracking-tight: -0.02em;
+$tracking-title: -0.01em; // page title letter-spacing
 $tracking-wide: 0.025em; // spec tracking-wide (status pills)
+$tracking-label: 0.04em; // tab labels, endpoint strings, mono tags
 $tracking-caps: 0.06em; // spec tracking-wider (uppercase captions)
 
 // ---------- Spacing (4px scale + spec half-steps 0.5 / 1.5 / 2.5 / 3.5) ----------
@@ -174,6 +216,8 @@ $card-pad-md: 28px;
 // ---------- Radius (spec rounded → rounded-md → rounded-xl → rounded-2xl) ----------
 $radius-xs: 4px;
 $radius-sm: 6px;
+$radius-tab: 8px; // active tab pill
+$radius-compact: 9px; // stat cards, action cards, icon badges
 $radius-md: 12px;
 $radius-lg: 16px;
 $radius-xl: 20px;
