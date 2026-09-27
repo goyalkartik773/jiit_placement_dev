@@ -14,6 +14,7 @@ from scripts.corpus_seed import seed_emails
 from scripts.run_backend_validation import (
     GOLDEN,
     check_golden,
+    golden_gm_ids,
     golden_row_totals,
 )
 
@@ -32,15 +33,15 @@ def _failures(results) -> list[str]:
 
 
 def test_golden_dataset(client, session):
-    seeded = seed_emails([spec["gm"] for spec in GOLDEN], session)
+    seeded = seed_emails(golden_gm_ids(), session)
     missing = [gm for gm, status in seeded.items() if status == "missing"]
     assert not missing, f"golden emails absent from corpus: {missing}"
 
     response = client.post("/api/gmail/process-pending")
     assert response.status_code == 200
     stats = response.json()["data"]
-    assert stats["total_pending"] == len(GOLDEN)
-    assert stats["succeeded"] == len(GOLDEN)
+    assert stats["total_pending"] == len(golden_gm_ids())
+    assert stats["succeeded"] == len(golden_gm_ids())
     assert stats["failed"] == 0
 
     session.expire_all()  # rows were written by the API's own session
@@ -49,22 +50,22 @@ def test_golden_dataset(client, session):
     failures = _failures(results)
     assert not failures, "golden mismatches:\n" + "\n".join(failures)
 
-    # Every golden email finished in a terminal success state.
+    # Every seeded email finished in a terminal success state.
     not_done = session.execute(
         select(func.count())
         .select_from(Email)
-        .where(Email.gmail_message_id.in_([spec["gm"] for spec in GOLDEN]))
+        .where(Email.gmail_message_id.in_(golden_gm_ids()))
         .where(Email.processing_status != EmailStatus.PROCESSED)
     ).scalar_one()
     assert not_done == 0
 
 
 def test_golden_reprocess_is_idempotent(client, session):
-    seeded = seed_emails([spec["gm"] for spec in GOLDEN], session)
+    seeded = seed_emails(golden_gm_ids(), session)
     assert all(status != "missing" for status in seeded.values())
 
     first = client.post("/api/gmail/process-pending").json()["data"]
-    assert first["succeeded"] == len(GOLDEN)
+    assert first["succeeded"] == len(golden_gm_ids())
     totals_run1 = golden_row_totals()
 
     # Delete-then-rebuild: process the same emails once more.
@@ -75,7 +76,7 @@ def test_golden_reprocess_is_idempotent(client, session):
     )
     session.commit()
     second = client.post("/api/gmail/process-pending").json()["data"]
-    assert second["succeeded"] == len(GOLDEN)
+    assert second["succeeded"] == len(golden_gm_ids())
     assert second["failed"] == 0
     totals_run2 = golden_row_totals()
     assert totals_run1 == totals_run2, (

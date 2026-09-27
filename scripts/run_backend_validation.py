@@ -81,7 +81,11 @@ GOLDEN: list[dict[str, Any]] = [
      "deadline": date(2026, 8, 24), "min_links": 1},
     {"gm": "19fdbfcbc7fffaf1", "gt": "HACKATHON",
      "company": "Decimal Point Analytics", "opportunity": True,
-     "deadline": date(2026, 8, 8)},
+     "deadline": date(2026, 8, 8),
+     # "Revised:" resend of 19fdbe578d2f0ea7 (same campaign; sample 9 is a
+     # *different* campaign - registration link vs apply-by - and does not
+     # share this cluster).  Parent is seeded as a support email below.
+     "revision_of": "19fdbe578d2f0ea7"},
     {"gm": "19efd53ceb632706", "gt": "EVENT",
      "company": "LTIMindtree", "opportunity": True,
      "link_contains": "teams.microsoft.com"},
@@ -131,6 +135,17 @@ GOLDEN: list[dict[str, Any]] = [
 
 #: Categories with zero corpus samples - rules proven by unit tests only.
 NO_SAMPLE_CATEGORIES = ("OFF_CAMPUS_OPPORTUNITY", "IRRELEVANT")
+
+#: Emails seeded alongside the golden set but **not scored**: the revision
+#: parent of golden sample ``19fdbfcbc7fffaf1`` (dedup links a revision only
+#: to members that share its cluster key, so the parent must be present for
+#: the ``revision_of`` assertion to reproduce outside the live corpus).
+SUPPORT_SEEDS: list[str] = ["19fdbe578d2f0ea7"]
+
+
+def golden_gm_ids() -> list[str]:
+    """Every id the harness seeds (golden + support)."""
+    return [spec["gm"] for spec in GOLDEN] + list(SUPPORT_SEEDS)
 
 
 class _NullHandle:
@@ -275,6 +290,16 @@ def check_golden(session) -> list[dict[str, Any]]:
                         f"link contains {spec['link_contains']}",
                         spec["link_contains"] in haystack, opp.links,
                     ))
+        if "revision_of" in spec:
+            target = None
+            if row.revision_of:
+                parent = session.get(Email, row.revision_of)
+                target = parent.gmail_message_id if parent else None
+            checks.append((
+                f"revision_of -> {spec['revision_of']}",
+                target == spec["revision_of"],
+                target or None,
+            ))
         if "company" in spec:
             got = _company_name(session, row.id)
             checks.append((f"company == {spec['company']}",
@@ -423,6 +448,11 @@ def render_markdown(
     add("")
     add(f"Generated: {generated}  ")
     add(f"Golden samples: {len(golden)}  ")
+    add(
+        "Support seeds (revision parent, not scored): "
+        + ", ".join(f"`{gm}`" for gm in SUPPORT_SEEDS)
+        + "  "
+    )
     add("Mode: deterministic (rule-based); LLM fallback disabled")
     add("")
     add("## 1. Summary")
@@ -526,7 +556,7 @@ def main(argv: list[str]) -> int:
 
     session = get_session_factory()()
     try:
-        seed_result = seed_emails([s["gm"] for s in GOLDEN], session)
+        seed_result = seed_emails(golden_gm_ids(), session)
     finally:
         session.close()
     missing = [gm for gm, status in seed_result.items() if status == "missing"]
@@ -543,7 +573,7 @@ def main(argv: list[str]) -> int:
     )
 
     print("[2/5] force-reprocess golden emails ...")
-    stats1 = force_process([s["gm"] for s in GOLDEN])
+    stats1 = force_process(golden_gm_ids())
     print(
         f"      {stats1['succeeded']}/{stats1['processed']} ok, "
         f"{stats1['failed']} failed"
@@ -564,7 +594,7 @@ def main(argv: list[str]) -> int:
 
     print("[4/5] reprocess again (idempotency) ...")
     totals_run1 = golden_row_totals()
-    stats2 = force_process([s["gm"] for s in GOLDEN])
+    stats2 = force_process(golden_gm_ids())
     totals_run2 = golden_row_totals()
     idempotent = (
         totals_run1 == totals_run2 and stats2["failed"] == 0

@@ -1,7 +1,8 @@
 # Backend validation report
 
-Generated: 2026-09-27T09:56:08+00:00  
+Generated: 2026-09-27T10:17:37+00:00  
 Golden samples: 33  
+Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled
 
 ## 1. Summary
@@ -9,7 +10,7 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | Suite | Result |
 |---|---|
 | Pipeline parser GT (18 samples) | 18/18 samples, 99/99 checks |
-| Golden taxonomy + DB rows | 33/33 samples, 98/98 checks |
+| Golden taxonomy + DB rows | 33/33 samples, 99/99 checks |
 | Reprocess idempotency (golden) | identical derived row counts |
 
 **Overall: PASS**
@@ -27,7 +28,7 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | 7 | `19ed55cde526a30b` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 4=ok; company == LTIMindtree=ok | PASS | Notification Regarding LTIMindtree (LTM) 2026 Batch Offers |
 | 8 | `19ef8e389b433689` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 232=ok; company == Infosys=ok | PASS | HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026 |
 | 9 | `1a02449f9b4a752f` | HACKATHON | HACKATHON | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; deadline == 2026-08-24=ok; links >= 1=ok; company == Decimal Point Analytics=ok | PASS | Decimal Point Analytics - DPA Vivechana 2026 – National Level Hackatho |
-| 10 | `19fdbfcbc7fffaf1` | HACKATHON | HACKATHON | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; deadline == 2026-08-08=ok; company == Decimal Point Analytics=ok | PASS | Revised: Decimal Point Analytics - DPA Vivechana 2026 – National Level |
+| 10 | `19fdbfcbc7fffaf1` | HACKATHON | HACKATHON | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; deadline == 2026-08-08=ok; revision_of -> 19fdbe578d2f0ea7=ok; company == Decimal Point Analytics=ok | PASS | Revised: Decimal Point Analytics - DPA Vivechana 2026 – National Level |
 | 11 | `19efd53ceb632706` | EVENT | EVENT | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; link contains teams.microsoft.com=ok; company == LTIMindtree=ok | PASS | Reminder: LTIMindtree Guest Lecture : Enhance Your Corporate Communica |
 | 12 | `19bd9bcddb127a67` | GENERAL_PLACEMENT_NOTICE | GENERAL_PLACEMENT_NOTICE | classification=ok | PASS | Placement Policy - 2027 Graduating Batches; Engineering and MCA |
 | 13 | `1a06fde8ade47eab` | REGISTRATION | REGISTRATION | classification=ok; funnel counts == [393]=ok; company == Accenture=ok | PASS | Accenture-Mass Recruitment Drive - Hiring for Full Time Role from 2027 |
