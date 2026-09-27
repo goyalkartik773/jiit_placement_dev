@@ -19,6 +19,22 @@ npm run dev
 
 Other scripts: `npm run build` (type-check + production build), `npm run preview`.
 
+## Dashboard sections (routes)
+
+The header navigation exposes the four sections of the dashboard:
+
+| # | Section | Route | Data source |
+|---|---|---|---|
+| 1 | **Active Job Listing** | `/` (+ `/jobs/:jobId`) | `GET /api/jobs` — untouched by the dashboard work |
+| 2 | **Company-Wise Placement** | `/placements` | `GET /api/placements/company-wise` + `GET /api/placements/jobs/{jobId}/placed-students` |
+| 3 | **Email Notices** | `/email-notices` | `GET /api/notices/email` (congratulation / final-offer mails are excluded on purpose) |
+| 4 | **Superset Notices** | `/superset-notices` | `GET /api/notices` |
+| — | Admin console | `/admin` | job sync **plus** the new `POST /api/admin/jobs/sync-offer-students` panel |
+
+`/admin` and `*` (404) are unchanged. The section nav is
+`components/layout/Header/Header.tsx` (`aria-current="page"` on the active link,
+horizontally scrollable below `sm`).
+
 ## Configuration
 
 ```env
@@ -139,6 +155,22 @@ The admin console talks to the backend's admin API (full contract in
 | `POST /api/admin/jobs/sync` | Starts the single background sync; 409 `Job synchronization is already running` when one is live |
 | `GET /api/admin/jobs/sync/status` | `idle / running / completed / failed` + real counters (fields stay `null` until actually known) |
 | `DELETE /api/admin/jobs` | Deletes every job record **and** its stored documents; 409 while a sync (or another delete) runs. Returns honest counts (`jobsDeleted`, `documentRowsDeleted`, `filesDeleted`, `filesMissing`, `filesFailed`) plus real per-phase timings (`phases[]`) |
+| `POST /api/admin/jobs/sync-offer-students` | Maps the offer students parsed from congratulation emails onto the **existing** job rows (company match only — unknown companies are counted in `companiesSkipped`, never created). Idempotent: `mappingsInserted` is `0` on a re-run and every candidate shows up under `duplicatesSkipped`. |
+| `GET /api/admin/jobs/{jobId}/placed-students` | Students placed for one job with role + CTC from the offer mail; 404 `Job not found` for an unknown id |
+
+### Dashboard read APIs (public)
+
+Same `{status, Message, Data}` envelope as the jobs API, `pageSize` capped at 100:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/placements/company-wise?page&pageSize&search` | One row per company that has a job: `jobcount`, `activejobs`, `placedstudents`, `firstplacedat/lastplacedat`, `jobs[]` (id, jobprofile, package, status, deadline, …) and `roles[]` (`{role, students, ctcmax}` — one role per student, earliest offer wins). Sorted by `placedstudents` DESC then company ASC; `TotalCount` = 83 companies. |
+| `GET /api/placements/jobs/{jobId}/placed-students` | `{job, placedCount, students[]}` — `rollno`, `studentname`, `branch`, `program`, `role`, `ctcraw/ctctotal/stipend`, `offersubject`, `placedat`. 404 when the job is unknown. |
+| `GET /api/notices/email?page&pageSize&search&type` | Canonical Gmail notices minus the congratulation/final-offer ones. Returns `Facets` (`{classification, count}` for the chips) and accepts an UPPERCASE `type` filter. Fields: `classificationlabel`, `company`, `headline`, `deadline`, `link`, `studentcount`, `rounds[]`. |
+
+Wiring lives in `services/placementService.ts` + `services/noticeService.ts` (the only files
+that know these paths), consumed through `hooks/useCompanyPlacements.ts`,
+`hooks/useEmailNotices.ts`, `hooks/useSupersetNotices.ts`.
 
 The token lives in `sessionStorage` (per tab — never logged or rendered) and is
 attached by `services/adminService.ts`, the only file that knows these paths. The frontend
@@ -207,6 +239,24 @@ job's response (`sysjobuuid`), and downloads use the job's `id` + the document's
 - ✅ Null/missing/empty-array safe rendering everywhere
 - ✅ Env-based API base URL, centralized service layer, no hardcoded endpoints
 - ✅ No mock/demo data — every byte on screen comes from the backend
+
+**Dashboard sections (new)**
+
+- ✅ Header navigation across the four sections with `aria-current` active state
+- ✅ **Company-Wise Placement** `/placements` — summary tiles (companies / placement records /
+  companies with placements), debounced search, "placed only" toggle, sort by placed count or
+  name, expandable company cards with role chips + CTC and per-job student detail
+  (roll no, branch, role, CTC, offer date) fetched on demand
+- ✅ **Email Notices** `/email-notices` — classification facet chips with real counts, notice cards
+  (badge, subject, company, headline, deadline, snippet, shortlist/funnel counts, source link,
+  attachment + revised indicators), `pageSize` 100 so the summary totals are global
+- ✅ **Superset Notices** `/superset-notices` — portal announcements with author/posted/updated,
+  status badge and an accessible expandable full text (`white-space: pre-wrap`, no injected HTML)
+- ✅ **Sync jobs with offered students** panel on `/admin` — one button, the run's real counters
+  (jobs matched, students mapped, mappings inserted, duplicates skipped, companies skipped,
+  total mappings, last run) and honest "not run yet" hint; 401 signs the session out
+- ✅ Honest labelling: placement records are counted per company and said so, the "N students
+  shortlisted" line only renders for a positive count
 
 **Engineering & UI (refactored to production standards)**
 
