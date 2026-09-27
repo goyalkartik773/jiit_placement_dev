@@ -60,6 +60,8 @@ def setup_logging(level: str = "INFO") -> None:
     root.addHandler(handler)
     # uvicorn's access log adds noise; our own events are the signal.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # httpx logs every request at INFO (URLs only, but still noisy).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def log_event(

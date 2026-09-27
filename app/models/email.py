@@ -110,7 +110,7 @@ class EmailAttachment(Base):
         ForeignKey("emails.id", ondelete="CASCADE"),
         index=True,
     )
-    gmail_attachment_id: Mapped[Optional[str]] = mapped_column(String(128))
+    gmail_attachment_id: Mapped[Optional[str]] = mapped_column(String(512))
     filename: Mapped[Optional[str]] = mapped_column(Text)
     mime_type: Mapped[Optional[str]] = mapped_column(String(255))
     file_size: Mapped[Optional[int]] = mapped_column(Integer)

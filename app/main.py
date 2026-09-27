@@ -33,7 +33,9 @@ def create_app() -> FastAPI:
     )
 
     from app.api import router as api_router
+    from app.container import Container
 
+    application.state.container = Container(settings)
     application.include_router(api_router)
 
     @application.get("/health", tags=["meta"])

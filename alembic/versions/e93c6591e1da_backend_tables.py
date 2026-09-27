@@ -79,7 +79,7 @@ def upgrade() -> None:
     op.create_table('email_attachments',
     sa.Column('id', sa.String(length=32), nullable=False),
     sa.Column('email_id', sa.String(length=32), nullable=False),
-    sa.Column('gmail_attachment_id', sa.String(length=128), nullable=True),
+    sa.Column('gmail_attachment_id', sa.String(length=512), nullable=True),
     sa.Column('filename', sa.Text(), nullable=True),
     sa.Column('mime_type', sa.String(length=255), nullable=True),
     sa.Column('file_size', sa.Integer(), nullable=True),
