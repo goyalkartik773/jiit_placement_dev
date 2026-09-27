@@ -1,0 +1,62 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 260px;
+  min-width: 0;
+
+  input {
+    width: 100%;
+    padding: $space-3 $space-8;
+    border: 1px solid $border-strong;
+    border-radius: $radius-md;
+    background: $surface-subtle;
+    font-size: $fs-base;
+    color: $ink;
+    transition: border-color $transition-fast, box-shadow $transition-fast, background $transition-fast;
+
+    &::placeholder {
+      color: $text-muted;
+    }
+
+    &:focus {
+      outline: none;
+      background: $surface;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px rgba($primary, 0.15);
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    left: $space-3-5;
+    display: flex;
+    color: $text-muted;
+    pointer-events: none;
+  }
+
+  &__clear {
+    @include flex-center;
+    position: absolute;
+    right: $space-2-5;
+    width: $space-6;
+    height: $space-6;
+    border: 0;
+    border-radius: 50%;
+    background: $surface-muted;
+    color: $text-secondary;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: $border;
+      color: $ink;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+  }
+}

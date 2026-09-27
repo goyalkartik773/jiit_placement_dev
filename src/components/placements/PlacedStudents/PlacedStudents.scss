@@ -1,0 +1,115 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.placed-students {
+  @include stack($space-3);
+
+  &__loading-rows {
+    @include stack($space-2);
+  }
+
+  &__count {
+    font-size: $fs-sm;
+    color: $text-secondary;
+
+    strong {
+      color: $ink;
+    }
+  }
+
+  // Wide tables scroll inside the card instead of pushing the page sideways
+  &__scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+    background: $surface;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $fs-sm;
+
+    th {
+      @include field-label;
+      text-align: left;
+      padding: $space-2 $space-3;
+      border-bottom: 1px solid $border;
+      background: $surface-subtle;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: $space-2-5 $space-3;
+      border-bottom: 1px solid $surface-muted;
+      color: $text-secondary;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover td {
+      background: $surface-subtle;
+    }
+  }
+
+  &__roll {
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    color: $text-muted;
+  }
+
+  &__name {
+    display: block;
+    font-weight: $fw-semibold;
+    color: $ink;
+    white-space: normal;
+  }
+
+  &__email {
+    display: block;
+    font-size: $fs-2xs;
+    color: $text-muted;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  &__role {
+    white-space: normal;
+  }
+
+  &__ctc {
+    font-weight: $fw-semibold;
+    color: $ink;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-2-5 $space-3;
+    border: 1px solid $danger-border;
+    border-radius: $radius-md;
+    background: $danger-soft;
+    color: $danger;
+    font-size: $fs-sm;
+
+    > svg {
+      flex-shrink: 0;
+    }
+
+    > span {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__empty {
+    font-size: $fs-sm;
+    color: $text-muted;
+  }
+}

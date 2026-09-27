@@ -1,0 +1,150 @@
+import { useId, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Badge, statusTone } from '../../common/Badge/Badge';
+import { Button } from '../../common/Button/Button';
+import { Chip } from '../../common/Chip/Chip';
+import { CompanyAvatar } from '../../common/CompanyAvatar/CompanyAvatar';
+import { CtcChip } from '../../common/CtcChip/CtcChip';
+import { Icon } from '../../common/Icon/Icon';
+import { PlacedStudents } from '../PlacedStudents/PlacedStudents';
+import { formatDate, formatDateTime } from '../../../utils/format';
+import type { CompanyRow } from '../../../types/dashboard.types';
+import './CompanyCard.scss';
+
+interface CompanyCardProps {
+  row: CompanyRow;
+}
+
+/**
+ * One company in the company-wise table: identity + placed count in the
+ * header, roles / job listings behind an expandable disclosure, and the
+ * per-job student detail fetched from the placed-students endpoint.
+ */
+export function CompanyCard({ row }: CompanyCardProps) {
+  const [open, setOpen] = useState(false);
+  const [studentsJobId, setStudentsJobId] = useState<string | null>(null);
+  const panelId = useId();
+
+  const jobs = row.jobs ?? [];
+  const roles = row.roles ?? [];
+  const jobLabel = `${row.jobcount} job${row.jobcount === 1 ? '' : 's'}`;
+
+  function toggleStudents(jobId: string): void {
+    setStudentsJobId((current) => (current === jobId ? null : jobId));
+  }
+
+  return (
+    <article className="company-card">
+      <h3 className="company-card__heading">
+        <button
+          type="button"
+          className="company-card__head"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <CompanyAvatar name={row.company} size="md" />
+
+          <span className="company-card__identity">
+            <span className="company-card__name">{row.company}</span>
+            <span className="company-card__meta">
+              <Chip tone="muted" title={`${row.jobcount} job(s), ${row.activejobs} active`}>
+                {jobLabel}
+              </Chip>
+              {row.lastplacedat ? (
+                <span className="company-card__last">Last offer {formatDate(row.lastplacedat)}</span>
+              ) : (
+                <span className="company-card__last">No offers recorded</span>
+              )}
+            </span>
+          </span>
+
+          <span className="company-card__placed">
+            <span className="company-card__placed-value">{row.placedstudents.toLocaleString()}</span>
+            <span className="company-card__placed-label">placed</span>
+          </span>
+
+          <span className="company-card__chevron" aria-hidden="true">
+            <Icon name="chevron-down" size={16} />
+          </span>
+        </button>
+      </h3>
+
+      <div className="company-card__body" id={panelId} hidden={!open}>
+        {roles.length > 0 ? (
+          <div className="company-card__section">
+            <p className="company-card__section-title">Offered roles ({roles.length})</p>
+            <ul className="company-card__roles">
+              {roles.map((role) => (
+                <li className="company-card__role" key={role.role}>
+                  <span className="company-card__role-name" title={role.role}>
+                    {role.role}
+                  </span>
+                  <span className="company-card__role-count">
+                    {role.students} placed
+                  </span>
+                  {typeof role.ctcmax === 'number' && role.ctcmax > 0 ? (
+                    <CtcChip package={role.ctcmax} size="sm" />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="company-card__section">
+          <p className="company-card__section-title">
+            Job listings ({jobs.length}) {row.activejobs !== row.jobcount ? ` - ${row.activejobs} active` : ''}
+          </p>
+
+          {jobs.length === 0 ? (
+            <p className="company-card__note">No job listings are attached to this company.</p>
+          ) : (
+            <ul className="company-card__jobs">
+              {jobs.map((job) => (
+                <li className="company-card__job" key={job.id}>
+                  <Link className="company-card__job-title" to={`/jobs/${job.id}`}>
+                    {job.jobprofile}
+                  </Link>
+
+                  <span className="company-card__job-facts">
+                    <CtcChip package={job.package} packageinfo={job.packageinfo} />
+                    <Badge tone={statusTone(job.status)}>{job.status}</Badge>
+                    {job.deadline ? (
+                      <span className="company-card__deadline">
+                        <Icon name="calendar" size={13} />
+                        Closes {formatDate(job.deadline)}
+                      </span>
+                    ) : null}
+                  </span>
+
+                  <Button
+                    variant="soft"
+                    size="sm"
+                    icon="users"
+                    onClick={() => toggleStudents(job.id)}
+                    title="Load the offer students matched to this job"
+                  >
+                    {studentsJobId === job.id ? 'Hide students' : 'Placed students'}
+                  </Button>
+
+                  {studentsJobId === job.id ? (
+                    <div className="company-card__students">
+                      <PlacedStudents jobId={job.id} />
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {row.firstplacedat ? (
+          <p className="company-card__window">
+            Offers recorded between {formatDateTime(row.firstplacedat)} and {formatDateTime(row.lastplacedat)}.
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}

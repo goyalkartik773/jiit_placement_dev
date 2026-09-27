@@ -1,0 +1,187 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.placements-page {
+  @include stack($space-6);
+
+  // ----- Summary strip -----
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: $space-3;
+  }
+
+  &__stat {
+    @include card($space-4, $radius-md);
+    @include stack($space-1);
+  }
+
+  &__stat-label {
+    @include field-label;
+  }
+
+  &__stat-value {
+    font-family: $font-headline;
+    font-size: $fs-2xl;
+    font-weight: $fw-bold;
+    line-height: $lh-tight;
+    letter-spacing: $tracking-tight;
+    color: $ink;
+  }
+
+  &__stat-hint {
+    font-size: $fs-xs;
+    color: $text-muted;
+  }
+
+  // ----- Toolbar -----
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $space-3;
+    padding: $space-4 $space-5;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-xs;
+  }
+
+  &__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-1-5;
+    padding: $space-2 $space-3;
+    border: 1px solid $border-strong;
+    border-radius: $radius-sm;
+    background: $surface;
+    font-family: $font-mono;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-secondary;
+    white-space: nowrap;
+    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+
+    &:hover {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+
+    &.is-on {
+      color: $primary;
+      border-color: $primary-border;
+      background: $primary-soft;
+      box-shadow: inset 0 -2px 0 0 $primary;
+    }
+  }
+
+  &__select {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    margin-left: auto;
+
+    > span {
+      display: inline-flex;
+      align-items: center;
+      gap: $space-1;
+      font-size: $fs-sm;
+      font-weight: $fw-semibold;
+      color: $text-secondary;
+      white-space: nowrap;
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      max-width: 220px;
+      padding: $space-2 $space-7 $space-2 $space-3;
+      border: 1px solid $border-strong;
+      border-radius: $radius-sm;
+      background: $surface
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='#{$text-muted}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        no-repeat right $space-3 center;
+      font-size: $fs-sm;
+      font-weight: $fw-semibold;
+      color: $text;
+      cursor: pointer;
+      transition: border-color $transition-fast, box-shadow $transition-fast;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.15);
+      }
+    }
+  }
+
+  &__hint {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-2;
+    font-size: $fs-sm;
+    line-height: $lh-snug;
+    color: $text-muted;
+
+    > svg {
+      flex-shrink: 0;
+      margin-top: $space-0-5;
+    }
+  }
+
+  // ----- Inline refresh-failure banner -----
+  &__banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-3;
+    padding: $space-3 $space-4;
+    background: $warning-soft;
+    border: 1px solid $warning-border;
+    border-radius: $radius-md;
+    font-size: $fs-sm;
+    color: $warning;
+
+    > span {
+      flex: 1;
+      min-width: 240px;
+    }
+  }
+
+  // ----- Result list -----
+  &__list {
+    @include stack($space-4);
+    transition: opacity $transition-base;
+
+    &.is-refreshing {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+  }
+
+  @include down('md') {
+    &__toolbar {
+      padding: $space-3 $space-4;
+    }
+
+    &__toolbar .search-field {
+      flex-basis: 100%;
+    }
+
+    &__select {
+      margin-left: 0;
+    }
+
+    &__banner > span {
+      min-width: 0;
+      flex-basis: 100%;
+    }
+  }
+}
