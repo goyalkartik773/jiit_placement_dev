@@ -1,0 +1,101 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.offer-sync-panel {
+  &__explain {
+    font-size: $fs-body-sm;
+    line-height: $lh-normal;
+    color: $text-soft;
+  }
+
+  // ---- Action row (mirrors the sync panel's action rhythm) ----
+  &__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  &__summary {
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    color: $text-secondary;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-2-5 $space-3;
+    border: 1px solid $danger-border;
+    border-radius: $radius-md;
+    background: $danger-soft;
+    color: $danger;
+    font-size: $fs-sm;
+
+    > svg {
+      flex-shrink: 0;
+    }
+
+    > span {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  // ---- Counters of the last real run ----
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: $space-2-5;
+    padding-top: $space-4;
+    border-top: 1px dashed $border;
+  }
+
+  &__stat {
+    @include card($space-3, $radius-md);
+    @include stack($space-0-5);
+    background: $surface-subtle;
+  }
+
+  &__stat-label {
+    @include field-label;
+  }
+
+  &__stat-value {
+    font-family: $font-mono;
+    font-size: $fs-lg;
+    font-weight: $fw-bold;
+    font-variant-numeric: tabular-nums;
+    color: $ink;
+
+    &--time {
+      font-size: $fs-sm;
+      color: $text-secondary;
+    }
+  }
+
+  &__hint {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-2;
+    padding: $space-3;
+    border: 1px dashed $border-strong;
+    border-radius: $radius-md;
+    background: $surface-subtle;
+    font-size: $fs-sm;
+    line-height: $lh-snug;
+    color: $text-muted;
+
+    > svg {
+      flex-shrink: 0;
+      margin-top: $space-0-5;
+    }
+  }
+
+  @include down('sm') {
+    &__stat-value {
+      font-size: $fs-md;
+    }
+  }
+}

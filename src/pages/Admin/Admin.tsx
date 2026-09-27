@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { AdminLogin } from '../../components/admin/AdminLogin/AdminLogin';
+import { OfferSyncPanel } from '../../components/admin/OfferSyncPanel/OfferSyncPanel';
 import { SyncPanel } from '../../components/admin/SyncPanel/SyncPanel';
 import { Button } from '../../components/common/Button/Button';
 import { useToast } from '../../components/common/Toast/Toast';
@@ -85,6 +86,9 @@ export function Admin() {
         onDelete={sync.remove}
         onRefresh={sync.reload}
       />
+
+      {/* Only rendered for a signed-in session (the page returns the login form otherwise). */}
+      <OfferSyncPanel onUnauthorized={handleUnauthorized} />
     </div>
   );
 }
