@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.gmail import attachments as attachment_text
-from app.gmail.client import GmailClient
+from app.gmail.client import GmailApiError, GmailClient
 from app.gmail.mime import MailMessage, parse_message
 from app.models import Email, EmailAttachment, EmailStatus
 from app.repositories import email_repo
@@ -35,10 +35,13 @@ def group_query(group_email: str) -> str:
     return f"list:{group_email.replace('@', '.')}"
 
 
+# Legacy tables live in the public schema of the same database; fully
+# qualified so the query is search_path-independent (tests run their own
+# schema inside the same database).
 _LEGACY_SQL = """
     SELECT a.gmailattachmentid, a.filename, a.mimetype, a.filesize, a.extractedtext
-    FROM gmailattachments a
-    JOIN gmailmessages m ON m.id = a.sysgmailmessageuuid
+    FROM public.gmailattachments a
+    JOIN public.gmailmessages m ON m.id = a.sysgmailmessageuuid
     WHERE m.gmailmessageid = :mid
 """
 
@@ -154,6 +157,7 @@ def run_sync(
         "attachments_downloaded": 0,
         "attachments_skipped": 0,
         "groups": [],
+        "errors": [],
     }
     seen: set[str] = set()
 
@@ -166,80 +170,100 @@ def run_sync(
                 "duplicates_skipped": 0,
                 "failed_messages": 0,
             }
-            for message_id in client.iter_message_ids(
-                query, max_results=payload.max_results
-            ):
-                if (
-                    payload.max_results
-                    and stats["total_fetched"] >= payload.max_results
+            aborted = False
+            try:
+                for message_id in client.iter_message_ids(
+                    query, max_results=payload.max_results
                 ):
-                    break
-                stats["total_fetched"] += 1
-                entry["listed"] += 1
+                    if (
+                        payload.max_results
+                        and stats["total_fetched"] >= payload.max_results
+                    ):
+                        break
+                    stats["total_fetched"] += 1
+                    entry["listed"] += 1
 
-                duplicate = message_id in seen
-                if not duplicate:
-                    seen.add(message_id)
+                    duplicate = message_id in seen
+                    if not duplicate:
+                        seen.add(message_id)
+                        try:
+                            duplicate = (
+                                email_repo.get_by_gmail_message_id(
+                                    session, message_id
+                                )
+                                is not None
+                            )
+                        except Exception:
+                            session.rollback()
+                            duplicate = True  # cannot verify - never double-insert
+
+                    if duplicate:
+                        stats["duplicates_skipped"] += 1
+                        entry["duplicates_skipped"] += 1
+                        continue
+
                     try:
-                        duplicate = (
-                            email_repo.get_by_gmail_message_id(session, message_id)
-                            is not None
+                        raw = client.get_message(message_id)
+                        mail = parse_message(
+                            raw,
+                            source_group_hint=None if payload.query else label,
                         )
-                    except Exception:
+                        row = email_repo.insert_mail(session, mail)
+                        att_counts = {}
+                        if payload.download_attachments and mail.has_attachments:
+                            att_counts = store_attachments(
+                                session, row, mail, client, settings
+                            )
+                        session.commit()
+                        stats["new_messages"] += 1
+                        entry["new_messages"] += 1
+                        for key, value in att_counts.items():
+                            stats[key] = stats.get(key, 0) + value
+                    except IntegrityError:
+                        # Unique gmail_message_id lost a race: treat as duplicate.
                         session.rollback()
-                        duplicate = True  # cannot verify - never double-insert
-
-                if duplicate:
-                    stats["duplicates_skipped"] += 1
-                    entry["duplicates_skipped"] += 1
-                    continue
-
-                try:
-                    raw = client.get_message(message_id)
-                    mail = parse_message(
-                        raw,
-                        source_group_hint=None if payload.query else label,
-                    )
-                    row = email_repo.insert_mail(session, mail)
-                    att_counts = {}
-                    if payload.download_attachments and mail.has_attachments:
-                        att_counts = store_attachments(
-                            session, row, mail, client, settings
+                        stats["duplicates_skipped"] += 1
+                        entry["duplicates_skipped"] += 1
+                    except Exception as exc:
+                        # Per-message error isolation: never abort the whole sync.
+                        session.rollback()
+                        stats["failed_messages"] += 1
+                        entry["failed_messages"] += 1
+                        log_event(
+                            log,
+                            "sync.message_failed",
+                            level=logging.WARNING,
+                            message_id=message_id,
+                            error=type(exc).__name__,
+                            detail=str(exc)[:300],
                         )
-                    session.commit()
-                    stats["new_messages"] += 1
-                    entry["new_messages"] += 1
-                    for key, value in att_counts.items():
-                        stats[key] = stats.get(key, 0) + value
-                except IntegrityError:
-                    # Unique gmail_message_id lost a race: treat as duplicate.
-                    session.rollback()
-                    stats["duplicates_skipped"] += 1
-                    entry["duplicates_skipped"] += 1
-                except Exception as exc:
-                    # Per-message error isolation: never abort the whole sync.
-                    session.rollback()
-                    stats["failed_messages"] += 1
-                    entry["failed_messages"] += 1
-                    log_event(
-                        log,
-                        "sync.message_failed",
-                        level=logging.WARNING,
-                        message_id=message_id,
-                        error=type(exc).__name__,
-                        detail=str(exc)[:300],
-                    )
 
-                handle.update(
-                    message=f"syncing {label}",
-                    total_fetched=stats["total_fetched"],
-                    new_messages=stats["new_messages"],
-                    duplicates_skipped=stats["duplicates_skipped"],
-                    failed_messages=stats["failed_messages"],
+                    handle.update(
+                        message=f"syncing {label}",
+                        total_fetched=stats["total_fetched"],
+                        new_messages=stats["new_messages"],
+                        duplicates_skipped=stats["duplicates_skipped"],
+                        failed_messages=stats["failed_messages"],
+                    )
+            except GmailApiError as exc:
+                # Listing/pagination failed (e.g. quota exhausted): keep every
+                # row committed so far, record the error, skip remaining
+                # groups (they would hit the same window) and finish normally.
+                # A re-run resumes idempotently from where this one stopped.
+                stats["errors"].append(f"{label}: {exc}")
+                aborted = True
+                log_event(
+                    log,
+                    "sync.aborted",
+                    level=logging.WARNING,
+                    group=label,
+                    error=str(exc)[:300],
                 )
 
             stats["groups"].append(entry)
             handle.update(message=f"finished {label}")
+            if aborted:
+                break
     finally:
         session.close()
 
@@ -254,5 +278,6 @@ def run_sync(
         new_messages=stats["new_messages"],
         duplicates_skipped=stats["duplicates_skipped"],
         failed_messages=stats["failed_messages"],
+        errors=len(stats["errors"]),
     )
     return stats

@@ -11,15 +11,22 @@ Design notes:
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Iterator, Optional
 
 import httpx
 
 from app.gmail.auth import GmailAuth
+from app.utils.logging import log_event
+
+log = logging.getLogger("app.gmail.client")
 
 API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
 _RETRY_STATUS = (429, 500, 502, 503, 504)
+#: Consumer quota ("Units per minute per user") resets every minute.
+_QUOTA_SLEEP_SECONDS = 62.0
+_QUOTA_MARKERS = ("quota exceeded", "rate limit")
 
 
 class GmailApiError(RuntimeError):
@@ -31,6 +38,13 @@ class GmailApiError(RuntimeError):
         super().__init__(f"Gmail API HTTP {status}" + (f": {reason}" if reason else ""))
 
 
+def is_quota_error(status: int, reason: str) -> bool:
+    """403/429 quota rejections — retryable after the window resets."""
+    return status in (403, 429) and any(
+        marker in (reason or "").lower() for marker in _QUOTA_MARKERS
+    )
+
+
 class GmailClient:
     def __init__(
         self,
@@ -39,20 +53,34 @@ class GmailClient:
         page_size: int = 100,
         timeout: float = 30.0,
         max_retries: int = 3,
+        min_interval_ms: int = 1100,
     ):
         self._auth = auth
         self.page_size = page_size
         self._timeout = timeout
         self._max_retries = max_retries
+        self._min_interval = max(min_interval_ms, 0) / 1000.0
+        self._last_request_at = 0.0
         self._http = httpx.Client(timeout=timeout)
 
     # --------------------------------------------------------------- http
+
+    def _throttle(self) -> None:
+        """Keep a steady request rate so a backfill stays under the quota."""
+        if self._min_interval <= 0:
+            return
+        now = time.monotonic()
+        wait = self._last_request_at + self._min_interval - now
+        if wait > 0:
+            time.sleep(wait)
+        self._last_request_at = time.monotonic()
 
     def _request(
         self, method: str, url: str, *, params: Optional[dict] = None
     ) -> httpx.Response:
         response: Optional[httpx.Response] = None
         for attempt in range(self._max_retries):
+            self._throttle()
             headers = {"Authorization": f"Bearer {self._auth.access_token()}"}
             try:
                 response = self._http.request(
@@ -69,6 +97,19 @@ class GmailClient:
             if response.status_code in _RETRY_STATUS and attempt < self._max_retries - 1:
                 time.sleep(0.5 * (2**attempt))
                 continue
+            if response.status_code in (403, 429) and is_quota_error(
+                response.status_code, response.text
+            ):
+                if attempt < self._max_retries - 1:
+                    log_event(
+                        log,
+                        "gmail.quota_backoff",
+                        level=logging.WARNING,
+                        seconds=int(_QUOTA_SLEEP_SECONDS),
+                    )
+                    time.sleep(_QUOTA_SLEEP_SECONDS)
+                    continue
+                raise GmailApiError(response.status_code, "quota exceeded (giving up)")
             return response
         return response  # pragma: no cover - loop always returns above
 

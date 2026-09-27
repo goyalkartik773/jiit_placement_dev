@@ -45,6 +45,9 @@ class SyncStats(BaseModel):
     attachments_downloaded: int = 0
     attachments_skipped: int = 0
     groups: list[GroupSyncStats] = []
+    #: Partial-run errors (e.g. quota window): rows committed so far stand,
+    #: a re-run resumes idempotently.
+    errors: list[str] = []
     seconds: float = 0.0
     finished_at: Optional[datetime] = None
 

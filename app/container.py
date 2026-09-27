@@ -33,5 +33,6 @@ class Container:
                 auth,
                 page_size=self.settings.gmail.page_size,
                 timeout=self.settings.gmail.request_timeout,
+                min_interval_ms=self.settings.gmail.min_interval_ms,
             )
         return self._client

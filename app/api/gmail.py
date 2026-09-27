@@ -66,13 +66,19 @@ def gmail_sync(
         raise HTTPException(status_code=502, detail=str(exc))
 
     stats["run_id"] = container.status.snapshot("sync").get("run_id")
+    message = (
+        f"Sync completed: {stats['new_messages']} new, "
+        f"{stats['duplicates_skipped']} duplicates skipped, "
+        f"{stats['failed_messages']} failed"
+    )
+    if stats.get("errors"):
+        message += (
+            f"; {len(stats['errors'])} group error(s), re-run to resume "
+            "(committed rows are kept)"
+        )
     return ApiResponse(
         success=True,
-        message=(
-            f"Sync completed: {stats['new_messages']} new, "
-            f"{stats['duplicates_skipped']} duplicates skipped, "
-            f"{stats['failed_messages']} failed"
-        ),
+        message=message,
         data=stats,
     )
 

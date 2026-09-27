@@ -96,6 +96,10 @@ class GmailConfig:
     page_size: int
     max_attachment_bytes: int
     request_timeout: float
+    #: Minimum spacing between Gmail API calls.  The consumer quota is ~60
+    #: queries/minute per user, so a full backfill paces itself instead of
+    #: burning the window (0 disables pacing).
+    min_interval_ms: int
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,7 @@ def load_settings() -> Settings:
         page_size=_env_int("GMAIL_PAGE_SIZE", 100),
         max_attachment_bytes=_env_int("GMAIL_MAX_ATTACHMENT_BYTES", 5 * 1024 * 1024),
         request_timeout=float(_env("GMAIL_REQUEST_TIMEOUT", "30")),
+        min_interval_ms=_env_int("GMAIL_MIN_INTERVAL_MS", 1100),
     )
     return Settings(
         database_url=database_url(),
