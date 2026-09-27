@@ -30,6 +30,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  // Numbers align in lists without a monospace font.
+  font-variant-numeric: tabular-nums;
 }
 
 img,

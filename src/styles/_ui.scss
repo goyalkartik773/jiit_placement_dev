@@ -1,0 +1,54 @@
+// ============================================================================
+// Calm design system — data-browsing screens (Active Job Listing,
+// Company-Wise Placement) and the global navigation.
+//
+// Every token is prefixed `--ui-`: the admin console (script console / run
+// history), the e-mail + Superset notices and the terminal keep the `--*`
+// palette they were designed against, so the two systems can coexist without
+// one silently restyling the other.
+//
+// Rules of the system:
+//   · ONE accent (#3E63DD) + green (money/positive) + red (urgent only)
+//   · neutral gray is the default for every pill/tag/chip that carries no
+//     meaning; colour appears only where the meaning is real
+//   · Plus Jakarta Sans everywhere on these screens, tabular numerals
+// ============================================================================
+:root {
+  // Surfaces
+  --ui-bg: #f7f8fa; // page background
+  --ui-panel: #ffffff; // cards, headers, panels
+  --ui-border: #e7e9ee; // card / section borders
+  --ui-border-soft: #eff1f4; // dividers inside a card
+
+  // Ink
+  --ui-ink: #1b1e27; // primary text
+  --ui-muted: #697086; // secondary text — descriptions, meta
+  --ui-faint: #9aa1b0; // tertiary text — timestamps, placeholders
+
+  // Single accent
+  --ui-accent: #3e63dd; // links, primary numbers, active nav, selected pills
+  --ui-accent-soft: #eef1fe; // accent background for pills
+
+  // Meaning colours
+  --ui-green: #1aa179; // compensation, positive counts, success
+  --ui-green-soft: #e7f8f1;
+  --ui-red: #d5484b; // passed deadlines, urgent-only warnings
+  --ui-red-soft: #fdeeee;
+
+  // Neutral building blocks shared by both screens
+  --ui-pill: #f0f1f4; // default pill background (filters, tags)
+  --ui-track: #eef0f3; // segmented-control track
+  --ui-sunken: #fbfcfd; // expanded company body
+  --ui-quiet: #fafbfc; // description preview box
+
+  // Type
+  --ui-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  // Radius scale (top-level card → panel → nested → pill)
+  --ui-radius-card: 16px;
+  --ui-radius-panel: 14px;
+  --ui-radius-nested: 12px;
+  --ui-radius-field: 11px;
+  --ui-radius-pill: 999px;
+}

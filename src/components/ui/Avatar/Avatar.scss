@@ -1,0 +1,40 @@
+// Soft-tinted rounded square with company initials — shared by both screens.
+// The tint is picked from the name (t0…t4) and stays soft/muted: this is the
+// only place the design system allows more than one colour.
+.ui-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  user-select: none;
+
+  &--t0 {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+  }
+
+  &--t1 {
+    background: #fdeef3;
+    color: #c4437a;
+  }
+
+  &--t2 {
+    background: var(--ui-green-soft);
+    color: var(--ui-green);
+  }
+
+  &--t3 {
+    background: #f3eefd;
+    color: #7c4fe0;
+  }
+
+  &--t4 {
+    background: #fdf3e2;
+    color: #b9750c;
+  }
+}

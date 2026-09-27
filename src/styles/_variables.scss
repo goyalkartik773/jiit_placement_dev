@@ -13,6 +13,8 @@
 
 // ---------- Brand ----------
 $primary: #2e5eff; // --blue — jobs / primary actions
+$ui-accent: #3e63dd; // --ui-accent — calm design system (data screens)
+$ui-accent-hover: #3557c9; // --ui-accent hover/active shade
 $primary-hover: #244bdb;
 $primary-active: #1d3fb8;
 $primary-soft: #eef2ff; // --blue soft bg
@@ -38,7 +40,7 @@ $border-strong: #cfd4dc; // --line-strong — button borders
 $surface: #ffffff; // --panel
 $surface-subtle: #f7f8fa;
 $surface-muted: #eef0f4;
-$app-bg: #f5f6f8; // --bg — page canvas, dot-grid base
+$app-bg: #f7f8fa; // --bg — page canvas, dot-grid base (design token: --bg)
 
 // ---------- Page dot grid (technical blueprint texture) ----------
 $app-dot: #e4e7ec;

@@ -1,0 +1,10 @@
+// Shared card surface — white panel, 1px border, 16px radius.
+// Colour never comes from here: callers own padding, radius overrides and
+// inner layout.
+.ui-card {
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  color: var(--ui-ink);
+  font-family: var(--ui-font);
+}

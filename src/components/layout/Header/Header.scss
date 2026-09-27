@@ -11,8 +11,11 @@
   top: 0;
   z-index: $z-header;
   min-height: $header-height;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: var(--ui-panel);
+  border-bottom: 1px solid var(--ui-border);
+  // Global chrome speaks the calm design system (never monospace on a data
+  // screen) — the admin page itself keeps its own technical typography.
+  font-family: var(--ui-font);
 
   &__inner {
     display: flex;
@@ -35,21 +38,20 @@
   &__sep {
     flex-shrink: 0;
     font-size: $fs-xs;
-    color: var(--faint);
+    color: var(--ui-faint);
   }
 
-  // Section name — breadcrumb text, mono by the design system.
+  // Section name — plain sentence text (no monospace on a data screen).
   &__context {
     min-width: 0;
-    font-family: var(--font-mono);
-    font-size: $fs-label;
-    letter-spacing: $tracking-label;
-    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ui-muted);
     text-decoration: none;
     @include truncate;
 
     &:hover {
-      color: var(--ink);
+      color: var(--ui-ink);
       text-decoration: none;
     }
   }
@@ -64,13 +66,12 @@
   // ---------- Filled ADMIN pill ----------
   &__admin {
     padding: $space-1 $space-2-5;
-    border: 1px solid $primary;
+    border: 1px solid var(--ui-accent);
     border-radius: $radius-pill;
-    background: var(--blue);
+    background: var(--ui-accent);
     color: #fff;
-    font-family: var(--font-mono);
     font-size: $fs-tag;
-    font-weight: $fw-semibold;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: $tracking-label;
     line-height: 1.5;
@@ -78,8 +79,8 @@
     transition: background $transition-fast, border-color $transition-fast;
 
     &:hover {
-      background: $primary-hover;
-      border-color: $primary-hover;
+      background: $ui-accent-hover;
+      border-color: $ui-accent-hover;
       color: #fff;
       text-decoration: none;
     }
@@ -89,25 +90,25 @@
     }
 
     &[aria-current='page'] {
-      background: $primary-active;
-      border-color: $primary-active;
+      background: $ui-accent-hover;
+      border-color: $ui-accent-hover;
       color: #fff;
     }
   }
 
-  // ---------- Section navigation (scrollable, never overflows) ----------
+  // ---------- Section navigation: plain text tabs, underline active ----------
   &__nav {
-    background: var(--panel);
-    border-top: 1px solid var(--line);
+    background: transparent;
   }
 
   &__nav-list {
     display: flex;
-    align-items: center;
-    gap: $space-2;
+    align-items: stretch;
+    gap: 28px;
     max-width: $content-max;
-    margin: 0 auto;
-    padding: $space-2 $space-6;
+    // Sits 1px low so the active tab's underline covers the header border.
+    margin: 0 auto -1px;
+    padding: 0 $space-6;
     list-style: none;
     overflow-x: auto;
     overflow-y: hidden;
@@ -119,25 +120,27 @@
     flex: 0 0 auto;
   }
 
-  // Tab: uppercase mono label — inactive has no background at all.
+  // Tab: 14px / 600 text link — active carries colour + a 2px underline only.
   &__nav-link {
     display: inline-block;
-    padding: $space-1-5 $space-3;
-    border: 1px solid transparent;
-    border-radius: $radius-tab;
+    height: 100%;
+    padding: 10px 0 13px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     background: transparent;
-    font-family: var(--font-mono);
-    font-size: $fs-xs;
-    font-weight: $fw-medium;
-    text-transform: uppercase;
-    letter-spacing: $tracking-label;
-    color: var(--muted);
+    font-family: var(--ui-font);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ui-faint);
     white-space: nowrap;
     text-decoration: none;
-    transition: color $transition-fast, background $transition-fast, border-color $transition-fast;
+    transition: color $transition-fast, border-color $transition-fast;
 
     &:hover {
-      color: var(--ink);
+      color: var(--ui-ink);
       text-decoration: none;
     }
 
@@ -145,11 +148,11 @@
       @include focus-ring(2px);
     }
 
-    // Active tab: soft blue field, blue label, light blue border.
+    // Active tab: accent label, 2px accent bottom border, no fill.
     &[aria-current='page'] {
-      background: var(--blue-soft);
-      border-color: $primary-border;
-      color: var(--blue);
+      background: transparent;
+      border-bottom-color: var(--ui-accent);
+      color: var(--ui-accent);
     }
   }
 }
@@ -160,11 +163,11 @@
   align-items: center;
   gap: $space-2;
   flex-shrink: 0;
-  color: var(--ink);
+  color: var(--ui-ink);
   text-decoration: none;
 
   &:hover {
-    color: var(--ink);
+    color: var(--ui-ink);
     text-decoration: none;
   }
 
@@ -173,14 +176,14 @@
     height: 9px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: var(--blue);
+    background: var(--ui-accent);
   }
 
   &__name {
     font-size: $fs-row-title;
     font-weight: $fw-bold;
     letter-spacing: $tracking-title;
-    color: var(--ink);
+    color: var(--ui-ink);
     white-space: nowrap;
   }
 }
@@ -192,20 +195,20 @@
   gap: $space-2;
   flex-shrink: 0;
   padding: $space-1 $space-2-5;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ui-border);
   border-radius: $radius-pill;
-  background: var(--panel);
-  font-family: var(--font-mono);
+  background: var(--ui-panel);
   font-size: $fs-tag;
+  font-weight: 500;
   letter-spacing: $tracking-label;
-  color: var(--muted);
+  color: var(--ui-muted);
 
   &__dot {
     width: 6px;
     height: 6px;
     flex-shrink: 0;
     border-radius: 50%;
-    background: var(--green);
+    background: var(--ui-green);
     animation: pulse-dot 2s ease-in-out infinite;
   }
 }
@@ -219,7 +222,7 @@
 
   // The tab row keeps its rhythm but scrolls inside the narrower viewport.
   .app-header__nav-list {
-    padding: $space-2 $space-4;
+    padding: 0 $space-4;
   }
 
   .api-status {

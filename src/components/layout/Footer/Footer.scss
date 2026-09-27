@@ -18,8 +18,10 @@
     text-align: center;
   }
 
+  // Global chrome on the data screens — descriptive sentence, not a technical
+  // surface, so it follows the design-system typeface (no monospace there).
   &__meta {
-    font-family: $font-mono;
+    font-family: var(--ui-font);
   }
 
   @include up('md') {
