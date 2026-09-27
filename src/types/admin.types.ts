@@ -67,6 +67,24 @@ export interface AdminDeletePhase {
   durationMs: number;
 }
 
+/** POST /api/admin/jobs/sync-offer-students — counters from one real run. */
+export interface AdminOfferSyncResponse {
+  success: boolean;
+  message: string;
+  jobsTotal: number;
+  jobsMatched: number;
+  jobsWithoutPlacements: number;
+  studentsConsidered: number;
+  studentsMapped: number;
+  mappingsInserted: number;
+  duplicatesSkipped: number;
+  companiesMatched: number;
+  companiesSkipped: number;
+  totalMappings: number;
+  /** ISO timestamp of the run (e.g. "2026-09-27T16:24:12.206128+05:30"). */
+  lastRunAt: string;
+}
+
 /** DELETE /api/admin/jobs — honest counts of everything that was removed. */
 export interface AdminDeleteJobsResponse {
   success: boolean;

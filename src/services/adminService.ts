@@ -4,6 +4,7 @@ import type {
   AdminJobCountResponse,
   AdminLoginResponse,
   AdminLogoutResponse,
+  AdminOfferSyncResponse,
   AdminSyncStartResponse,
   AdminSyncStatus,
 } from '../types/admin.types';
@@ -16,6 +17,7 @@ import type {
  * GET    /api/admin/jobs/count
  * POST   /api/admin/jobs/sync
  * GET    /api/admin/jobs/sync/status
+ * POST   /api/admin/jobs/sync-offer-students
  * DELETE /api/admin/jobs
  *
  * The session token lives in sessionStorage (per-tab) and is attached as an
@@ -91,6 +93,25 @@ export async function startJobSync(signal?: AbortSignal): Promise<AdminSyncStart
     token: getAdminToken(),
     signal,
   });
+}
+
+/**
+ * Matches the offer-student records parsed from congratulation emails onto
+ * the jobs already in the system (companies missing from the job listing are
+ * skipped). Returns the counters of THIS run. Throws ApiError — including
+ * ApiError(401) when the admin session has expired.
+ */
+export async function syncOfferStudents(signal?: AbortSignal): Promise<AdminOfferSyncResponse> {
+  const response = await postJson<AdminOfferSyncResponse>('/api/admin/jobs/sync-offer-students', undefined, {
+    token: getAdminToken(),
+    signal,
+  });
+
+  if (!response.success) {
+    throw new ApiError(response.message || 'Syncing offer students failed.');
+  }
+
+  return response;
 }
 
 /** Live sync snapshot: idle / running / completed / failed. */
