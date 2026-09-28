@@ -1,0 +1,236 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Client navigation rail.
+//
+//   ≥1024px  full rail with labels
+//   768–1023 icon-only (labels collapse to a title tooltip)
+//   <768px   fixed off-canvas drawer, opened by the hamburger in the top bar
+//
+// Active item = soft accent background + accent text + 3px accent bar on its
+// left edge.  Nothing else in the item changes.
+// ============================================================================
+.client-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 236px;
+  height: 100vh;
+  flex-shrink: 0;
+  padding: 22px 16px;
+  background: var(--ui-panel);
+  border-right: 1px solid var(--ui-border);
+  font-family: var(--ui-font);
+  overflow-y: auto;
+
+  // ----- Product mark -----
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 0 4px;
+  }
+
+  &__mark {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ui-accent);
+  }
+
+  &__brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+  }
+
+  &__brand-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+    white-space: nowrap;
+  }
+
+  &__brand-sub {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ui-faint);
+    white-space: nowrap;
+  }
+
+  &__close {
+    display: none;
+    margin-left: auto;
+    padding: 6px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ui-muted);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--ui-pill);
+      color: var(--ui-ink);
+    }
+  }
+
+  // ----- Items -----
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px; // icon + label: comfortably inside the 8–10px minimum
+    min-height: 42px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--ui-muted);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: var(--ui-border-soft);
+      color: var(--ui-ink);
+      text-decoration: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ui-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  &__icon {
+    flex-shrink: 0; // the icon keeps its full box, even when the label wraps
+  }
+
+  &__label {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Active: soft accent fill + accent label + accent bar on the left edge.
+  &__item.is-active {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--ui-accent);
+    }
+
+    .client-nav__icon {
+      color: var(--ui-accent);
+    }
+  }
+
+  &__foot {
+    margin: auto 0 0;
+    padding: 0 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--ui-faint);
+  }
+
+  // ----- Icon-only rail on small screens -----
+  @include down('lg') {
+    width: 76px;
+    padding: 22px 12px;
+    align-items: stretch;
+
+    &__brand {
+      justify-content: center;
+      padding: 0;
+    }
+
+    &__brand-text,
+    &__foot {
+      display: none;
+    }
+
+    &__item {
+      justify-content: center;
+      padding: 10px;
+      gap: 0;
+    }
+
+    &__label {
+      display: none;
+    }
+  }
+
+  // ----- Drawer below the drawer breakpoint -----
+  @include down('md') {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(300px, 84vw);
+    height: 100dvh;
+    padding: 20px 16px;
+    transform: translateX(-100%);
+    // Hidden drawers must leave the tab order — visibility does that while
+    // the transform still animates (it is transitioned alongside it).
+    visibility: hidden;
+    transition: transform $transition-base, visibility $transition-base;
+    box-shadow: 0 20px 50px rgba(17, 20, 28, 0.22);
+
+    &.is-open {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
+    &__brand {
+      justify-content: flex-start;
+      padding: 0;
+    }
+
+    &__brand-text {
+      display: flex;
+    }
+
+    &__close {
+      display: inline-flex;
+    }
+
+    &__item {
+      justify-content: flex-start;
+      padding: 11px 12px;
+      gap: 11px;
+    }
+
+    &__label {
+      display: inline;
+    }
+
+    &__foot {
+      display: block;
+    }
+  }
+}

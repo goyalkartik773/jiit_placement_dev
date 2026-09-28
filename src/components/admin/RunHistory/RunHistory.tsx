@@ -10,6 +10,8 @@ import type { AdminActivityItem } from '../../../types/admin.types';
 import './RunHistory.scss';
 
 interface RunHistoryProps {
+  /** In-page anchor target of the console nav (`#history`). */
+  id?: string;
   /** Runs, newest first, appended page by page by `useActivity`. */
   items: AdminActivityItem[];
   totalCount: number | null;
@@ -30,6 +32,7 @@ interface RunHistoryProps {
  * the row's stored console output in the matching action card.
  */
 export function RunHistory({
+  id,
   items,
   totalCount,
   loading,
@@ -86,7 +89,7 @@ export function RunHistory({
   }
 
   return (
-    <Panel className="runs" icon="clock" title="Run history" meta={meta}>
+    <Panel className="runs" id={id} icon="clock" title="Run history" meta={meta}>
       {body}
     </Panel>
   );

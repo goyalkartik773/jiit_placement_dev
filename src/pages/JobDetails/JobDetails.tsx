@@ -47,7 +47,7 @@ export function JobDetails() {
         <NotFoundState
           description={notFound ? 'This job does not exist in the placement database.' : 'The job could not be loaded.'}
           action={
-            <ButtonLink to="/" variant="primary" icon="arrow-left">
+            <ButtonLink to="/jobs" variant="primary" icon="arrow-left">
               Browse all jobs
             </ButtonLink>
           }

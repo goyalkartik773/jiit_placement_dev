@@ -8,6 +8,12 @@
 .admin-page {
   @include stack($space-6);
 
+  // The console nav jumps by hash (#inventory, #scripts, #history, #activity);
+  // keep the landed section clear of the sticky chrome bar above.
+  section[id] {
+    scroll-margin-top: 84px;
+  }
+
   // ----- Page header: blue mono eyebrow → 26px title → muted session line -----
   &__head {
     display: flex;

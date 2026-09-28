@@ -19,6 +19,8 @@ import type { AdminActivityItem } from '../../../types/admin.types';
 import './ActivityTimeline.scss';
 
 interface ActivityTimelineProps {
+  /** In-page anchor target of the console nav (`#activity`). */
+  id?: string;
   /** The whole loaded activity list — the timeline shows its first page. */
   items: AdminActivityItem[];
   totalCount: number | null;
@@ -36,6 +38,7 @@ interface ActivityTimelineProps {
  * The Replay button opens the row's stored console output above.
  */
 export function ActivityTimeline({
+  id,
   items,
   totalCount,
   loading,
@@ -135,7 +138,7 @@ export function ActivityTimeline({
   }
 
   return (
-    <Panel className="timeline-panel" icon="zap" title="Recent activity" meta={meta}>
+    <Panel className="timeline-panel" id={id} icon="zap" title="Recent activity" meta={meta}>
       {body}
     </Panel>
   );

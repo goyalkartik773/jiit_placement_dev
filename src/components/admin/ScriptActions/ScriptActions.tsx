@@ -84,6 +84,8 @@ function hasContent(source: ResultSource): boolean {
 }
 
 interface ScriptActionsProps {
+  /** In-page anchor target of the console nav (`#scripts`). */
+  id?: string;
   /** Script the runner is attached to (drives the live console of one card). */
   action: AdminScriptAction | null;
   /** Live/last status of that script. */
@@ -120,6 +122,7 @@ interface ScriptActionsProps {
  * which of the already-loaded payloads belongs to which card.
  */
 export function ScriptActions({
+  id,
   action,
   status,
   busy,
@@ -265,7 +268,7 @@ export function ScriptActions({
   const meta = busy ? 'run in flight' : undefined;
 
   return (
-    <Panel className="script-actions" icon="terminal" title="Script actions" meta={meta}>
+    <Panel className="script-actions" id={id} icon="terminal" title="Script actions" meta={meta}>
       <div className="script-actions__list">
         {ACTIONS.map((key) => (
           <ActionCard

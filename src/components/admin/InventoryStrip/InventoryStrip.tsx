@@ -11,6 +11,8 @@ interface InventoryStripProps {
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  /** In-page anchor target of the console nav (`#inventory`). */
+  id?: string;
 }
 
 interface InventoryTile {
@@ -130,18 +132,18 @@ function buildTiles(overview: AdminOverview): InventoryTile[] {
  * numbers (counts, mailbox rates, classification coverage, matching, integrity,
  * shortlist). Every value is a server number — only formatting happens here.
  */
-export function InventoryStrip({ overview, loading, error, onRetry }: InventoryStripProps) {
+export function InventoryStrip({ overview, loading, error, onRetry, id }: InventoryStripProps) {
   if (!overview) {
     if (error) {
       return (
-        <section className="inventory" aria-label="System inventory">
+        <section className="inventory" id={id} aria-label="System inventory">
           <ErrorState title="Inventory unavailable" message={error} onRetry={onRetry} />
         </section>
       );
     }
 
     return (
-      <section className="inventory" aria-label="System inventory">
+      <section className="inventory" id={id} aria-label="System inventory">
         <div className="inventory__grid" role="status" aria-label="Loading inventory">
           {Object.entries(TILE_ACCENT).map(([key, accent]) => (
             <article className={`stat-tile stat-tile--${accent}`} key={key} aria-hidden="true">
@@ -165,7 +167,7 @@ export function InventoryStrip({ overview, loading, error, onRetry }: InventoryS
   const tiles = buildTiles(overview);
 
   return (
-    <section className="inventory" aria-label="System inventory">
+    <section className="inventory" id={id} aria-label="System inventory">
       {error ? (
         <p className="inventory__error" role="alert">
           <Icon name="alert-circle" size={15} />

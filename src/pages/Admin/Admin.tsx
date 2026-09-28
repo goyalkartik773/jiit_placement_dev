@@ -128,6 +128,7 @@ export function Admin() {
       </section>
 
       <InventoryStrip
+        id="inventory"
         overview={overview.overview}
         loading={overview.initialLoading}
         error={overview.error}
@@ -135,6 +136,7 @@ export function Admin() {
       />
 
       <ScriptActions
+        id="scripts"
         action={runner.action}
         status={runner.status}
         busy={runner.busy}
@@ -152,6 +154,7 @@ export function Admin() {
       />
 
       <RunHistory
+        id="history"
         items={activity.items}
         totalCount={activity.totalCount}
         loading={activity.loading}
@@ -165,6 +168,7 @@ export function Admin() {
       />
 
       <ActivityTimeline
+        id="activity"
         items={activity.items}
         totalCount={activity.totalCount}
         loading={activity.loading}

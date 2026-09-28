@@ -11,7 +11,7 @@ export function NotFound() {
         description="The page you are looking for does not exist or may have been moved."
         action={
           <ButtonLink to="/" variant="primary" icon="arrow-left">
-            Back to jobs
+            Back to dashboard
           </ButtonLink>
         }
       />

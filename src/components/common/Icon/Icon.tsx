@@ -33,7 +33,12 @@ export type IconName =
   | 'terminal'
   | 'checklist'
   | 'logout'
-  | 'trash';
+  | 'trash'
+  | 'home'
+  | 'bell'
+  | 'menu'
+  | 'award'
+  | 'flag';
 
 const paths: Record<IconName, JSX.Element> = {
   search: (
@@ -192,6 +197,32 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
       <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
       <path d="M10 11v6M14 11v6" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="M4 11.2 12 4l8 7.2" />
+      <path d="M6.5 10v9.2a.8.8 0 0 0 .8.8h9.4a.8.8 0 0 0 .8-.8V10" />
+      <path d="M10 20v-5.5h4V20" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 5.5-2 7-2 7h16s-2-1.5-2-7" />
+      <path d="M10.3 19a2 2 0 0 0 3.4 0" />
+    </>
+  ),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  award: (
+    <>
+      <circle cx="12" cy="9" r="5.2" />
+      <path d="M8.4 13.4 7.2 21l4.8-2.6L16.8 21l-1.2-7.6" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 5h11.5l-1.6 3.5L16.5 12H5" />
     </>
   ),
 };

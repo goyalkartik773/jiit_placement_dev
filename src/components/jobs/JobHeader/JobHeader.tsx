@@ -32,7 +32,7 @@ export function JobHeader({ job }: JobHeaderProps) {
     <header className="job-header">
       {/* Breadcrumb bar: back + badges */}
       <div className="job-header__bar">
-        <Link to="/" className="job-header__back">
+        <Link to="/jobs" className="job-header__back">
           <Icon name="arrow-left" size={16} />
           <span>All Jobs</span>
         </Link>

@@ -60,7 +60,7 @@ export function SupersetNotices() {
 
       <p className="superset-notices-page__intro">
         Announcements published on the Superset job portal, synced as-is. The job listings themselves stay
-        in <Link className="superset-notices-page__intro-link" to="/">Active Job Listing</Link>.
+        in <Link className="superset-notices-page__intro-link" to="/jobs">Active Job Listing</Link>.
       </p>
 
       {/* ----- Search ----- */}
