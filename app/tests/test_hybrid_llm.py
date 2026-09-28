@@ -298,3 +298,69 @@ def test_hybrid_disabled_keeps_the_deterministic_path_untouched(
     # taxonomy confidence is untouched when the hybrid layer is off
     assert row.classification_confidence >= 0.9
     assert "llm:" not in " ".join(row.classification_signals)
+
+
+# --------------------------------------------------------------------------- #
+# Roll-number hygiene (the 2026-09-28 Imarticus regression)
+# --------------------------------------------------------------------------- #
+
+
+def test_normalize_roll_rejects_scientific_notation_and_keeps_real_rolls():
+    """A spreadsheet-exported roll must never be written verbatim."""
+    from app.extractors.llm_offers import normalize_roll
+
+    # The two shapes the deterministic cell matcher accepts.
+    assert normalize_roll("9923103320") == "9923103320"
+    assert normalize_roll("23119044") == "23119044"
+    assert normalize_roll(" 21103001 ") == "21103001"
+    assert normalize_roll("211L030") == "211L030"
+
+    # Light punctuation around an otherwise unambiguous roll.
+    assert normalize_roll("(9923103320)") == "9923103320"
+    assert normalize_roll("9923103320.") == "9923103320"
+
+    # Precision already lost upstream - two students share this string, so it
+    # can never be stored as a roll number.
+    assert normalize_roll("9.93E+11") is None
+    assert normalize_roll("9.93e+11") is None
+
+    # Ambiguous: several digit runs, or a run too long to be a roll.
+    assert normalize_roll("2027-9923103320") is None
+    assert normalize_roll("992310332023119044") is None
+    assert normalize_roll("") is None
+    assert normalize_roll(None) is None
+
+
+def test_duplicate_or_unusable_rolls_never_roll_back_the_email(
+    session, insert_email, hybrid_enabled, monkeypatch
+):
+    """The Imarticus failure: two students exported as ``9.93E+11``.
+
+    Writing both rows would violate ``uq_student_placement_events_email`` and
+    discard every row of a 30-student email, so the unusable roll becomes
+    NULL (distinct for the unique index) while both students stay on record.
+    """
+    payload = dict(
+        FINAL_PAYLOAD,
+        students=[
+            {"roll_number": "9.93E+11", "name": "Abhishek Pundir", "program": "MCA", "branch": "MCA"},
+            {"roll_number": "9.93E+11", "name": "Riya Sharma", "program": "MCA", "branch": "MCA"},
+            {"roll_number": "9923103320", "name": "Aayush Gupta", "program": "B.Tech", "branch": "CSE"},
+        ],
+    )
+    monkeypatch.setattr(
+        processing, "get_service", lambda cfg: _FakeService(payload)
+    )
+
+    row = insert_email(subject=OFFER_SUBJECT, body_text=OFFER_BODY)
+    outcome = processing.process_one(session, row.id, load_settings())
+    assert outcome["status"] == EmailStatus.PROCESSED
+
+    placed = _placed(session)
+    assert len(placed) == 3  # nobody dropped, nobody duplicated
+    rolls = sorted(e.roll_no for e in placed if e.roll_no is not None)
+    assert rolls == ["9923103320"]
+    assert sum(1 for e in placed if e.roll_no is None) == 2
+
+    session.refresh(row)
+    assert row.classification_method == "llm"

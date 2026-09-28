@@ -13,6 +13,7 @@ produces **no** offer row and **no** ``FINAL_SELECTED`` / ``OFFERED`` event.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -36,6 +37,51 @@ from app.models import (
 
 #: Written when every LLM account failed and the deterministic result was kept.
 METHOD_RULE_FALLBACK = "rule_based_fallback"
+
+# Same two shapes the deterministic cell matcher accepts
+# (``src/placement_pipeline/tables.py::_ROLL_CELL_RE``). Kept in sync by
+# ``test_llm_roll_normalisation`` so the two paths agree on what a roll is.
+_ROLL_DIGITS_RE = re.compile(r"^\d{8,12}$")
+_ROLL_ALPHA_RE = re.compile(r"^\d{3}[A-Za-z]\d{3}$")
+_DIGIT_RUN_RE = re.compile(r"\d+")
+_SCIENTIFIC_RE = re.compile(r"^\d+(?:\.\d+)?[eE][+-]?\d+$")
+
+
+def normalize_roll(value: Optional[str]) -> Optional[str]:
+    """Canonical roll number, or ``None`` when the source lost the number.
+
+    A spreadsheet export renders long enrolment numbers in scientific
+    notation (``9.93E+11``), and two different students in the *same* email
+    can collapse onto that one string. The deterministic parser never emits
+    it (the cell regex rejects it), but the model copies it verbatim - and two
+    rows sharing ``(email_id, roll_no, event_type)`` violate
+    ``uq_student_placement_events_email``, rolling back every row for the
+    email. An unrecoverable number therefore becomes ``None``: the student is
+    still written, identified by name, and PostgreSQL's unique index treats
+    ``NULL`` as distinct so the insert cannot collide.
+
+    Accepted forms are exactly the deterministic pair (8-12 digits, or
+    ``NNNLNNN``) plus light punctuation around them; anything ambiguous
+    (several digit runs, a run too long to be a roll) is dropped rather than
+    guessed at, because a wrong roll silently maps a student onto somebody
+    else's record.
+    """
+    text = (value or "").strip()
+    if not text:
+        return None
+    compact = re.sub(r"\s+", "", text)
+    if _SCIENTIFIC_RE.match(compact):
+        return None  # precision was already lost upstream - never guess it back
+    if _ROLL_DIGITS_RE.match(compact):
+        return compact
+    if _ROLL_ALPHA_RE.match(compact):
+        return compact.upper()
+    runs = _DIGIT_RUN_RE.findall(compact)
+    # Exactly one unambiguous run of roll-shaped digits, and nothing else.
+    if len(runs) == 1 and _ROLL_DIGITS_RE.match(runs[0]):
+        return runs[0]
+    return None
+
 
 
 def resolve_company_id(
@@ -93,7 +139,7 @@ def build_llm_offer(
     )
     students = [
         OfferStudent(
-            roll_no=s.roll_number or None,
+            roll_no=normalize_roll(s.roll_number),
             name=s.name or None,
             branch=s.branch,
             program=s.program,
@@ -103,7 +149,7 @@ def build_llm_offer(
             status_raw=None,
         )
         for s in result.students
-        if (s.roll_number or s.name)
+        if (normalize_roll(s.roll_number) or s.name)
     ]
     return offer, students
 
@@ -117,7 +163,13 @@ def build_llm_events(
     received_at: Optional[datetime],
     method: str,
 ) -> list[StudentPlacementEvent]:
-    """Timeline events for the students the model says were *offered*."""
+    """Timeline events for the students the model says were *offered*.
+
+    Two rows may never share ``(email_id, roll_no, event_type)``: a repeated
+    roll in the model's answer would trip
+    ``uq_student_placement_events_email`` and discard the email's whole
+    timeline, so the first occurrence wins and later repeats are dropped.
+    """
     from app.extractors.events import _event_date  # shared date normalisation
 
     if not result.students:
@@ -130,12 +182,19 @@ def build_llm_events(
     event_date = _event_date(received_at)
 
     rows: list[StudentPlacementEvent] = []
+    seen: set[tuple[Optional[str], str]] = set()
     for student in result.students:
-        if not (student.roll_number or student.name):
+        roll = normalize_roll(student.roll_number)
+        if not (roll or student.name):
             continue
+        if roll is not None:
+            key = (roll, kind)
+            if key in seen:
+                continue  # same student listed twice -> one event, not a crash
+            seen.add(key)
         rows.append(
             StudentPlacementEvent(
-                roll_no=student.roll_number or None,
+                roll_no=roll,
                 name=student.name or None,
                 company_id=company_id,
                 email_id=email_id,
@@ -252,5 +311,6 @@ __all__ = [
     "build_llm_events",
     "build_llm_offer",
     "deterministic_statuses",
+    "normalize_roll",
     "resolve_company_id",
 ]
