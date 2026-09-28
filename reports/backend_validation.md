@@ -1,6 +1,6 @@
 # Backend validation report
 
-Generated: 2026-09-27T10:17:37+00:00  
+Generated: 2026-09-28T10:42:56+00:00  
 Golden samples: 33  
 Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled
@@ -81,12 +81,12 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | classification | emails |
 |---|---|
 | SHORTLIST | 137 |
-| FINAL_SELECTION | 94 |
+| FINAL_SELECTION | 90 |
 | HACKATHON | 90 |
 | REGISTRATION | 49 |
 | EVENT | 44 |
+| UNKNOWN | 43 |
 | GENERAL_PLACEMENT_NOTICE | 42 |
-| UNKNOWN | 39 |
 | SELECTION_PROCESS_NOTICE | 28 |
 | INTERNSHIP_OPPORTUNITY | 27 |
 | WEBINAR | 21 |
@@ -102,8 +102,8 @@ Categories with zero corpus samples - rules are covered by unit tests only: `OFF
 
 | table | run 1 | run 2 | identical |
 |---|---|---|---|
-| offers | 94 | 94 | yes |
-| offer_students | 895 | 895 | yes |
+| offers | 90 | 90 | yes |
+| offer_students | 896 | 896 | yes |
 | shortlist_events | 184 | 184 | yes |
 | shortlist_students | 19276 | 19276 | yes |
 | funnel_counts | 12 | 12 | yes |

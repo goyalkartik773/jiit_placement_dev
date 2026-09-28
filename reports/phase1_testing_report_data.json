@@ -1,0 +1,540 @@
+{
+  "before": {
+    "label": "before",
+    "at": 1790591472,
+    "emails": 596,
+    "by_status": {
+      "PROCESSED": 596
+    },
+    "tables": {
+      "companies": 118,
+      "student_placement_events": 20171,
+      "offers": 94,
+      "offer_students": 895,
+      "opportunities": 229,
+      "shortlist_events": 184,
+      "shortlist_students": 19276,
+      "funnel_counts": 12
+    },
+    "by_classification": {
+      "EVENT": 44,
+      "FINAL_SELECTION": 94,
+      "GENERAL_PLACEMENT_NOTICE": 42,
+      "HACKATHON": 90,
+      "INTERNSHIP_OPPORTUNITY": 27,
+      "JOB_OPPORTUNITY": 20,
+      "REGISTRATION": 49,
+      "SELECTION_PROCESS_NOTICE": 28,
+      "SHORTLIST": 137,
+      "UNKNOWN": 39,
+      "WEBINAR": 21,
+      "WORKSHOP": 5
+    },
+    "by_method": {
+      "rule_based": 596
+    },
+    "event_statuses": {
+      "FINAL_SELECTED": 231,
+      "OFFERED": 609,
+      "REJECTED": 55,
+      "SHORTLISTED": 19276
+    },
+    "placed_events": 840,
+    "job_mappings": 906,
+    "job_students": 417,
+    "bug_emails": {
+      "19ef8e389b433689": {
+        "title": "HackWithInfy selection status - 24 Jun 2026",
+        "subject": "HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "rule_based",
+        "offer_rows": 232,
+        "event_statuses": {
+          "FINAL_SELECTED": 213,
+          "REJECTED": 19
+        },
+        "job_mappings": 328
+      },
+      "1a056bcec001b045": {
+        "title": "HackWithInfy selection status - 31 Aug 2026",
+        "subject": "Fwd: HackWithInfy 2026 -Batch 2027 - Selection Status on 31 August 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "rule_based",
+        "offer_rows": 54,
+        "event_statuses": {
+          "FINAL_SELECTED": 18,
+          "REJECTED": 36
+        },
+        "job_mappings": 100
+      }
+    }
+  },
+  "after": {
+    "label": "after",
+    "at": 1790592114,
+    "emails": 596,
+    "by_status": {
+      "PROCESSED": 596
+    },
+    "tables": {
+      "companies": 118,
+      "student_placement_events": 19941,
+      "offers": 89,
+      "offer_students": 665,
+      "opportunities": 229,
+      "shortlist_events": 184,
+      "shortlist_students": 19276,
+      "funnel_counts": 12
+    },
+    "by_classification": {
+      "EVENT": 44,
+      "FINAL_SELECTION": 89,
+      "GENERAL_PLACEMENT_NOTICE": 42,
+      "HACKATHON": 90,
+      "INTERNSHIP_OPPORTUNITY": 27,
+      "JOB_OPPORTUNITY": 20,
+      "REGISTRATION": 49,
+      "SELECTION_PROCESS_NOTICE": 28,
+      "SHORTLIST": 137,
+      "UNKNOWN": 44,
+      "WEBINAR": 21,
+      "WORKSHOP": 5
+    },
+    "by_method": {
+      "rule_based": 495,
+      "llm": 101
+    },
+    "event_statuses": {
+      "FINAL_SELECTED": 13,
+      "OFFERED": 652,
+      "SHORTLISTED": 19276
+    },
+    "placed_events": 665,
+    "job_mappings": 487,
+    "job_students": 250,
+    "bug_emails": {
+      "19ef8e389b433689": {
+        "title": "HackWithInfy selection status - 24 Jun 2026",
+        "subject": "HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "llm",
+        "offer_rows": 5,
+        "event_statuses": {
+          "FINAL_SELECTED": 5
+        },
+        "job_mappings": 0
+      },
+      "1a056bcec001b045": {
+        "title": "HackWithInfy selection status - 31 Aug 2026",
+        "subject": "Fwd: HackWithInfy 2026 -Batch 2027 - Selection Status on 31 August 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "llm",
+        "offer_rows": 8,
+        "event_statuses": {
+          "FINAL_SELECTED": 8
+        },
+        "job_mappings": 16
+      }
+    }
+  },
+  "after_hybrid": {
+    "label": "after-hybrid",
+    "at": 1790592085,
+    "emails": 596,
+    "by_status": {
+      "PROCESSED": 596
+    },
+    "tables": {
+      "companies": 118,
+      "student_placement_events": 19941,
+      "offers": 89,
+      "offer_students": 665,
+      "opportunities": 229,
+      "shortlist_events": 184,
+      "shortlist_students": 19276,
+      "funnel_counts": 12
+    },
+    "by_classification": {
+      "EVENT": 44,
+      "FINAL_SELECTION": 89,
+      "GENERAL_PLACEMENT_NOTICE": 42,
+      "HACKATHON": 90,
+      "INTERNSHIP_OPPORTUNITY": 27,
+      "JOB_OPPORTUNITY": 20,
+      "REGISTRATION": 49,
+      "SELECTION_PROCESS_NOTICE": 28,
+      "SHORTLIST": 137,
+      "UNKNOWN": 44,
+      "WEBINAR": 21,
+      "WORKSHOP": 5
+    },
+    "by_method": {
+      "rule_based": 495,
+      "llm": 101
+    },
+    "event_statuses": {
+      "FINAL_SELECTED": 13,
+      "OFFERED": 652,
+      "SHORTLISTED": 19276
+    },
+    "placed_events": 665,
+    "job_mappings": 0,
+    "job_students": 0,
+    "bug_emails": {
+      "19ef8e389b433689": {
+        "title": "HackWithInfy selection status - 24 Jun 2026",
+        "subject": "HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "llm",
+        "offer_rows": 5,
+        "event_statuses": {
+          "FINAL_SELECTED": 5
+        },
+        "job_mappings": 0
+      },
+      "1a056bcec001b045": {
+        "title": "HackWithInfy selection status - 31 Aug 2026",
+        "subject": "Fwd: HackWithInfy 2026 -Batch 2027 - Selection Status on 31 August 2026",
+        "classification": "FINAL_SELECTION",
+        "method": "llm",
+        "offer_rows": 8,
+        "event_statuses": {
+          "FINAL_SELECTED": 8
+        },
+        "job_mappings": 0
+      }
+    }
+  },
+  "runs": [
+    {
+      "total_pending": 596,
+      "processed": 596,
+      "succeeded": 596,
+      "failed": 0,
+      "requeued_for_llm_retry": 1,
+      "by_category": {
+        "UNKNOWN": 44,
+        "FINAL_SELECTION": 89,
+        "GENERAL_PLACEMENT_NOTICE": 42,
+        "WORKSHOP": 5,
+        "REGISTRATION": 49,
+        "HACKATHON": 90,
+        "SELECTION_PROCESS_NOTICE": 28,
+        "EVENT": 44,
+        "WEBINAR": 21,
+        "SHORTLIST": 137,
+        "INTERNSHIP_OPPORTUNITY": 27,
+        "JOB_OPPORTUNITY": 20
+      },
+      "rows_written": {
+        "offers": 89,
+        "offer_students": 892,
+        "shortlist_events": 184,
+        "shortlist_students": 19276,
+        "funnel_counts": 12,
+        "opportunities": 229,
+        "student_placement_events": 20168
+      },
+      "seconds": 487.638,
+      "finished_at": "2026-09-28 10:39:20.062652+00:00",
+      "llm": {
+        "calls": 101,
+        "ok": 100,
+        "ok_first_attempt": 99,
+        "ok_after_failover": 1,
+        "schema_retries": 0,
+        "unavailable": 1,
+        "attempts": 111,
+        "attempts_by_account": {
+          "gemini_1": 31,
+          "gemini_2": 37,
+          "gemini_3": 36,
+          "groq_1": 1,
+          "groq_2": 1,
+          "groq_3": 1,
+          "deepseek_1": 1,
+          "deepseek_2": 1,
+          "deepseek_3": 1,
+          "deepseek_4": 1
+        },
+        "ok_by_account": {
+          "gemini_1": 29,
+          "gemini_2": 36,
+          "gemini_3": 35
+        },
+        "failovers_by_provider": {
+          "gemini": 4,
+          "groq": 3,
+          "deepseek": 4
+        },
+        "prompt_tokens": 158421,
+        "completion_tokens": 45151,
+        "prompt_tokens_by_provider": {
+          "gemini": 158421
+        },
+        "completion_tokens_by_provider": {
+          "gemini": 45151
+        }
+      },
+      "label": "pass 1"
+    },
+    {
+      "total_pending": 1,
+      "processed": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "requeued_for_llm_retry": 0,
+      "by_category": {
+        "FINAL_SELECTION": 1
+      },
+      "rows_written": {
+        "offers": 1,
+        "offer_students": 5,
+        "shortlist_events": 0,
+        "shortlist_students": 0,
+        "funnel_counts": 0,
+        "opportunities": 0,
+        "student_placement_events": 5
+      },
+      "seconds": 5.289,
+      "finished_at": "2026-09-28 10:41:25.355542+00:00",
+      "llm": {
+        "calls": 1,
+        "ok": 1,
+        "ok_first_attempt": 1,
+        "ok_after_failover": 0,
+        "schema_retries": 0,
+        "unavailable": 0,
+        "attempts": 1,
+        "attempts_by_account": {
+          "gemini_1": 1
+        },
+        "ok_by_account": {
+          "gemini_1": 1
+        },
+        "failovers_by_provider": {},
+        "prompt_tokens": 9152,
+        "completion_tokens": 383,
+        "prompt_tokens_by_provider": {
+          "gemini": 9152
+        },
+        "completion_tokens_by_provider": {
+          "gemini": 383
+        }
+      },
+      "label": "retry 1"
+    },
+    {
+      "total_pending": 495,
+      "processed": 495,
+      "succeeded": 495,
+      "failed": 0,
+      "requeued_for_llm_retry": 0,
+      "by_category": {
+        "UNKNOWN": 37,
+        "GENERAL_PLACEMENT_NOTICE": 41,
+        "WORKSHOP": 5,
+        "REGISTRATION": 45,
+        "HACKATHON": 90,
+        "SELECTION_PROCESS_NOTICE": 28,
+        "EVENT": 44,
+        "WEBINAR": 21,
+        "SHORTLIST": 137,
+        "INTERNSHIP_OPPORTUNITY": 27,
+        "JOB_OPPORTUNITY": 20
+      },
+      "rows_written": {
+        "offers": 0,
+        "offer_students": 0,
+        "shortlist_events": 184,
+        "shortlist_students": 19276,
+        "funnel_counts": 12,
+        "opportunities": 225,
+        "student_placement_events": 19276
+      },
+      "seconds": 28.624,
+      "finished_at": "2026-09-28 10:41:54.455200+00:00",
+      "llm": {},
+      "label": "idempotency pass (non-llm)"
+    }
+  ],
+  "golden": {
+    "samples": 33,
+    "label_pass": 32,
+    "full_pass": 31,
+    "by_category": {
+      "FINAL_SELECTION": {
+        "total": 10,
+        "label_ok": 9,
+        "all_ok": 8
+      },
+      "HACKATHON": {
+        "total": 4,
+        "label_ok": 4,
+        "all_ok": 4
+      },
+      "EVENT": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      },
+      "GENERAL_PLACEMENT_NOTICE": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      },
+      "REGISTRATION": {
+        "total": 3,
+        "label_ok": 3,
+        "all_ok": 3
+      },
+      "SHORTLIST": {
+        "total": 5,
+        "label_ok": 5,
+        "all_ok": 5
+      },
+      "WEBINAR": {
+        "total": 3,
+        "label_ok": 3,
+        "all_ok": 3
+      },
+      "SELECTION_PROCESS_NOTICE": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      },
+      "JOB_OPPORTUNITY": {
+        "total": 2,
+        "label_ok": 2,
+        "all_ok": 2
+      },
+      "UNKNOWN": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      },
+      "WORKSHOP": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      },
+      "INTERNSHIP_OPPORTUNITY": {
+        "total": 1,
+        "label_ok": 1,
+        "all_ok": 1
+      }
+    },
+    "failures": [
+      {
+        "gm": "19ed55cde526a30b",
+        "gt": "FINAL_SELECTION",
+        "subject": "Notification Regarding LTIMindtree (LTM) 2026 Batch Offers",
+        "label_ok": false,
+        "failed_checks": [
+          {
+            "check": "classification",
+            "observed": "UNKNOWN"
+          },
+          {
+            "check": "offer_students == 4",
+            "observed": 0
+          },
+          {
+            "check": "company == LTIMindtree",
+            "observed": null
+          }
+        ]
+      },
+      {
+        "gm": "19ef8e389b433689",
+        "gt": "FINAL_SELECTION",
+        "subject": "HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026",
+        "label_ok": true,
+        "failed_checks": [
+          {
+            "check": "offer_students == 232",
+            "observed": 5
+          }
+        ]
+      }
+    ]
+  },
+  "disagreements": {
+    "methods": {
+      "rule_based": 495,
+      "llm": 101
+    },
+    "llm_answered": 101,
+    "suppresses_offers": 5,
+    "row_count": 9,
+    "adds_offers": 0,
+    "agrees": 87,
+    "low_confidence": 0,
+    "failed_over": 1,
+    "unavailable": 0,
+    "candidates": 101
+  },
+  "cost": {
+    "lines": [
+      {
+        "provider": "gemini",
+        "prompt_tokens": 167573,
+        "completion_tokens": 45534,
+        "usd": 0.1102
+      }
+    ],
+    "usd_total": 0.1102,
+    "prompt_tokens": 167573,
+    "completion_tokens": 45534
+  },
+  "reset": {
+    "truncated": [
+      "companies",
+      "student_placement_events",
+      "offers",
+      "offer_students",
+      "opportunities",
+      "shortlist_events",
+      "shortlist_students",
+      "funnel_counts"
+    ],
+    "job_mappings_backed_up": false,
+    "emails_kept": 596
+  },
+  "baseline": {
+    "offers": 94,
+    "offer_students": 895,
+    "placed_events": 840,
+    "job_mappings": 906,
+    "emails": 596
+  },
+  "idempotent": true,
+  "stuck": [],
+  "pytest": "250 passed, 46 warnings in 25.64s",
+  "run_config": {
+    "max_retries": 3,
+    "settle_seconds": 120.0,
+    "idempotency_scope": "non-llm",
+    "rebuild_baseline": true,
+    "stopped_early": null,
+    "models": {
+      "gemini": "gemini-3.1-flash-lite",
+      "groq": "openai/gpt-oss-120b",
+      "deepseek": "deepseek-chat"
+    },
+    "min_interval": 3.0,
+    "max_pool_wait": 15.0,
+    "accounts": [
+      "gemini_1",
+      "gemini_2",
+      "gemini_3",
+      "groq_1",
+      "groq_2",
+      "groq_3",
+      "deepseek_1",
+      "deepseek_2",
+      "deepseek_3",
+      "deepseek_4"
+    ]
+  }
+}
