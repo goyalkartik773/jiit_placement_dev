@@ -96,7 +96,9 @@
   }
 
   &__facet-count {
-    padding: 1px 7px;
+    // Same >=12px badge floor as every other text badge - it is a small pill
+    // nested in the chip, so it has to breathe too.
+    padding: 3px 12px;
     border-radius: var(--ui-radius-pill);
     background: var(--ui-pill);
     font-size: 12px;

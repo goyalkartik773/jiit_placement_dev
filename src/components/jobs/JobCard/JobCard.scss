@@ -67,11 +67,12 @@
   }
 
   // The single category tag keeps the neutral pill look of an unselected filter
+  // (12px each side: it carries a word, so it obeys the >=12px badge floor).
   & .job-card__category {
     display: block;
     min-width: 0;
     max-width: 100%;
-    padding: 4px 10px;
+    padding: $space-1 $space-3;
     overflow: hidden;
     color: var(--ui-muted);
     font-size: 12.5px;

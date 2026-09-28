@@ -95,9 +95,11 @@
   }
 
   // ----- Badge (tier word / open state / drive code) -----
+  // 12px each side: this badge carries a word, and the revamp's floor for
+  // badge-like text is >=12px so it never crowds its own label.
   &__badge {
     flex-shrink: 0;
-    padding: $space-0-5 $space-2;
+    padding: $space-1 $space-3;
     border: 1px solid transparent;
     border-radius: $radius-xs;
     font-size: $fs-2xs;
