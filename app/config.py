@@ -146,6 +146,25 @@ class LLMConfig:
     #: Body characters sent to the model (the rest is truncated, never lost -
     #: the deterministic parser still sees the full text).
     max_body_chars: int
+    #: 429/quota is not an account *failure* (it would trip the breaker after
+    #: only a couple of hits and lock the whole pool out mid-corpus); it just
+    #: rests that account for this long - or for the provider's own
+    #: ``Retry-After`` / "please retry in Ns" hint, whichever is longer.
+    quota_cooldown: float = 60.0
+    #: Minimum spacing between two calls to the **same account** (seconds).
+    #: Providers meter per key, so this keeps a burst under the per-minute
+    #: quota instead of earning a 429 (0 disables pacing).
+    min_interval: float = 0.0
+    #: When every account of a provider is cooling, wait this long once for
+    #: the cheapest cooldown instead of declaring the provider unavailable.
+    #: When every account of a provider is cooling, wait this long for the
+    #: soonest one to come back instead of declaring the provider down.
+    #: Kept small on purpose: waiting out a full 60 s Gemini quota window
+    #: when Groq can answer immediately would be far more expensive than
+    #: the failover the spec already asks for.
+    max_pool_wait: float = 15.0
+    #: How many such waits a single extraction may take per provider.
+    pool_wait_rounds: int = 2
 
 
 _DEFAULT_MODELS = {
@@ -190,6 +209,10 @@ def load_llm_config() -> LLMConfig:
             ),
             low_confidence=float(_env("PLACEMENT_LLM_LOW_CONFIDENCE", "0.5")),
             max_body_chars=_env_int("PLACEMENT_LLM_MAX_BODY_CHARS", 24000),
+            quota_cooldown=float(_env("PLACEMENT_LLM_QUOTA_COOLDOWN", "60")),
+            min_interval=float(_env("PLACEMENT_LLM_MIN_INTERVAL", "0")),
+            max_pool_wait=float(_env("PLACEMENT_LLM_MAX_POOL_WAIT", "15")),
+            pool_wait_rounds=_env_int("PLACEMENT_LLM_POOL_WAIT_ROUNDS", 2),
         )
 
     accounts: list[LLMAccount] = []
@@ -234,6 +257,10 @@ def load_llm_config() -> LLMConfig:
         breaker_seconds_hard=_env_int("PLACEMENT_LLM_BREAKER_HARD_SECONDS", 1800),
         low_confidence=float(_env("PLACEMENT_LLM_LOW_CONFIDENCE", "0.5")),
         max_body_chars=_env_int("PLACEMENT_LLM_MAX_BODY_CHARS", 24000),
+        quota_cooldown=float(_env("PLACEMENT_LLM_QUOTA_COOLDOWN", "60")),
+        min_interval=float(_env("PLACEMENT_LLM_MIN_INTERVAL", "0")),
+        max_pool_wait=float(_env("PLACEMENT_LLM_MAX_POOL_WAIT", "15")),
+        pool_wait_rounds=_env_int("PLACEMENT_LLM_POOL_WAIT_ROUNDS", 2),
     )
 
 

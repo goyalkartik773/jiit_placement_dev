@@ -82,6 +82,9 @@ def make_cfg(
         breaker_seconds_hard=breaker_seconds_hard,
         low_confidence=0.5,
         max_body_chars=24000,
+        # Unit tests assert the failover chain itself; they do not want a
+        # router that sits waiting for a cooldown to expire.
+        max_pool_wait=0.0,
     )
 
 
@@ -378,7 +381,7 @@ def test_circuit_breaker_skips_a_repeatedly_failing_account():
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.params.get("key") == "g1":
-            return httpx.Response(429, text="rate limited")
+            return httpx.Response(500, text="backend exploded")
         return gemini_ok(json.dumps(FINAL_PAYLOAD))
 
     service = build_service(handler, cfg)
@@ -388,6 +391,85 @@ def test_circuit_breaker_skips_a_repeatedly_failing_account():
     assert service.stats.attempts_by_account["gemini_1"] == 2
     assert service.stats.attempts_by_account["gemini_2"] == 3
     assert service.stats.ok == 3
+    service.close()
+
+
+def test_quota_429_rests_the_account_without_tripping_the_breaker():
+    """A rate limit is the meter talking, not a broken account.
+
+    It must move the request to the next account at once (429 -> failover is
+    in the spec) but must NOT count towards the breaker: two 429s used to
+    open a 120 s breaker, and with a whole corpus to get through that locked
+    every account out and made dozens of emails fall back to the rules.
+    """
+    cfg = make_cfg([("gemini", "g1"), ("gemini", "g2")], breaker_threshold=1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.params.get("key") == "g1":
+            return httpx.Response(429, text="rate limit exceeded")
+        return gemini_ok(json.dumps(FINAL_PAYLOAD))
+
+    service = build_service(handler, cfg)
+    for _ in range(3):
+        result = service.extract(subject="s", body="b")
+        assert result.account_label == "gemini_2"
+    # g1 cooled down after its FIRST 429 and never earned a breaker trip
+    assert service.stats.attempts_by_account["gemini_1"] == 1
+    assert service.stats.attempts_by_account["gemini_2"] == 3
+    assert service.stats.ok == 3
+    service.close()
+
+
+def test_pool_wait_rides_out_a_quota_cooldown_instead_of_losing_the_email():
+    """When the whole pool is resting, wait it out rather than give up.
+
+    The previous behaviour was to declare the provider unavailable the
+    instant every account was cooling, so a rate-limited corpus lost tens of
+    emails to ``rule_based_fallback`` even though the accounts came back a
+    few seconds later.
+    """
+    cfg = make_cfg([("gemini", "g1")])
+    cfg = LLMConfig(
+        **{
+            **cfg.__dict__,
+            "quota_cooldown": 60.0,
+            "max_pool_wait": 75.0,
+            "pool_wait_rounds": 1,
+        }
+    )
+    now = {"t": 0.0}
+    calls = {"n": 0}
+    sleeps: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(429, text="rate limit exceeded")
+        return gemini_ok(json.dumps(FINAL_PAYLOAD))
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        now["t"] += seconds  # the wait really happens, in fake time
+
+    service = LLMService(
+        cfg,
+        transport=httpx.MockTransport(handler),
+        sleep=sleep,
+        clock=lambda: now["t"],
+    )
+
+    # First email: rate limited, nothing to wait for yet -> LLMUnavailable,
+    # which the caller turns into rule_based_fallback + a requeue.
+    with pytest.raises(LLMUnavailable):
+        service.extract(subject="s", body="b")
+    assert sleeps == []
+
+    # Second email: the account is resting; the router rides out the 60 s
+    # cooldown and serves the extraction instead of dropping the email.
+    result = service.extract(subject="s", body="b")
+    assert sleeps == [60.0]
+    assert result.account_label == "gemini_1"
+    assert service.stats.attempts_by_account["gemini_1"] == 2
     service.close()
 
 

@@ -48,13 +48,15 @@ class LLMUnavailable(RuntimeError):
 class _AccountFailure(Exception):
     """One account failed; try the next account (then the next provider)."""
 
-    def __init__(self, kind: str, detail: str = "") -> None:
+    def __init__(self, kind: str, detail: str = "", retry_after: float = 0.0) -> None:
         super().__init__(detail)
-        #: "quota" | "auth" | "transient" | "schema"
+        #: "quota" | "auth" | "config" | "transient" | "schema"
         self.kind = kind
         self.detail = detail
-        #: auth/balance failures keep an account out for much longer.
-        self.hard = kind == "auth"
+        #: The provider's own "retry in Ns" / Retry-After hint, when present.
+        self.retry_after = retry_after
+        #: auth/balance/model-gone failures keep an account out much longer.
+        self.hard = kind in ("auth", "config")
 
 
 @dataclass
@@ -69,9 +71,14 @@ class LLMStats:
     unavailable: int = 0
     attempts: int = 0
     attempts_by_account: dict[str, int] = field(default_factory=dict)
+    #: Which accounts actually served a verdict (attempts includes failures).
+    ok_by_account: dict[str, int] = field(default_factory=dict)
     failovers_by_provider: dict[str, int] = field(default_factory=dict)
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    #: Per-provider token spend, so a cost estimate can be priced per model.
+    prompt_tokens_by_provider: dict[str, int] = field(default_factory=dict)
+    completion_tokens_by_provider: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {
@@ -83,9 +90,14 @@ class LLMStats:
             "unavailable": self.unavailable,
             "attempts": self.attempts,
             "attempts_by_account": dict(self.attempts_by_account),
+            "ok_by_account": dict(self.ok_by_account),
             "failovers_by_provider": dict(self.failovers_by_provider),
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
+            "prompt_tokens_by_provider": dict(self.prompt_tokens_by_provider),
+            "completion_tokens_by_provider": dict(
+                self.completion_tokens_by_provider
+            ),
         }
 
 
@@ -203,12 +215,39 @@ _ADAPTERS: dict[str, tuple[Callable, Callable]] = {
 }
 
 
+_RETRY_IN_RE = re.compile(r"retry in ([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
+
+
+def _retry_after(response: httpx.Response) -> float:
+    """Seconds the provider asks us to wait, if it says so.
+
+    Gemini answers with ``Please retry in 50.7s`` in the error body, Groq with
+    a ``Retry-After`` header.  Either is a better cooldown guess than a fixed
+    one, so an account rests exactly as long as it needs to.
+    """
+    candidates: list[float] = []
+    header = response.headers.get("retry-after", "")
+    if header:
+        try:
+            candidates.append(float(header))
+        except ValueError:
+            pass
+    match = _RETRY_IN_RE.search(response.text or "")
+    if match:
+        candidates.append(float(match.group(1)))
+    return max(candidates, default=0.0)
+
+
 def _classify(status_code: int, body: str) -> str:
     lowered = (body or "").lower()
     if status_code == 429 or "rate limit" in lowered or "quota" in lowered:
         return "quota"
     if status_code in (401, 402, 403) or "invalid api key" in lowered or "insufficient balance" in lowered:
         return "auth"
+    if status_code == 404:
+        # "model is no longer available to this account" - retrying the same
+        # request on this account can never succeed, so park it for long.
+        return "config"
     if status_code >= 500:
         return "transient"
     if status_code >= 400:
@@ -235,6 +274,8 @@ class LLMService:
         self._client = httpx.Client(timeout=cfg.timeout, transport=transport)
         self._pools: dict[str, list[_AccountState]] = {}
         self._cursor: dict[str, int] = {}
+        #: monotonic time of the last request per account label (pacing)
+        self._last_call: dict[str, float] = {}
         for provider, accounts in self._group(cfg.accounts):
             self._pools[provider] = [_AccountState(account=a) for a in accounts]
             self._cursor[provider] = 0
@@ -260,13 +301,37 @@ class LLMService:
                 return state
         return None  # every account in the pool is on cooldown
 
-    def _record_failure(self, state: _AccountState, kind: str) -> None:
+    def _pool_wait(self, provider: str) -> float:
+        """Seconds until the soonest account of ``provider`` recovers."""
+        now = self._clock()
+        opens = [s.open_until for s in self._pools[provider] if s.open_until > now]
+        return max(0.0, min(opens) - now) if opens else 0.0
+
+    def _record_failure(
+        self, state: _AccountState, kind: str, retry_after: float = 0.0
+    ) -> None:
+        if kind == "quota":
+            # A 429 is the meter talking, not a broken account: rest it for as
+            # long as the provider asks (or ``quota_cooldown`` if it does not
+            # say), but do NOT count it towards the breaker - two rate limits
+            # must not lock a healthy account out mid-corpus.
+            seconds = max(retry_after, self.cfg.quota_cooldown)
+            state.open_until = max(state.open_until, self._clock() + seconds)
+            log_event(
+                log,
+                "llm.account_cooldown",
+                account=state.account.label,
+                kind=kind,
+                seconds=round(seconds, 1),
+            )
+            return
+
         state.consecutive_failures += 1
         threshold = max(1, self.cfg.breaker_threshold)
         if state.consecutive_failures >= threshold:
             seconds = (
                 self.cfg.breaker_seconds_hard
-                if kind == "auth"
+                if kind in ("auth", "config")
                 else self.cfg.breaker_seconds
             )
             state.open_until = self._clock() + seconds
@@ -290,6 +355,7 @@ class LLMService:
         build_request, extract_text = _ADAPTERS[provider]
         request = build_request(self.cfg, state.account, user_message)
 
+        self._pace(state.account.label)
         try:
             response = self._client.post(
                 request["url"],
@@ -304,6 +370,7 @@ class LLMService:
             raise _AccountFailure(
                 _classify(response.status_code, response.text),
                 f"HTTP {response.status_code}",
+                _retry_after(response),
             )
 
         try:
@@ -353,6 +420,7 @@ class LLMService:
         for provider in providers:
             pool_size = len(self._pools[provider])
             schema_retry_done: set[str] = set()
+            waits = 0
 
             # One pass over the pool: every account gets exactly one try per
             # provider (the schema retry happens inside the same iteration),
@@ -361,7 +429,27 @@ class LLMService:
             while len(tried) < pool_size:
                 state = self._next_account(provider)
                 if state is None:
-                    failures.append(f"{provider}: all accounts cooling down")
+                    # Every account is resting - most often on a short quota
+                    # cooldown.  Waiting out the soonest one beats declaring
+                    # the whole provider unavailable and losing the email.
+                    wait = self._pool_wait(provider)
+                    if wait > 0 and wait <= self.cfg.max_pool_wait and waits < self.cfg.pool_wait_rounds:
+                        waits += 1
+                        log_event(
+                            log,
+                            "llm.pool_wait",
+                            level=logging.INFO,
+                            provider=provider,
+                            wait_s=round(wait, 1),
+                            round=waits,
+                        )
+                        self._sleep(wait)
+                        tried.clear()  # cooldowns may have expired
+                        continue
+                    failures.append(
+                        f"{provider}: all accounts cooling down"
+                        + (f" ({wait:.0f}s)" if wait else "")
+                    )
                     break
                 if state.account.label in tried:
                     failures.append(f"{provider}: accounts exhausted")
@@ -383,7 +471,7 @@ class LLMService:
                 try:
                     result = self._attempt(state, user_message)
                 except _AccountFailure as failure:
-                    self._record_failure(state, failure.kind)
+                    self._record_failure(state, failure.kind, failure.retry_after)
                     failures.append(f"{label}: {failure.kind} {failure.detail}")
                     with self._lock:
                         self.stats.failovers_by_provider[provider] = (
@@ -398,7 +486,9 @@ class LLMService:
                         try:
                             result = self._attempt(state, user_message)
                         except _AccountFailure as again:
-                            self._record_failure(state, again.kind)
+                            self._record_failure(
+                                state, again.kind, again.retry_after
+                            )
                             failures.append(
                                 f"{label}: schema-retry {again.kind}"
                             )
@@ -422,6 +512,20 @@ class LLMService:
         reason = "; ".join(failures[:8]) or "no account available"
         raise LLMUnavailable(reason)
 
+    def _pace(self, label: str) -> None:
+        """Keep ``min_interval`` between two calls to the same account.
+
+        Providers meter per key (Gemini: 20 free requests/minute), so spacing
+        the requests is cheaper than earning a 429 and a cooldown.
+        """
+        if self.cfg.min_interval <= 0:
+            return
+        wait = self._last_call.get(label, 0.0) + self.cfg.min_interval - self._clock()
+        if wait > 0:
+            self._sleep(wait)
+        with self._lock:
+            self._last_call[label] = self._clock()
+
     def _backoff(self, attempt: int) -> float:
         """Exponential backoff, capped; never sleeps before the very first try."""
         if attempt <= 1:
@@ -438,8 +542,19 @@ class LLMService:
                 self.stats.ok_after_failover += 1
             else:
                 self.stats.ok_first_attempt += 1
+            self.stats.ok_by_account[result.account_label] = (
+                self.stats.ok_by_account.get(result.account_label, 0) + 1
+            )
             self.stats.prompt_tokens += result.prompt_tokens
             self.stats.completion_tokens += result.completion_tokens
+            self.stats.prompt_tokens_by_provider[provider] = (
+                self.stats.prompt_tokens_by_provider.get(provider, 0)
+                + result.prompt_tokens
+            )
+            self.stats.completion_tokens_by_provider[provider] = (
+                self.stats.completion_tokens_by_provider.get(provider, 0)
+                + result.completion_tokens
+            )
         log_event(
             log,
             "llm.extract_ok",

@@ -30,6 +30,13 @@ from typing import Any, Optional
 if __package__ in (None, ""):  # run as a plain script
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import os
+
+# This harness is explicitly "all deterministic, no LLM" (module docstring):
+# it asserts the parser's own hand-verified ground truth, so the hybrid layer
+# stays off unless the caller sets PLACEMENT_HYBRID_LLM deliberately.
+os.environ.setdefault("PLACEMENT_HYBRID_LLM", "false")
+
 from sqlalchemy import func, select
 
 from app.classifiers.taxonomy import TAXONOMY
