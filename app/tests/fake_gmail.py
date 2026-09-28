@@ -1,9 +1,13 @@
-"""Deterministic fake Gmail client + payload builders (no network, no OAuth).
+"""Deterministic fake mail client + Gmail-API payload builders (no network).
 
-The fake mirrors the two methods Step 1 uses (``iter_message_ids``,
-``get_message``) plus ``get_attachment`` for the download path, so the whole
-sync flow - MIME decode, dedup, per-message isolation, quota abort - runs
-against canned Gmail API payloads of the exact ``messages.get`` shape.
+The fake mirrors the three methods Step 1 uses (``iter_message_ids``,
+``get_message``, ``get_attachment``), so the whole sync flow - MIME decode,
+dedup, per-message isolation, quota abort - runs against canned payloads.
+
+It returns Gmail-API-shaped **dicts** on purpose: :func:`app.gmail.mime.
+parse_message` dispatches on the payload type, so exercising that branch keeps
+the legacy/test parse path covered while the real transport is IMAP.  The
+IMAP-native path is covered by ``fake_imap.py`` / ``test_imap_parse.py``.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ import base64
 from io import BytesIO
 from typing import Optional
 
-from app.gmail.client import GmailApiError
+from app.gmail.imap_client import ImapError
 
 
 def b64(text: "str | bytes") -> str:
@@ -103,7 +107,7 @@ class FakeGmailClient:
     Failure knobs:
       * ``fail_get_ids`` - ``get_message`` raises (per-message isolation);
       * ``fail_list_after`` - once ``fail_list_after`` groups have been
-        listed, the next listing raises ``GmailApiError`` (quota abort);
+        listed, the next listing raises ``ImapError`` (quota abort);
       * ``attachment_bytes`` - payload for ``get_attachment`` downloads.
     """
 
@@ -126,14 +130,14 @@ class FakeGmailClient:
         self.list_calls = 0
         self.get_calls: list[str] = []
 
-    # --- GmailClient interface -------------------------------------------
+    # --- mail-client interface -------------------------------------------
     def iter_message_ids(self, query: str, max_results: Optional[int] = None):
         self.list_calls += 1
         if (
             self.fail_list_after is not None
             and self.list_calls > self.fail_list_after
         ):
-            raise GmailApiError(429, "quota exceeded (fake)")
+            raise ImapError(429, "quota exceeded (fake)")
 
         if query.startswith("list:"):
             local = query[len("list:"):].split(".googlegroups.com", 1)[0]
@@ -147,15 +151,15 @@ class FakeGmailClient:
     def get_message(self, message_id: str, fmt: str = "full") -> dict:
         self.get_calls.append(message_id)
         if message_id in self.fail_get_ids:
-            raise GmailApiError(500, "simulated messages.get failure")
+            raise ImapError(500, "simulated messages.get failure")
         if message_id not in self.messages:
-            raise GmailApiError(404, f"unknown message {message_id}")
+            raise ImapError(404, f"unknown message {message_id}")
         return self.messages[message_id]
 
     def get_attachment(self, message_id: str, attachment_id: str) -> bytes:
         key = (message_id, attachment_id)
         if key not in self.attachment_bytes:
-            raise GmailApiError(404, f"unknown attachment {attachment_id}")
+            raise ImapError(404, f"unknown attachment {attachment_id}")
         return self.attachment_bytes[key]
 
     def close(self) -> None:  # pragma: no cover - parity with GmailClient

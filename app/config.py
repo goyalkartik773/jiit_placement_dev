@@ -1,25 +1,24 @@
 """Runtime configuration for the Gmail placement backend.
 
-Secrets never live in tracked source: the PostgreSQL password and the Gmail
-OAuth material are read from environment variables or the git-ignored ``.env``
-file at the project root (the loader from ``placement_pipeline.config`` runs on
-import and keeps existing environment variables winning).
+Secrets never live in tracked source: the PostgreSQL password and the **Gmail
+IMAP app password** are read from environment variables or the git-ignored
+``.env`` file at the project root (the loader from ``placement_pipeline.config``
+runs on import and keeps existing environment variables winning).
 
-Nothing here is ever logged — see :mod:`app.utils.logging`.
+Mail transport is IMAP + app password (``imaplib``, stdlib only) - the Gmail
+REST API/OAuth material (``credentials.json`` / ``token.json``) is gone.
+
+Nothing here is ever logged - see :mod:`app.utils.logging`.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
 # Importing placement_pipeline.config loads the git-ignored .env file.
 from placement_pipeline.config import PROJECT_ROOT  # noqa: F401  (side effect)
-
-#: Gmail readonly scope — the backend never writes to the mailbox.
-GMAIL_SCOPES: tuple[str, ...] = ("https://www.googleapis.com/auth/gmail.readonly",)
 
 #: Default Google Groups.  ``jiitengg2027`` / ``jaypeeengg2027`` are the two
 #: groups proven by the saved corpus; the other three come from the platform
@@ -66,24 +65,6 @@ def database_url() -> str:
     password = _env("PLACEMENT_PG_PASSWORD") or _env("PGPASSWORD")
     auth = f"{user}:{password}@" if password else f"{user}@"
     return f"postgresql+psycopg2://{auth}{host}:{port}/{dbname}"
-
-
-def _default_credentials_path() -> Path:
-    override = _env("GMAIL_CREDENTIALS_PATH")
-    if override:
-        return Path(override).expanduser()
-    # Shared with the .NET admin's OAuth client (same mailbox, same consent).
-    return PROJECT_ROOT.parent / "JIITPlacement" / "credentials.json"
-
-
-def _default_token_path() -> Path:
-    override = _env("GMAIL_TOKEN_PATH")
-    if override:
-        return Path(override).expanduser()
-    local = os.environ.get("LOCALAPPDATA", "")
-    if local:
-        return Path(local) / "JIITPlacement" / "token.json"
-    return PROJECT_ROOT / ".gmail_token.json"
 
 
 # --------------------------------------------------------------------------- #
@@ -266,17 +247,40 @@ def load_llm_config() -> LLMConfig:
 
 @dataclass(frozen=True)
 class GmailConfig:
-    credentials_path: Path
-    token_path: Path
-    application_name: str
-    scopes: tuple[str, ...]
+    """Mail transport settings: IMAP + app password (Gmail OAuth retired).
+
+    Every value is env-driven; names only are ever reported on failure.
+    """
+
+    #: Gmail SMTP/IMAP endpoint (``imap.gmail.com`` for Google Workspace/Gmail).
+    imap_host: str
+    imap_port: int
+    #: Mailbox account.  Requires 2-Step Verification so an app password exists.
+    imap_email: str
+    #: 16-character Gmail **app password** - never the account password, never
+    #: logged, only ever handed to ``imaplib``.
+    imap_app_password: str
+    #: Folder to SELECT/watch (Gmail exposes one INBOX; other providers differ).
+    imap_mailbox: str
+    #: Polling interval for the auto-watcher (IMAP IDLE falls back to this).
+    imap_poll_seconds: int
+    #: Mark ``\Seen`` only after the row is committed (or confirmed a duplicate).
+    imap_mark_seen_after_store: bool
+    #: Use the IMAP ``IDLE`` extension when offered; polling is the fallback.
+    imap_idle_enabled: bool
+    #: Backoff bounds for dropped connections / transient IMAP errors.
+    imap_backoff_base_seconds: int
+    imap_backoff_cap_seconds: int
+    #: Poison-mail valve: a row still ``PENDING`` after this many retries is
+    #: marked ``FAILED`` by the watcher so one bad mail cannot loop forever.
+    imap_max_retries: int
     source_groups: tuple[str, ...]
+    #: Ids requested per IMAP search page (mirrors the old Gmail list page).
     page_size: int
     max_attachment_bytes: int
     request_timeout: float
-    #: Minimum spacing between Gmail API calls.  The consumer quota is ~60
-    #: queries/minute per user, so a full backfill paces itself instead of
-    #: burning the window (0 disables pacing).
+    #: Minimum spacing between IMAP command *groups* (a full backfill paces
+    #: itself instead of hammering the server; 0 disables pacing).
     min_interval_ms: int
 
 
@@ -302,10 +306,21 @@ def load_settings() -> Settings:
         if g.strip()
     ) or DEFAULT_SOURCE_GROUPS
     gmail = GmailConfig(
-        credentials_path=_default_credentials_path(),
-        token_path=_default_token_path(),
-        application_name=_env("GMAIL_APPLICATION_NAME", "JIIT Placement Backend"),
-        scopes=GMAIL_SCOPES,
+        imap_host=_env("IMAP_HOST", "imap.gmail.com"),
+        imap_port=_env_int("IMAP_PORT", 993),
+        imap_email=_env("IMAP_EMAIL"),
+        imap_app_password=_env("IMAP_APP_PASSWORD"),
+        imap_mailbox=_env("IMAP_MAILBOX", "INBOX"),
+        imap_poll_seconds=max(5, _env_int("IMAP_POLL_SECONDS", 60)),
+        imap_mark_seen_after_store=(
+            _env_bool("IMAP_MARK_SEEN_AFTER_STORE")
+            if _env("IMAP_MARK_SEEN_AFTER_STORE")
+            else True
+        ),
+        imap_idle_enabled=_env_bool("IMAP_IDLE_ENABLED"),
+        imap_backoff_base_seconds=max(1, _env_int("IMAP_BACKOFF_BASE", 2)),
+        imap_backoff_cap_seconds=max(5, _env_int("IMAP_BACKOFF_CAP", 300)),
+        imap_max_retries=_env_int("IMAP_MAX_RETRIES", 5),
         source_groups=groups,
         page_size=_env_int("GMAIL_PAGE_SIZE", 100),
         max_attachment_bytes=_env_int("GMAIL_MAX_ATTACHMENT_BYTES", 5 * 1024 * 1024),

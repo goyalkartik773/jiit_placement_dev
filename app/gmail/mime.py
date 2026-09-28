@@ -226,8 +226,25 @@ def _received_at(date_raw: Optional[str], internal_ms: Optional[str]) -> Optiona
 # -------------------------------------------------------------------- parse
 
 
-def parse_message(payload: dict, *, source_group_hint: Optional[str] = None) -> MailMessage:
-    """Decode one Gmail API ``messages.get`` response into :class:`MailMessage`."""
+def parse_message(payload, *, source_group_hint: Optional[str] = None) -> MailMessage:
+    """Decode one raw message into :class:`MailMessage`.
+
+    Two producers reach this seam and the call site in
+    ``sync_service.run_sync`` does not know which one it has:
+
+    * a Gmail API ``messages.get`` **dict** (legacy / test fixtures) -> the
+      REST parse below, unchanged;
+    * an IMAP fetch result (``ImapRawMessage`` or ``email.message.Message``)
+      -> :func:`app.gmail.imap_parse.parse_imap_message`.
+
+    Dispatching on the payload type is what lets the transport swap happen
+    without touching ``sync_service.py``'s logic.
+    """
+    if not isinstance(payload, dict):
+        from app.gmail.imap_parse import parse_imap_message
+
+        return parse_imap_message(payload, source_group_hint=source_group_hint)
+
     top = payload.get("payload") or {}
     headers = _headers(top)
     group_name, group_email = _source_group(headers, source_group_hint)

@@ -1,6 +1,6 @@
 # Backend validation report
 
-Generated: 2026-09-28T10:42:56+00:00  
+Generated: 2026-09-28T18:14:02+00:00  
 Golden samples: 33  
 Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled

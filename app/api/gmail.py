@@ -11,8 +11,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from app.api.deps import get_container, get_session
 from app.container import Container
 from app.db import get_session_factory
-from app.gmail.auth import GmailAuthError
-from app.gmail.client import GmailApiError
+from app.gmail.imap_client import ImapAuthError, ImapError
 from app.repositories import email_repo
 from app.schemas.common import ApiResponse
 from app.schemas.processing import (
@@ -60,9 +59,9 @@ def gmail_sync(
             status_code=409,
             detail={"message": "A sync run is already in progress", "status": exc.snapshot},
         )
-    except GmailAuthError as exc:
+    except ImapAuthError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    except GmailApiError as exc:
+    except ImapError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
     stats["run_id"] = container.status.snapshot("sync").get("run_id")

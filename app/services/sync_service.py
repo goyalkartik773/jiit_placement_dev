@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.gmail import attachments as attachment_text
-from app.gmail.client import GmailApiError, GmailClient
+from app.gmail.imap_client import ImapClient, ImapError
 from app.gmail.mime import MailMessage, parse_message
 from app.models import Email, EmailAttachment, EmailStatus
 from app.repositories import email_repo
@@ -50,7 +50,7 @@ def store_attachments(
     session: Session,
     row: Email,
     mail: MailMessage,
-    client: GmailClient,
+    client: ImapClient,
     settings: Settings,
 ) -> dict:
     """Attach extracted text: reuse legacy extraction, else download+parse.
@@ -133,7 +133,7 @@ def store_attachments(
 
 def run_sync(
     *,
-    client: GmailClient,
+    client: ImapClient,
     session: Session,
     handle,
     payload,
@@ -245,7 +245,7 @@ def run_sync(
                         duplicates_skipped=stats["duplicates_skipped"],
                         failed_messages=stats["failed_messages"],
                     )
-            except GmailApiError as exc:
+            except ImapError as exc:
                 # Listing/pagination failed (e.g. quota exhausted): keep every
                 # row committed so far, record the error, skip remaining
                 # groups (they would hit the same window) and finish normally.
