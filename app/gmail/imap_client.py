@@ -103,6 +103,16 @@ def _quote(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _select_ready(sock, timeout: float):
+    """``select.select`` on one socket, never raising on a closing socket."""
+    import select
+
+    try:
+        return select.select([sock], [], [], max(0.0, timeout))
+    except (OSError, ValueError):  # pragma: no cover - socket closed mid-wait
+        return ([], [], [])
+
+
 def _metadata_segments(data) -> list[str]:
     """imaplib FETCH payload -> decoded metadata lines (empties dropped)."""
     out: list[str] = []
@@ -515,3 +525,117 @@ class ImapClient:
             return False
         self._cmd("uid", "STORE", uid, "-FLAGS.SILENT", "(\\Seen)")
         return True
+
+    def mark_seen_many(self, message_ids) -> int:
+        """Batched ``UID STORE ... +FLAGS.SILENT (\Seen)`` -> marked count.
+
+        One command per *page* instead of one per mail: a cycle that
+        self-heals a few hundred already-stored messages stays inside the
+        ``min_interval_ms`` budget instead of taking minutes.  A failed batch
+        stops the loop (connection-level problem) and the unmarked ids are
+        simply retried next cycle - marking is idempotent.
+        """
+        uids: list[str] = []
+        seen: set[str] = set()
+        for message_id in message_ids:
+            uid = self._uid_for(message_id)
+            if uid and uid not in seen:
+                seen.add(uid)
+                uids.append(uid)
+        if not uids:
+            return 0
+        chunk = max(1, self._config.page_size)
+        marked = 0
+        for start in range(0, len(uids), chunk):
+            part = uids[start:start + chunk]
+            try:
+                self._cmd("uid", "STORE", ",".join(part), "+FLAGS.SILENT", "(\\Seen)")
+            except ImapError as exc:
+                log_event(
+                    log,
+                    "imap.mark_seen_batch_failed",
+                    level=logging.WARNING,
+                    detail=str(exc)[:300],
+                )
+                break
+            marked += len(part)
+        return marked
+
+    # ------------------------------------------------------------- IDLE wait
+
+    def idle_wait(self, timeout: float) -> bool:
+        """Block until the server reports new mail or ``timeout`` elapses.
+
+        Optional (``IMAP_IDLE_ENABLED``, default off) - polling is the
+        fallback and stays fully supported.
+
+        The ``IDLE`` exchange is deliberately run on a **throwaway
+        connection** that is always logged out afterwards: ``imaplib`` has no
+        IDLE support, so the tagged exchange is driven over the raw socket,
+        and discarding that connection guarantees no half-parsed bytes can
+        leak into the connection used for real work.
+
+        Returns ``True`` when an IDLE wait completed (wake up and run a cycle)
+        and ``False`` when IDLE is unavailable - the caller should poll.
+        """
+        if not self._config.imap_idle_enabled or timeout <= 0:
+            return False
+        conn = None
+        try:
+            conn = self._open()  # private login + SELECT, never shared
+            caps = tuple(str(c).upper() for c in (conn.capabilities or ()))
+            if "IDLE" not in caps:
+                return False
+            return self._idle_exchange(conn, timeout)
+        finally:
+            if conn is not None:
+                try:
+                    conn.logout()
+                except Exception:  # pragma: no cover - best effort
+                    pass
+
+    def _idle_exchange(self, conn, timeout: float) -> bool:
+        sock = conn.sock
+        # Mint our own tag: this connection is discarded afterwards, so imaplib
+        # never has to reconcile its own tag bookkeeping with the exchange.
+        tag = b"XIDLE01"
+        sock.sendall(tag + b" IDLE\r\n")
+        if b"+ " not in self._read_until(sock, b"+ ", min(15.0, timeout)):
+            return False  # server refused IDLE -> caller polls instead
+        deadline = time.monotonic() + max(0.0, timeout)
+        try:
+            ready, _, _ = _select_ready(sock, max(0.0, deadline - time.monotonic()))
+            if ready:
+                # Server announced something (usually "* n EXISTS"): drain it so
+                # the DONE below is answered against a clean socket.
+                self._read_until(sock, b"EXISTS", 5.0)
+        finally:
+            try:
+                sock.sendall(b"DONE\r\n")
+                self._read_until(sock, tag, 10.0)
+            except OSError:  # pragma: no cover - we discard the socket anyway
+                pass
+        # The wait itself completed: run a cycle either way (new mail arrived,
+        # or the poll interval elapsed while idling).
+        return True
+
+    @staticmethod
+    def _read_until(sock, marker: bytes, timeout: float) -> bytes:
+        buf = b""
+        deadline = time.monotonic() + max(0.0, timeout)
+        while time.monotonic() < deadline:
+            ready, _, _ = _select_ready(sock, min(1.0, deadline - time.monotonic()))
+            if not ready:
+                if marker in buf:
+                    break
+                continue
+            try:
+                chunk = sock.recv(65536)
+            except (OSError, ValueError):  # pragma: no cover
+                break
+            if not chunk:
+                break
+            buf += chunk
+            if marker in buf:
+                break
+        return buf

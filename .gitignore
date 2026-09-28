@@ -1,4 +1,4 @@
-# Secrets (never commit: PG password, OAuth material)
+# Secrets (never commit: PG password, Gmail IMAP app password)
 .env
 
 # Python
@@ -33,3 +33,13 @@ Thumbs.db
 
 # Runtime output (regenerated on every run)
 logs/
+
+# Mail auto-watcher runtime (single-instance lock, status, stop flag)
+.imap_watcher.lock
+.imap_watcher_status.json
+.imap_watcher_status.json.tmp
+.imap_watcher.stop
+
+# Retired Gmail OAuth material (the backend uses an IMAP app password now)
+.gmail_token.json
+gmail_token.json
