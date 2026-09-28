@@ -22,6 +22,8 @@ data/
 *.db
 *.jsonl
 !reports/*.md
+# per-email extraction report carries student names + roll numbers
+reports/*.csv
 
 # Editors / OS
 .vscode/
