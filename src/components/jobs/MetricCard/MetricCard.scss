@@ -44,7 +44,7 @@
   &__label {
     display: inline-flex;
     align-items: center;
-    gap: $space-1-5;
+    gap: $space-2; // 8-10px icon/label gap
     min-width: 0;
     font-size: $fs-xs;
     font-weight: $fw-bold;

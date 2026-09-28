@@ -5,7 +5,7 @@
   align-items: baseline;
   gap: $space-2;
   max-width: 100%;
-  padding: 3px 10px;
+  padding: 3px 12px; // >=12px horizontal
   border: 1px solid transparent;
   border-radius: $radius-pill;
   font-weight: $fw-bold;

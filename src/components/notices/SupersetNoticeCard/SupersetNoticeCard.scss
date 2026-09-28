@@ -90,12 +90,13 @@
     }
   }
 
-  // The backend body is plain text (or de-tagged HTML): keep every line break
+  // The body is parsed by <Prose/> into paragraphs + real <ul><li>; the
+  // line-break handling lives there (pre-line on paragraphs), so this only
+  // sets type colour and size.
   &__content {
     font-size: $fs-body-sm;
     line-height: $lh-relaxed;
     color: $text-soft;
-    white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
 

@@ -4,7 +4,7 @@
 .icon-label {
   display: inline-flex;
   align-items: center;
-  gap: $space-1-5; // spec icon mr-1.5
+  gap: $space-2-5; // icon + label need breathing room (spec: 8-10px min)
   min-width: 0;
   font-size: $fs-sm;
   color: $text-secondary;

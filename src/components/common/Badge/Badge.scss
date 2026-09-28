@@ -3,8 +3,8 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: $space-1-5;
-  padding: $space-1 $space-2-5;
+  gap: $space-2;
+  padding: $space-1 $space-3; // >=12px each side so the label never crowds
   border: 1px solid transparent;
   border-radius: $radius-sm;
   font-size: $fs-2xs;

@@ -1,0 +1,75 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Prose — body copy for notices and descriptions.
+//
+// The list treatment is the whole point of this file: a fixed-width marker
+// column plus a hanging indent, so a bullet that wraps continues under its
+// own text instead of sliding back under the marker.  The marker column is
+// absolutely positioned, so nothing can ever clip it.
+// ============================================================================
+.prose {
+  color: $text-secondary;
+  font-size: $fs-base;
+  line-height: $lh-relaxed;
+
+  > * + * {
+    margin-top: $space-2-5;
+  }
+
+  &__p {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  // ----- Lists: marker column + hanging indent -----
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: $space-1-5;
+  }
+
+  &__li {
+    position: relative;
+    padding-left: 20px; // text always starts here, wrapped or not
+    overflow-wrap: anywhere;
+  }
+
+  &__li::before {
+    content: '\2022';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 14px; // fixed marker column - the icon can never be clipped
+    color: $ui-accent;
+    font-weight: $fw-semibold;
+    text-align: left;
+    line-height: inherit;
+  }
+
+  &__list--ol {
+    counter-reset: prose-item;
+  }
+
+  &__list--ol &__li {
+    counter-increment: prose-item;
+    padding-left: 26px;
+  }
+
+  &__list--ol &__li::before {
+    content: counter(prose-item) '.';
+    width: 22px;
+    color: $ui-accent;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__p + &__list,
+  &__list + &__p {
+    margin-top: $space-3;
+  }
+}

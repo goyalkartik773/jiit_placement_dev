@@ -46,6 +46,143 @@ export function stripHtml(html: string | null | undefined): string {
   }
 }
 
+// --------------------------------------------------------------------------- #
+// Structured blocks — so a bullet list is always <ul><li>, never a "- " prefix
+// --------------------------------------------------------------------------- #
+
+export type NoticeBlock =
+  | { kind: 'p'; text: string }
+  | { kind: 'ul'; items: string[] }
+  | { kind: 'ol'; items: string[] };
+
+const HAS_TAG = /<[a-z][^>]*>/i;
+const BULLET_PREFIX = /^\s*(?:[-*•▪◦·]|\d+[.)])\s+/;
+const BLOCK_TAGS = new Set([
+  'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DD', 'DETAILS', 'DIV', 'DL',
+  'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2',
+  'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P',
+  'PRE', 'SECTION', 'TABLE', 'TD', 'TH', 'TR', 'UL',
+]);
+
+function flushParagraph(buffer: string[], out: NoticeBlock[]): void {
+  const text = buffer
+    .join('')
+    .replace(/\u00A0/g, ' ')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  buffer.length = 0;
+  if (text) out.push({ kind: 'p', text });
+}
+
+/** Plain text: blank lines break paragraphs, "- "/"1." lines form lists. */
+function blocksFromText(value: string): NoticeBlock[] {
+  const blocks: NoticeBlock[] = [];
+  let paragraph: string[] = [];
+  let bullets: string[] = [];
+  let ordered = false;
+
+  const flushParagraphRun = () => {
+    flushParagraph(paragraph, blocks);
+  };
+  const flushList = () => {
+    if (bullets.length) {
+      blocks.push({ kind: ordered ? 'ol' : 'ul', items: bullets });
+      bullets = [];
+      ordered = false;
+    }
+  };
+
+  for (const line of value.replace(/\r\n?/g, '\n').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList();
+      flushParagraphRun();
+      continue;
+    }
+    const bullet = BULLET_PREFIX.exec(trimmed);
+    if (bullet) {
+      flushParagraphRun();
+      const nextOrdered = /^\s*\d+[.)]/.test(trimmed);
+      if (bullets.length && nextOrdered !== ordered) flushList();
+      ordered = nextOrdered;
+      bullets.push(trimmed.slice(bullet[0].length).trim());
+      continue;
+    }
+    flushList();
+    paragraph.push(line);
+  }
+  flushList();
+  flushParagraphRun();
+  return blocks;
+}
+
+/**
+ * Turns notice/description content into renderable blocks.
+ *
+ * The backend hands us HTML *or* pre-flattened text in which list items have
+ * already been reduced to a dash prefix.  Either way the result is real
+ * `<ul><li>` / `<ol><li>` structure, so `Prose` can lay every item out with a
+ * hanging indent - a wrapped bullet lines up under its text instead of
+ * sliding back under the marker.
+ */
+export function htmlToBlocks(value: string | null | undefined): NoticeBlock[] {
+  if (!value) return [];
+  const source = value.trim();
+  if (!source) return [];
+  if (!HAS_TAG.test(source)) return blocksFromText(source);
+
+  const prepared = source
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/\s*(p|div|li|h[1-6]|tr|blockquote|section|table)\s*>/gi, '\n');
+
+  let doc: Document | null = null;
+  try {
+    doc = new DOMParser().parseFromString(prepared, 'text/html');
+  } catch {
+    doc = null;
+  }
+  if (!doc?.body) return blocksFromText(source.replace(/<[^>]*>/g, '\n'));
+
+  const blocks: NoticeBlock[] = [];
+  let buffer: string[] = [];
+
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent) buffer.push(node.textContent);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const element = node as HTMLElement;
+
+    if (element.tagName === 'UL' || element.tagName === 'OL') {
+      flushParagraph(buffer, blocks);
+      const items = Array.from(element.children)
+        .filter((child) => child.tagName === 'LI')
+        .map((child) => (child.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      if (items.length) {
+        blocks.push({ kind: element.tagName === 'UL' ? 'ul' : 'ol', items });
+      } else {
+        // An empty <ul> still carries its text somewhere - fall through.
+        Array.from(element.childNodes).forEach(walk);
+      }
+      return;
+    }
+
+    const isBlock = BLOCK_TAGS.has(element.tagName);
+    if (isBlock) flushParagraph(buffer, blocks);
+    Array.from(element.childNodes).forEach(walk);
+    if (isBlock) flushParagraph(buffer, blocks);
+  };
+
+  Array.from(doc.body.childNodes).forEach(walk);
+  flushParagraph(buffer, blocks);
+  return blocks.length ? blocks : blocksFromText(source.replace(/<[^>]*>/g, '\n'));
+}
+
 /**
  * Forces external links inside rendered description HTML to open safely in a
  * new tab. Called after render via ref — avoids mutating backend content.

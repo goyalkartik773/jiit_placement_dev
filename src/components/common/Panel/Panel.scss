@@ -54,7 +54,7 @@
   // Mono caption chip (stage count, batch-style labels)
   &__meta {
     flex-shrink: 0;
-    padding: $space-1 $space-2;
+    padding: $space-1 $space-3; // >=12px horizontal
     border: 1px solid var(--line);
     border-radius: $radius-sm;
     background: var(--bg);

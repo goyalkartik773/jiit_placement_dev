@@ -59,30 +59,52 @@
     font-size: $fs-base;
   }
 
-  // ----- Lists -----
+  // ----- Lists: fixed marker column + hanging indent -----
+  // Wrapped items line up under their own text, never under the marker, and
+  // the marker lives in an absolutely positioned column so it cannot clip.
   ul,
   ol {
-    padding-left: $space-5;
-    @include stack($space-2);
-    list-style-position: outside;
-  }
-
-  ul {
-    list-style: disc;
-  }
-
-  ol {
-    list-style: decimal;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: $space-1-5;
   }
 
   li {
+    position: relative;
     margin: 0;
+    padding-left: 20px;
     color: $text-secondary;
+    overflow-wrap: anywhere;
   }
 
-  li::marker {
+  li::before {
+    content: '\2022';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 14px;
     color: $primary;
     font-weight: $fw-semibold;
+    line-height: inherit;
+    text-align: left;
+  }
+
+  ol {
+    counter-reset: prose-item;
+  }
+
+  ol > li {
+    counter-increment: prose-item;
+    padding-left: 26px;
+  }
+
+  ol > li::before {
+    content: counter(prose-item) '.';
+    width: 22px;
+    font-variant-numeric: tabular-nums;
   }
 
   // ----- Emphasis / links -----

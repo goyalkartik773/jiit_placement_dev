@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { Badge, statusTone } from '../../common/Badge/Badge';
 import { Icon } from '../../common/Icon/Icon';
+import { Prose } from '../../common/Prose/Prose';
 import type { SupersetNotice } from '../../../types/dashboard.types';
 import { formatDate, formatDateTime } from '../../../utils/format';
 import { htmlToPlainText } from '../../../utils/html';
@@ -11,8 +12,9 @@ interface SupersetNoticeCardProps {
 }
 
 /**
- * One notice synced from the Superset job portal. The body is converted to
- * plain text and rendered as text (white-space: pre-wrap), never as markup.
+ * One notice synced from the Superset job portal. The body is parsed into
+ * blocks and rendered as text-only markup (`Prose`) - never as HTML - so a
+ * bullet list comes out as real `<ul><li>` with a hanging indent.
  */
 export function SupersetNoticeCard({ notice }: SupersetNoticeCardProps) {
   const [open, setOpen] = useState(false);
@@ -65,7 +67,8 @@ export function SupersetNoticeCard({ notice }: SupersetNoticeCardProps) {
       </h3>
 
       <div className="superset-notice__body" id={panelId} hidden={!open}>
-        <p className="superset-notice__content">{body}</p>
+        <Prose content={notice.content} className="superset-notice__content" />
+        {!body ? <p className="superset-notice__content">This notice has no body text.</p> : null}
       </div>
     </article>
   );

@@ -129,11 +129,11 @@
   &__chip {
     display: inline-flex;
     align-items: center;
-    gap: $space-1;
+    gap: $space-2; // 8px between icon and label
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: $space-1 $space-2-5;
+    padding: $space-1 $space-3; // >=12px horizontal
     border: 1px solid $border;
     border-radius: $radius-pill;
     background: $surface-muted;
@@ -142,7 +142,10 @@
     font-weight: $fw-semibold;
     white-space: nowrap;
 
+    // The icon keeps its full box even when the chip truncates its label -
+    // truncation is the label's problem, never the icon's.
     svg {
+      flex-shrink: 0;
       color: $text-muted;
     }
 
@@ -217,7 +220,7 @@
   &__location {
     display: inline-flex;
     align-items: center;
-    gap: $space-1-5;
+    gap: $space-2-5; // 10px between the pin and the location text
     min-width: 0;
     font-size: $fs-xs;
     font-weight: $fw-medium;
