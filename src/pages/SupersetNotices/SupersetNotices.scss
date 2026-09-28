@@ -5,15 +5,32 @@
   @include stack($space-5);
 
   &__intro {
-    font-size: $fs-body-sm;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 0;
+    padding: 10px 14px;
+    font-family: var(--ui-font);
+    font-size: 13px;
     line-height: $lh-normal;
-    color: $text-soft;
+    color: var(--ui-muted);
+    background: var(--ui-quiet);
+    border: 1px solid var(--ui-border-soft);
+    border-radius: var(--ui-radius-nested);
   }
 
   &__intro-link {
-    color: $primary;
-    font-weight: $fw-semibold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: $fw-bold;
+    color: var(--ui-accent);
     text-decoration: none;
+
+    svg {
+      flex-shrink: 0;
+    }
 
     &:hover {
       text-decoration: underline;
@@ -24,16 +41,15 @@
     }
   }
 
-  // ----- Search row -----
+  // ----- Search row: rounded, bordered, no shadow -----
   &__toolbar {
     display: flex;
     align-items: center;
     gap: $space-3;
-    padding: $space-4 $space-5;
-    background: $surface;
-    border: 1px solid $border;
-    border-radius: $radius-lg;
-    box-shadow: $shadow-xs;
+    padding: $space-3 $space-4;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
   }
 
   // ----- Inline refresh-failure banner -----

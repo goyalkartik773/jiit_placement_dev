@@ -1,0 +1,36 @@
+// Soft-tinted icon tile — neutral by default, tinted only when colour means
+// something.  The box is explicitly sized by the caller and the icon inside
+// keeps flex-shrink: 0, so the tile can never be smaller than its icon.
+.ui-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--ui-pill);
+  color: var(--ui-muted);
+
+  > svg {
+    flex-shrink: 0;
+  }
+
+  &--accent {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+  }
+
+  &--green {
+    background: var(--ui-green-soft);
+    color: var(--ui-green);
+  }
+
+  &--amber {
+    background: var(--ui-amber-soft);
+    color: var(--ui-amber);
+  }
+
+  &--red {
+    background: var(--ui-red-soft);
+    color: var(--ui-red);
+  }
+}

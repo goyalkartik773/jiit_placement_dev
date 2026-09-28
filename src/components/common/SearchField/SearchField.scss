@@ -1,6 +1,13 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
+// ============================================================================
+// Search field - restyled Part 5 of the revamp: a rounded, bordered pill that
+// reads the same on every screen it appears (jobs, placements, both notices).
+// Surface stays white, border stays quiet, and focus uses the accent tint
+// rather than a heavy ring.
+// ============================================================================
+
 .search-field {
   position: relative;
   display: flex;
@@ -10,49 +17,55 @@
 
   input {
     width: 100%;
-    padding: $space-3 $space-8;
-    border: 1px solid $border-strong;
-    border-radius: $radius-md;
-    background: $surface-subtle;
-    font-size: $fs-base;
-    color: $ink;
+    padding: 10px 44px 10px 42px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-panel);
+    font-family: var(--ui-font);
+    font-size: 14px;
+    color: var(--ui-ink);
     transition: border-color $transition-fast, box-shadow $transition-fast, background $transition-fast;
 
     &::placeholder {
-      color: $text-muted;
+      color: var(--ui-faint);
     }
 
     &:focus {
       outline: none;
-      background: $surface;
-      border-color: $primary;
-      box-shadow: 0 0 0 3px rgba($primary, 0.15);
+      background: var(--ui-panel);
+      border-color: var(--ui-accent);
+      box-shadow: 0 0 0 3px var(--ui-accent-soft);
+    }
+
+    // The native clear affordance would collide with our own button.
+    &::-webkit-search-cancel-button {
+      display: none;
     }
   }
 
   &__icon {
     position: absolute;
-    left: $space-3-5;
+    left: 15px;
     display: flex;
-    color: $text-muted;
+    color: var(--ui-faint);
     pointer-events: none;
   }
 
   &__clear {
     @include flex-center;
     position: absolute;
-    right: $space-2-5;
-    width: $space-6;
-    height: $space-6;
+    right: 7px;
+    width: 30px;
+    height: 30px;
     border: 0;
     border-radius: 50%;
-    background: $surface-muted;
-    color: $text-secondary;
+    background: var(--ui-pill);
+    color: var(--ui-muted);
     transition: background $transition-fast, color $transition-fast;
 
     &:hover {
-      background: $border;
-      color: $ink;
+      background: var(--ui-accent-soft);
+      color: var(--ui-accent);
     }
 
     &:focus-visible {

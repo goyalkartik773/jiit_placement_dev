@@ -65,6 +65,22 @@ export function isPast(value: string | null | undefined): boolean {
   return date ? date.getTime() < Date.now() : false;
 }
 
+/**
+ * True when `value` landed today or yesterday (local calendar days).
+ * Used for the "recently updated" cue on a notice - a relative string like
+ * "yesterday" is not enough, because formatRelative() also answers for older
+ * dates and we only want the fresh ones.
+ */
+export function isTodayOrYesterday(value: string | null | undefined): boolean {
+  const date = parseDate(value);
+  if (!date) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const that = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((today - that) / 86_400_000);
+  return days === 0 || days === 1;
+}
+
 /** ₹10,00,000 — returns null when package is missing/zero. */
 export function formatINR(value: number | null | undefined): string | null {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return null;

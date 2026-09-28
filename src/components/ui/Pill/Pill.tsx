@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import './Pill.scss';
 
-export type PillTone = 'neutral' | 'accent' | 'green' | 'red';
+export type PillTone = 'neutral' | 'accent' | 'green' | 'red' | 'amber';
 
 interface PillProps {
   children: ReactNode;

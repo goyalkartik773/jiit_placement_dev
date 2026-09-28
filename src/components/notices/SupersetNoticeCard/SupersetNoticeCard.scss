@@ -1,29 +1,95 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
-.superset-notice {
-  @include card($space-5, $radius-lg);
-  @include stack($space-3);
+// ============================================================================
+// Superset notice card - Part 5 of the revamp.
+//
+// Same component, restyled onto the calm `--ui-*` system: author with a
+// soft-tinted initial avatar, status as a dot + word (green = active), one
+// muted meta line for Posted / Updated, and the title promoted to a real
+// anchor that discloses the body inline.
+// ============================================================================
 
-  &__top {
+.superset-notice {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2-5;
+  padding: $space-5;
+  font-family: var(--ui-font);
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  transition: border-color $transition-fast;
+
+  &:hover {
+    border-color: #d9dde5;
+  }
+
+  // ----- author + status row -----
+  &__head {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: $space-2 $space-4;
-    font-size: $fs-xs;
-    color: $text-muted;
+    gap: 8px 10px; // icon/avatar to label: never closer than the 8px floor
+    min-width: 0;
   }
 
-  &__meta-item {
+  &__avatar {
+    flex-shrink: 0;
+  }
+
+  &__author {
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ui-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Status: a coloured dot plus the word. Neutral by default; green only
+  // when the notice is actually active - the colour has to mean something.
+  &__status {
     display: inline-flex;
     align-items: center;
-    gap: $space-1-5;
+    gap: 7px;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--ui-muted);
+    background: var(--ui-pill);
+    border-radius: var(--ui-radius-pill);
 
-    svg {
-      flex-shrink: 0;
+    &--active {
+      color: var(--ui-green);
+      background: var(--ui-green-soft);
     }
   }
 
+  &__dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  // "Recently updated" - subtle accent tag, never a saturated chip.
+  &__tag {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    border-radius: var(--ui-radius-pill);
+  }
+
+  // ----- title as the anchor -----
   &__heading {
     margin: 0;
     font-size: inherit;
@@ -32,7 +98,7 @@
 
   &__toggle {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     gap: $space-3;
     width: 100%;
     padding: 0;
@@ -49,62 +115,91 @@
   &__title {
     flex: 1;
     min-width: 0;
-    font-size: $fs-md;
-    font-weight: $fw-bold;
+    font-size: 19px;
+    font-weight: 800;
     line-height: $lh-snug;
-    color: $ink;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
     overflow-wrap: anywhere;
+    transition: color $transition-fast;
 
     &:hover {
-      color: $primary;
+      color: var(--ui-accent);
     }
-  }
-
-  &__hint {
-    flex-shrink: 0;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
-    text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $primary;
   }
 
   &__chevron {
     display: flex;
     flex-shrink: 0;
-    color: $text-muted;
-    transition: transform $transition-fast;
+    margin-top: 3px;
+    color: var(--ui-faint);
+    transition: transform $transition-fast, color $transition-fast;
+
+    .superset-notice__toggle:hover & {
+      color: var(--ui-accent);
+    }
   }
 
   &__toggle[aria-expanded='true'] &__chevron {
     transform: rotate(180deg);
   }
 
+  // ----- one muted meta line: Posted ... · Updated ... -----
+  &__meta {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    font-size: 12.5px;
+    line-height: $lh-normal;
+    color: var(--ui-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__sep {
+    color: #c9ced8;
+  }
+
+  &__hint {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ui-accent);
+  }
+
+  // ----- inline body -----
   &__body {
     padding-top: $space-3;
-    border-top: 1px dashed $border;
+    border-top: 1px solid var(--ui-border-soft);
 
     &[hidden] {
       display: none;
     }
   }
 
-  // The body is parsed by <Prose/> into paragraphs + real <ul><li>; the
-  // line-break handling lives there (pre-line on paragraphs), so this only
-  // sets type colour and size.
+  // The body is parsed by <Prose/> into paragraphs + real <ul>/<ol>; colour,
+  // size and the hanging-indent marker column all live in Prose.scss, so this
+  // only sets how the block reads inside a notice card.
   &__content {
     font-size: $fs-body-sm;
     line-height: $lh-relaxed;
-    color: $text-soft;
+    color: var(--ui-muted);
     overflow-wrap: anywhere;
   }
 
   @include down('sm') {
     padding: $space-4;
 
-    &__toggle {
-      gap: $space-2;
+    &__title {
+      font-size: 17px;
+    }
+
+    &__hint {
+      margin-left: 0;
     }
   }
 }

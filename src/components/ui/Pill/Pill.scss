@@ -1,14 +1,15 @@
-// Shared pill/badge — one shape, four tones.
+// Shared pill/badge — one shape, five tones.
 //   neutral (default) — tags, chips, unselected filters
 //   accent            — primary / eligible selection
 //   green             — money, positive counts, success
 //   red               — passed deadlines, urgent-only warnings
+//   amber             — attention that is not urgent yet (registration, soon)
 .ui-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
-  padding: 5px 11px;
+  padding: 5px 12px; // >=12px each side so the label never crowds the edge
   border-radius: var(--ui-radius-pill);
   background: var(--ui-pill);
   color: var(--ui-muted);
@@ -17,6 +18,11 @@
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
+
+  // An optional leading icon is never allowed to squeeze or clip.
+  > svg {
+    flex-shrink: 0;
+  }
 
   &--accent {
     background: var(--ui-accent-soft);
@@ -31,5 +37,10 @@
   &--red {
     background: var(--ui-red-soft);
     color: var(--ui-red);
+  }
+
+  &--amber {
+    background: var(--ui-amber-soft);
+    color: var(--ui-amber);
   }
 }

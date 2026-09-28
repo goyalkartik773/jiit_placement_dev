@@ -1,19 +1,46 @@
 @use '../../styles/variables' as *;
 @use '../../styles/mixins' as *;
 
+// ============================================================================
+// E-mail notices page - Part 6 of the revamp.
+//
+// Filter chips are neutral pills that only take colour once they are
+// selected, the search sits in a rounded bordered bar, and the "these mails
+// are excluded on purpose" note is a small inline callout instead of a
+// floating paragraph.  Cards keep their own styling next to the component.
+// ============================================================================
+
 .email-notices-page {
   @include stack($space-5);
+  font-family: var(--ui-font);
 
+  // ----- exclusion note, styled as a small inline callout -----
   &__intro {
-    font-size: $fs-body-sm;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 0;
+    padding: 10px 14px;
+    font-size: 13px;
     line-height: $lh-normal;
-    color: $text-soft;
+    color: var(--ui-muted);
+    background: var(--ui-quiet);
+    border: 1px solid var(--ui-border-soft);
+    border-radius: var(--ui-radius-nested);
   }
 
   &__intro-link {
-    color: $primary;
-    font-weight: $fw-semibold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: $fw-bold;
+    color: var(--ui-accent);
     text-decoration: none;
+
+    svg {
+      flex-shrink: 0;
+    }
 
     &:hover {
       text-decoration: underline;
@@ -24,79 +51,89 @@
     }
   }
 
-  // ----- Classification facet chips -----
+  // ----- classification chips: neutral until selected -----
   &__facets {
     display: flex;
     flex-wrap: wrap;
-    gap: $space-2;
+    gap: 8px;
   }
 
   &__facet {
     display: inline-flex;
     align-items: center;
-    gap: $space-1-5;
-    padding: $space-1 $space-2-5;
-    border: 1px solid $border;
-    border-radius: $radius-sm;
-    background: $surface;
-    font-family: $font-mono;
-    font-size: $fs-2xs;
-    font-weight: $fw-bold;
-    text-transform: uppercase;
-    letter-spacing: $tracking-caps;
-    color: $text-secondary;
-    transition: color $transition-fast, border-color $transition-fast, background $transition-fast;
+    gap: 7px;
+    padding: 7px 14px; // >=12px each side, so the label never crowds the edge
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-panel);
+    box-shadow: inset 0 0 0 1px var(--ui-border);
+    font-family: var(--ui-font);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--ui-muted);
+    cursor: pointer;
+    transition:
+      color $transition-fast,
+      background $transition-fast,
+      box-shadow $transition-fast;
 
     &:hover {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
+      color: var(--ui-accent);
+      background: var(--ui-accent-soft);
     }
 
     &:focus-visible {
       @include focus-ring(1px);
     }
 
+    // Selected is the only state allowed to wear the accent.
     &.is-on {
-      color: $primary;
-      border-color: $primary-border;
-      background: $primary-soft;
-      box-shadow: inset 0 -2px 0 0 $primary;
+      color: var(--ui-accent);
+      background: var(--ui-accent-soft);
+      box-shadow: inset 0 0 0 1px var(--ui-accent);
     }
   }
 
   &__facet-count {
-    padding: 0 $space-1;
-    border-radius: $radius-xs;
-    background: $surface-muted;
-    color: $text-muted;
+    padding: 1px 7px;
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-pill);
+    font-size: 12px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
+    color: var(--ui-faint);
+    transition: background $transition-fast, color $transition-fast;
   }
 
-  // ----- Search row -----
+  &__facet.is-on &__facet-count {
+    background: var(--ui-panel);
+    color: var(--ui-accent);
+  }
+
+  // ----- search row: rounded, bordered, no shadow -----
   &__toolbar {
     display: flex;
     align-items: center;
     gap: $space-3;
-    padding: $space-4 $space-5;
-    background: $surface;
-    border: 1px solid $border;
-    border-radius: $radius-lg;
-    box-shadow: $shadow-xs;
+    padding: $space-3 $space-4;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
   }
 
-  // ----- Inline refresh-failure banner -----
+  // ----- inline refresh-failure banner -----
   &__banner {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: $space-3;
     padding: $space-3 $space-4;
-    background: $warning-soft;
-    border: 1px solid $warning-border;
+    background: var(--ui-red-soft);
+    border: 1px solid #f3c9c9;
     border-radius: $radius-md;
     font-size: $fs-sm;
-    color: $warning;
+    color: var(--ui-red);
 
     > span {
       flex: 1;
@@ -104,7 +141,7 @@
     }
   }
 
-  // ----- Result list -----
+  // ----- result list -----
   &__list {
     @include stack($space-4);
     transition: opacity $transition-base;
