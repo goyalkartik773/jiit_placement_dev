@@ -7,6 +7,10 @@
 --   * fn_api_select_placed_students_v1(_jobid)     : students of one job
 --   * fn_api_select_company_placements_v1(...)     : company-wise rollup
 --   * fn_api_select_email_notices_v1(...)          : Gmail notices feed
+--   * fn_branch_from_roll_v1 / fn_batch_year_from_roll_v1 (section 1b)
+--     -> READ-SIDE only: roll number -> branch + admission year. Additive,
+--        no column, no write-path change. Mirrors the Python reader
+--        placement_pipeline/app/domain/roll_mapper.py (keep in sync).
 --
 -- Matching rules (agreed):
 --   * company match only - NEVER create/guess a job. An offer company that
@@ -25,6 +29,130 @@ BEGIN
     RETURN lower(regexp_replace(
         regexp_replace(trim(COALESCE(_name, '')), '\s+', ' ', 'g'),
         '\s*\([^()]*\)$', ''));
+END;
+$function$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 1b. READ-SIDE ONLY: roll number -> branch, and roll number -> admission year.
+--
+-- Mirrors placement_pipeline/app/domain/roll_mapper.py::resolve_branch, which
+-- is a verbatim port of the reference repo
+-- services/placement/analysis/helpers.py:84-121.
+-- KEEP THE RANGE LIST BELOW IDENTICAL TO app/domain/enrollment_ranges.py:
+-- app/tests/test_roll_mapper.py compares both implementations and fails on
+-- any drift.
+--
+-- Decision order is the reference's, byte for byte:
+--   falsy -> "Other" | alpha -> "JUIT" | digits like '24%' -> "MTech"
+--   | 9 digits -> "JUIT" | no digits -> "Other" | half-open range lookup.
+-- The ranges are mutually disjoint, so a single LIMIT 1 is unambiguous.
+CREATE OR REPLACE FUNCTION fn_branch_from_roll_v1(_roll text) RETURNS text AS $function$
+DECLARE
+    _digits text;
+    _num    bigint;
+BEGIN
+    IF _roll IS NULL OR btrim(_roll) = '' THEN
+        RETURN 'Other';
+    END IF;
+
+    IF _roll ~ '[[:alpha:]]' THEN
+        RETURN 'JUIT';
+    END IF;
+
+    _digits := regexp_replace(_roll, '\D', '', 'g');
+
+    IF _digits LIKE '24%' THEN
+        RETURN 'MTech';
+    END IF;
+
+    IF length(_digits) = 9 THEN
+        RETURN 'JUIT';
+    END IF;
+
+    IF _digits = '' THEN
+        RETURN 'Other';
+    END IF;
+
+    BEGIN
+        _num := _digits::bigint;
+    EXCEPTION WHEN others THEN
+        RETURN 'Other';
+    END;
+
+    RETURN COALESCE((
+        SELECT r.branch
+        FROM (
+            VALUES ('CSE',         22103000::bigint,    22104000::bigint),
+                   ('CSE',         9922103000::bigint,  9922104000::bigint),
+                   ('ECE',         22102000::bigint,    22103000::bigint),
+                   ('ECE',         9922102000::bigint,  9922103000::bigint),
+                   ('IT',          22104000::bigint,    22105000::bigint),
+                   ('BT',          22101000::bigint,    22102000::bigint),
+                   ('Intg. MTech', 21803000::bigint,    21804000::bigint),
+                   ('Intg. MTech', 21802000::bigint,    21803000::bigint),
+                   ('Intg. MTech', 21801000::bigint,    21802000::bigint),
+                   ('CSE',         23103000::bigint,    23104000::bigint),
+                   ('CSE',         9923103000::bigint,  9923104000::bigint),
+                   ('ECE',         23102000::bigint,    23103000::bigint),
+                   ('ECE',         9923102000::bigint,  9923103000::bigint),
+                   ('EC-ACT',      23119000::bigint,    23120000::bigint),
+                   ('EE-VLSI',     23118000::bigint,    23119000::bigint),
+                   ('IT',          23104000::bigint,    23105000::bigint),
+                   ('BT',          23101000::bigint,    23102000::bigint),
+                   ('Intg. MTech', 22903000::bigint,    22904000::bigint),
+                   ('Intg. MTech', 22802000::bigint,    22803000::bigint),
+                   ('Intg. MTech', 22801000::bigint,    22802000::bigint)
+        ) AS r(branch, start_no, end_no)
+        WHERE r.start_no <= _num AND _num < r.end_no
+        LIMIT 1
+    ), 'Other');
+END;
+$function$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 1b(ii). Admission year from the roll prefix: 'YY.......' -> 20YY after
+-- dropping a leading '99' campus prefix.  NOT in the reference repo - the
+-- reference is handed a placement year by its caller instead - see
+-- docs/roll_to_branch_mapping.md.  Returns NULL rather than guessing.
+CREATE OR REPLACE FUNCTION fn_batch_year_from_roll_v1(_roll text) RETURNS integer AS $function$
+DECLARE
+    _digits text;
+    _core   text;
+    _year   integer;
+BEGIN
+    IF _roll IS NULL OR btrim(_roll) = '' THEN
+        RETURN NULL;
+    END IF;
+
+    IF _roll ~ '[[:alpha:]]' THEN
+        RETURN NULL;
+    END IF;
+
+    _digits := regexp_replace(_roll, '\D', '', 'g');
+
+    -- Same precedence as fn_branch_from_roll_v1: the hardcoded MTech prefix
+    -- wins over the 9-digit JUIT rule, so an MTech roll still gets a year.
+    IF _digits LIKE '24%' THEN
+        _core := _digits;
+    ELSIF length(_digits) = 9 OR _digits = '' THEN
+        RETURN NULL;
+    ELSIF length(_digits) >= 10 AND _digits LIKE '99%' THEN
+        -- '99' + 8 digits, or '99' + 10 digits: strip only when a real roll
+        -- remains (>= 10 digits total), so '99999999' keeps its prefix.
+        _core := substr(_digits, 3);
+    ELSE
+        _core := _digits;
+    END IF;
+
+    IF length(_core) < 2 THEN
+        RETURN NULL;
+    END IF;
+
+    _year := 2000 + substring(_core FROM 1 FOR 2)::integer;
+
+    IF _year < 2015 OR _year > 2035 THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN _year;
 END;
 $function$ LANGUAGE plpgsql IMMUTABLE;
 
@@ -213,7 +341,9 @@ BEGIN
                        off.stipend,
                        off.employmenttype,
                        em.subject AS offersubject,
-                       em.received_at AS offerreceivedat
+                       em.received_at AS offerreceivedat,
+                       fn_branch_from_roll_v1(jps.student_roll_no) AS branchfromroll,
+                       fn_batch_year_from_roll_v1(jps.student_roll_no) AS batchyear
                 FROM job_placed_students jps
                 LEFT JOIN LATERAL (
                     SELECT os2.branch, os2.program, os2.email,
