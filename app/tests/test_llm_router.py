@@ -11,7 +11,13 @@ import json
 import httpx
 import pytest
 
-from app.config import LLMConfig, LLMConfigError, LLMAccount, load_llm_config
+from app.config import (
+    LLMConfig,
+    LLMConfigError,
+    LLMAccount,
+    LLM_ACCOUNT_SPECS,
+    load_llm_config,
+)
 from app.llm.prompt import SCHEMA_JSON, SYSTEM_PROMPT, build_user_message
 from app.llm.router import LLMService, LLMUnavailable
 from app.llm.schema import FinalSelectionExtraction
@@ -491,6 +497,7 @@ _ENV_KEYS = [
     "GEMINI_API_KEY_1",
     "GEMINI_API_KEY_2",
     "GEMINI_API_KEY_3",
+    "GEMINI_API_KEY_4",
     "GROQ_API_KEY_1",
     "GROQ_API_KEY_2",
     "GROQ_API_KEY_3",
@@ -524,16 +531,23 @@ def test_missing_key_fails_fast_and_names_variables_not_values(monkeypatch):
     assert "fake-value" not in message  # never echo a key value
 
 
-def test_all_ten_accounts_are_grouped_in_provider_priority(monkeypatch):
+def test_all_eleven_accounts_are_grouped_in_provider_priority(monkeypatch):
     monkeypatch.setenv("PLACEMENT_HYBRID_LLM", "true")
     for index, name in enumerate(_ENV_KEYS, start=1):
         monkeypatch.setenv(name, f"fake-value-{index}")
     cfg = load_llm_config()
     assert cfg.enabled is True
-    assert len(cfg.accounts) == 10
+    # pin the wiring itself, not just the derived account list
+    assert LLM_ACCOUNT_SPECS == {
+        "gemini": (4, "GEMINI_API_KEY_{n}"),
+        "groq": (3, "GROQ_API_KEY_{n}"),
+        "deepseek": (4, "DEEPSEEK_API_KEY_{n}"),
+    }
+    assert len(cfg.accounts) == len(_ENV_KEYS) == 11
     providers = [a.provider for a in cfg.accounts]
-    assert providers == ["gemini"] * 3 + ["groq"] * 3 + ["deepseek"] * 4
+    assert providers == ["gemini"] * 4 + ["groq"] * 3 + ["deepseek"] * 4
     assert cfg.accounts[1].label == "gemini_2"
-    assert cfg.accounts[9].label == "deepseek_4"
+    assert cfg.accounts[3].label == "gemini_4"
+    assert cfg.accounts[10].label == "deepseek_4"
     # keys are present but must never be rendered by __repr__-style logs
     assert all(a.key.startswith("fake-value") for a in cfg.accounts)
