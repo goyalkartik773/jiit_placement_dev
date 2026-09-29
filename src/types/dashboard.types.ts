@@ -102,6 +102,15 @@ export interface PlacedStudent {
   placedat: string;
   offeremailid: string;
   branch: string | null;
+  /**
+   * Derived server-side from `rollno` by the enrollment-range lookup, never
+   * stored (`fn_branch_from_roll_v1`). Added as an OPTIONAL field alongside the
+   * extraction-sourced `branch` above so the two can be compared. Older rows /
+   * older backends simply omit it.
+   */
+  branchfromroll?: string | null;
+  /** Admission / batch year derived from the roll prefix (2023, 2024, ...). */
+  batchyear?: number | null;
   program: string | null;
   email: string | null;
   role: string | null;
