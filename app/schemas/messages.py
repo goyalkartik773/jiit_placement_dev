@@ -21,6 +21,12 @@ class OfferStudentOut(BaseModel):
     roll_no: Optional[str] = None
     name: Optional[str] = None
     branch: Optional[str] = None
+    # Derived at request time from roll_no (never stored) - see
+    # app/domain/roll_mapper.py.  `branch` above stays the extraction-sourced
+    # value; `branch_from_roll` is the roll-range lookup, kept separate so the
+    # two can be compared instead of silently disagreeing.
+    branch_from_roll: Optional[str] = None
+    batch_year: Optional[int] = None
     program: Optional[str] = None
     college: Optional[str] = None
     email: Optional[str] = None
@@ -51,6 +57,10 @@ class ShortlistStudentOut(BaseModel):
     roll_no: Optional[str] = None
     name: Optional[str] = None
     branch: Optional[str] = None
+    # Derived at request time from roll_no (never stored) - see
+    # app/domain/roll_mapper.py.
+    branch_from_roll: Optional[str] = None
+    batch_year: Optional[int] = None
     program: Optional[str] = None
     college: Optional[str] = None
     status_raw: Optional[str] = None
@@ -113,6 +123,10 @@ class StudentEventOut(BaseModel):
     id: str
     roll_no: Optional[str] = None
     name: Optional[str] = None
+    # Derived at request time from roll_no (never stored) - see
+    # app/domain/roll_mapper.py.
+    branch_from_roll: Optional[str] = None
+    batch_year: Optional[int] = None
     company_id: Optional[str] = None
     company_name: Optional[str] = None
     event_type: str

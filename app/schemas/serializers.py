@@ -7,6 +7,7 @@ from typing import Iterable, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain import resolve_branch, resolve_batch_year
 from app.models import (
     Company,
     Email,
@@ -66,6 +67,8 @@ def offer_out(offer: Offer, names: dict[str, str]) -> OfferOut:
                 roll_no=s.roll_no,
                 name=s.name,
                 branch=s.branch,
+                branch_from_roll=resolve_branch(s.roll_no),
+                batch_year=resolve_batch_year(s.roll_no),
                 program=s.program,
                 college=s.college,
                 email=s.email,
@@ -97,6 +100,8 @@ def shortlist_out(event: ShortlistEvent, names: dict[str, str]) -> ShortlistEven
                 roll_no=s.roll_no,
                 name=s.name,
                 branch=s.branch,
+                branch_from_roll=resolve_branch(s.roll_no),
+                batch_year=resolve_batch_year(s.roll_no),
                 program=s.program,
                 college=s.college,
                 status_raw=s.status_raw,
@@ -154,6 +159,8 @@ def event_out(
         id=event.id,
         roll_no=event.roll_no,
         name=event.name,
+        branch_from_roll=resolve_branch(event.roll_no),
+        batch_year=resolve_batch_year(event.roll_no),
         company_id=event.company_id,
         company_name=names.get(event.company_id or ""),
         event_type=event.event_type,

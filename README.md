@@ -50,12 +50,13 @@ app/
   parsers/       email_adapter: DB row -> placement_pipeline Email
   classifiers/   taxonomy (14-value mapping), llm_fallback (optional)
   extractors/    offers, shortlists, opportunities, events, companies, evidence
+  domain/        pure logic, no IO: enrollment ranges + roll -> branch/year
   models/        SQLAlchemy ORM (10 tables)
   schemas/       Pydantic request/response models + serializers
   repositories/  email/company/placement/opportunity queries (pagination)
   workers/       JobRunner + live status counters
   utils/         structured JSON logging (secrets never logged)
-  tests/         304-test suite on the app_test schema of the same database
+  tests/         315-test suite on the app_test schema of the same database
 ```
 
 - The parser/classifier/dedup logic is reused from `src/placement_pipeline`
@@ -68,6 +69,9 @@ app/
   `python scripts/watch_mail.py` polls for UNSEEN group mail and runs
   *store -> mark `\Seen` -> process* every cycle. See
   `docs/mail_transport_migration.md`.
+- **Roll → branch / batch year**: derived at request time from the
+  enrollment number (no column, no write path). See
+  `docs/roll_to_branch_mapping.md`.
 
 ## 2. Database schema
 

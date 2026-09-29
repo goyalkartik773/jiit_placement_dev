@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_session
+from app.domain import resolve_branch, resolve_batch_year
 from app.repositories import placement_repo
 from app.schemas.common import ApiResponse
 from app.schemas.placements import PlacementSummary, StudentTimeline
@@ -40,6 +41,8 @@ def student_placements(
         data=StudentTimeline(
             roll_no=roll,
             name=data["name"],
+            branch_from_roll=resolve_branch(roll),
+            batch_year=resolve_batch_year(roll),
             events=[event_out(e, names) for e in data["events"]],
             offers=[offer_out(o, names) for o in data["offers"]],
             shortlists=[shortlist_out(s, names) for s in data["shortlists"]],

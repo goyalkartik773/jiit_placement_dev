@@ -12,6 +12,10 @@ from app.schemas.messages import OfferOut, ShortlistEventOut, StudentEventOut
 class StudentTimeline(BaseModel):
     roll_no: str
     name: Optional[str] = None
+    # Derived at request time from roll_no (never stored) - see
+    # app/domain/roll_mapper.py.
+    branch_from_roll: Optional[str] = None
+    batch_year: Optional[int] = None
     events: list[StudentEventOut] = Field(default_factory=list)
     offers: list[OfferOut] = Field(default_factory=list)
     shortlists: list[ShortlistEventOut] = Field(default_factory=list)
