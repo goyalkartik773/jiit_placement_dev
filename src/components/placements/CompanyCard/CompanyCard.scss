@@ -157,6 +157,29 @@
     color: var(--ui-muted);
   }
 
+  // ----- Branch / campus split: two bordered lists side by side -----
+  // Reuses the __roles / __role rows below, so it reads as the same widget
+  // as the role list instead of a second styling dialect.
+  &__breakdowns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: $space-3;
+  }
+
+  &__breakdown {
+    @include stack($space-2);
+    min-width: 0;
+  }
+
+  &__breakdown-label {
+    font-family: var(--ui-font);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ui-faint);
+  }
+
   &__note {
     font-family: var(--ui-font);
     font-size: 13px;

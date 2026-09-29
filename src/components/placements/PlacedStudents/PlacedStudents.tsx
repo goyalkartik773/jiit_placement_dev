@@ -6,6 +6,7 @@ import { Pill } from '../../ui/Pill/Pill';
 import { isAbortError } from '../../../services/apiClient';
 import { fetchPlacedStudents, type FetchedPlacedStudents } from '../../../services/placementService';
 import { formatDate, formatINR } from '../../../utils/format';
+import type { PlacedStudent } from '../../../types/dashboard.types';
 import './PlacedStudents.scss';
 
 interface PlacedStudentsProps {
@@ -15,6 +16,20 @@ interface PlacedStudentsProps {
 function ctcLabel(ctcraw: string | null, ctctotal: number | null): string {
   const raw = (ctcraw ?? '').trim();
   return raw || formatINR(ctctotal) || 'Not disclosed';
+}
+
+/**
+ * The email's own ``Branch`` cell is actual data and wins; the
+ * enrollment-range rule (`branchfromroll`) fills the rolls the config cannot
+ * resolve - the 22803xxx series and every alpha roll. Before this, the rule
+ * was the only answer on offer, so those students showed "-".
+ */
+function branchLabel(student: PlacedStudent): string | null {
+  return (
+    (student.branch ?? '').trim() ||
+    (student.branchfromroll ?? '').trim() ||
+    null
+  );
 }
 
 /**
@@ -94,6 +109,7 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
             <tr>
               <th scope="col">Student</th>
               <th scope="col">Branch</th>
+              <th scope="col">Campus</th>
               <th scope="col">Role</th>
               <th scope="col" className="placed-students__ctc">CTC</th>
               <th scope="col">Offer date</th>
@@ -108,9 +124,22 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
                   {student.email ? <span className="placed-students__email">{student.email}</span> : null}
                 </td>
                 <td className="placed-students__branch-cell">
-                  {student.branch ? <Pill className="placed-students__branch">{student.branch}</Pill> : '-'}
+                  {branchLabel(student) ? (
+                    <Pill className="placed-students__branch">{branchLabel(student)}</Pill>
+                  ) : (
+                    '-'
+                  )}
                 </td>
-                <td className="placed-students__role">{student.role || '-'}</td>
+                <td className="placed-students__branch-cell">
+                  {student.campus ? (
+                    <Pill className="placed-students__branch">{student.campus}</Pill>
+                  ) : (
+                    '-'
+                  )}
+                </td>
+                <td className="placed-students__role">
+                  {student.rolelevel || student.role || '-'}
+                </td>
                 <td className="placed-students__ctc">{ctcLabel(student.ctcraw, student.ctctotal)}</td>
                 <td className="placed-students__date">{formatDate(student.placedat)}</td>
               </tr>

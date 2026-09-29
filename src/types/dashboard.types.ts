@@ -56,6 +56,22 @@ export interface CompanyRole {
   ctcmax: number | null;
 }
 
+/**
+ * Branch / campus breakdown for one company.
+ *
+ * Both are resolved per DISTINCT (company, student) - i.e. they always sum to
+ * `placedstudents`, never to the raw `job_placed_students` row count.
+ * `branch` is the enrollment-range rule, with the email's own ``Branch`` cell
+ * filling the ranges the config does not cover (22803xxx). `campus` is the
+ * roll's `99` campus prefix (Sector 62 / Sector 128), overridden only when the
+ * ``University`` cell names a different institution (JUET Guna).
+ */
+export interface CompanyBreakdown {
+  branch?: string;
+  campus?: string;
+  students: number;
+}
+
 /** GET /api/placements/company-wise item - one company + its jobs + its roles. */
 export interface CompanyRow {
   company: string;
@@ -67,6 +83,13 @@ export interface CompanyRow {
   lastplacedat: string | null;
   jobs: CompanyJob[] | null;
   roles: CompanyRole[] | null;
+  /**
+   * Branch split of the placed students. Optional: older backends omit it,
+   * and it is `[]` while nothing is mapped yet.
+   */
+  branches?: CompanyBreakdown[] | null;
+  /** Campus split (Sector 62 / Sector 128 / JUIT / JUET Guna). */
+  campuses?: CompanyBreakdown[] | null;
 }
 
 /** GET /api/placements/company-wise -> Data */
@@ -111,6 +134,22 @@ export interface PlacedStudent {
   branchfromroll?: string | null;
   /** Admission / batch year derived from the roll prefix (2023, 2024, ...). */
   batchyear?: number | null;
+  /**
+   * Campus derived from the roll's two-digit `99` prefix (Sector 62 vs
+   * Sector 128), overridden only when the offer table's ``University`` cell
+   * names a different institution (JUET Guna). This is the display value.
+   */
+  campus?: string | null;
+  /** Roll-rule answer alone, kept so it can be compared with `campus`. */
+  campusfromroll?: string | null;
+  /** The ``University`` cell exactly as the email carried it (may be blank). */
+  campusextracted?: string | null;
+  /**
+   * `role` canonicalised for grouping (`fn_norm_role_v1`): wrapped cells are
+   * rejoined and "(L1, L2, L3)" becomes "(L1 / L2 / L3)", so the same role
+   * family renders as one row instead of two identical-looking ones.
+   */
+  rolelevel?: string | null;
   program: string | null;
   email: string | null;
   role: string | null;

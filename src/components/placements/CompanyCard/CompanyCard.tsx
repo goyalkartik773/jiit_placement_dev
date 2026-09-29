@@ -27,6 +27,8 @@ export function CompanyCard({ row }: CompanyCardProps) {
 
   const jobs = row.jobs ?? [];
   const roles = row.roles ?? [];
+  const branches = row.branches ?? [];
+  const campuses = row.campuses ?? [];
   const jobLabel = `${row.jobcount} job${row.jobcount === 1 ? '' : 's'}`;
 
   function toggleStudents(jobId: string): void {
@@ -92,6 +94,49 @@ export function CompanyCard({ row }: CompanyCardProps) {
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {branches.length > 0 || campuses.length > 0 ? (
+          <div className="company-card__section">
+            <p className="company-card__section-title">
+              Branch &amp; campus ({row.placedstudents} placed)
+            </p>
+            <div className="company-card__breakdowns">
+              {campuses.length > 0 ? (
+                <div className="company-card__breakdown">
+                  <p className="company-card__breakdown-label">Campus</p>
+                  <ul className="company-card__roles">
+                    {campuses.map((entry) => (
+                      <li className="company-card__role" key={`campus-${entry.campus ?? '?'}`}>
+                        <span className="company-card__role-name">{entry.campus ?? 'Unknown'}</span>
+                        <span className="company-card__role-count">
+                          {entry.students}{' '}
+                          <span className="company-card__role-count-suffix">placed</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {branches.length > 0 ? (
+                <div className="company-card__breakdown">
+                  <p className="company-card__breakdown-label">Branch</p>
+                  <ul className="company-card__roles">
+                    {branches.map((entry) => (
+                      <li className="company-card__role" key={`branch-${entry.branch ?? '?'}`}>
+                        <span className="company-card__role-name">{entry.branch ?? 'Unknown'}</span>
+                        <span className="company-card__role-count">
+                          {entry.students}{' '}
+                          <span className="company-card__role-count-suffix">placed</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
