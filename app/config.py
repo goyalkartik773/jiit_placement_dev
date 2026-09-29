@@ -77,8 +77,8 @@ LLM_PROVIDER_ORDER: tuple[str, ...] = ("gemini", "groq", "deepseek")
 #: ``provider -> (account count, env var template)``.  One variable per
 #: account; accounts round-robin inside their provider.
 LLM_ACCOUNT_SPECS: dict[str, tuple[int, str]] = {
-    "gemini": (4, "GEMINI_API_KEY_{n}"),
-    "groq": (3, "GROQ_API_KEY_{n}"),
+    "gemini": (6, "GEMINI_API_KEY_{n}"),
+    "groq": (5, "GROQ_API_KEY_{n}"),
     "deepseek": (4, "DEEPSEEK_API_KEY_{n}"),
 }
 

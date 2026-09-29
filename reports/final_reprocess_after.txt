@@ -1,0 +1,54 @@
+== AFTER snapshot: 2026-09-30 02:23:32 ==
+
+--- emails / extraction ---
+emails|processed|offers|offer_students|offer_rolls
+600|600|83|634|392
+
+--- offer_students field completeness ---
+total|college_blank|email_blank|role_blank|status_blank
+634|519|534|28|630
+
+--- distinct role strings ---
+distinct_roles
+64
+
+--- dedup discipline (THE FIX) ---
+dedup_copies|offers_from_copies|rows_from_copies
+22|0|0
+
+--- duplicate student inside one offer ---
+extra_rows|duplicate_keys
+0|0
+
+--- duplicate (email, roll, event_type) ---
+extra_events|duplicate_keys
+0|0
+
+--- job_placed (read path) ---
+rows|students|jobs|companies
+420|382|50|46
+
+--- FAN-OUT (rows vs distinct company+roll) ---
+rows|pairs|fan_out|company_less
+420|420|1.0000|0
+
+--- ZERO-MAPPING companies ---
+zero_map_companies|unmapped_students
+6|10
+
+--- Infosys 'Systems Engineer' over-claim ---
+rows
+0
+
+--- campus coverage in student_branch_campus ---
+campus|count
+Sector 62|948
+JUIT|546
+Sector 128|516
+JUET Guna|146
+
+--- classification method mix ---
+classification_method|count
+rule_based|484
+llm|94
+dedup_copy|22

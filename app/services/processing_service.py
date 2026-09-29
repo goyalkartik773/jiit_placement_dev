@@ -87,6 +87,11 @@ _EMPTY_ROWS = {
     "student_placement_events": 0,
 }
 
+#: ``classification_method`` for a mail whose canonical already told the story.
+#: Kept distinct from ``rule_based``/``llm`` so "no rows" is explainable from a
+#: report instead of looking like an email the extractor failed to read.
+METHOD_DEDUP_COPY = "dedup_copy"
+
 
 def _delete_derived(session: Session, email_id: str) -> None:
     """Remove this email's previous extracted rows (children cascade in DB)."""
@@ -168,6 +173,33 @@ def _extract_and_store(session: Session, row: Email, settings: Settings) -> dict
             funnel_method = "llm"
 
     taxonomy = classify_taxonomy(ext, subject=row.subject, body=row.body_text)
+
+    # ------------------------------------------------------------------ #
+    # A dedup copy reports the SAME message its canonical already owns.
+    # _link_cluster above has just re-decided which member of the subject +
+    # sender cluster is canonical, and that decision is honoured here rather
+    # than re-derived: letting every copy write its own offer re-counted all
+    # nine duplicate mails (126 inflated offer_students), and for
+    # "Fwd: Infosys Niche Roles" the copy's 53 students were a strict subset
+    # of the canonical's 73.  Lossless by construction - every roll of every
+    # copy already exists under its canonical - so the copy contributes its
+    # classification and nothing else.  The delete still runs because an
+    # earlier run may have written rows before this rule existed.
+    # ------------------------------------------------------------------ #
+    if row.dedup_of:
+        _delete_derived(session, row.id)
+        signals = list(taxonomy.signals)
+        row.classification = taxonomy.category
+        row.classification_confidence = taxonomy.confidence
+        row.classification_signals = signals[:40]
+        row.classification_method = METHOD_DEDUP_COPY
+        return {
+            "category": taxonomy.category,
+            "rows": dict(_EMPTY_ROWS),
+            "signals": signals,
+            "method": METHOD_DEDUP_COPY,
+            "llm_unavailable": False,
+        }
 
     # ------------------------------------------------------------------ #
     # Hybrid layer: the LLM is authoritative ONLY for final-selection

@@ -1,0 +1,36 @@
+== BEFORE snapshot: 2026-09-30 00:44:54 ==
+
+--- emails / extraction ---
+emails|processed|offers|offer_students|offer_rolls
+600|600|92|760|392
+(1 row)
+
+--- offer_students field completeness (THE BUG) ---
+total|college_blank|email_blank|role_blank|status_blank|branch_blank
+760|760|760|37|760|20
+(1 row)
+
+--- distinct role strings (normalization need) ---
+distinct_roles
+60
+(1 row)
+
+--- job_placed (read path) ---
+rows|students|jobs|companies
+655|371|52|41
+(1 row)
+
+--- FAN-OUT: rows vs students per job (only where they differ) ---
+jobs_with_fanout|inflated_rows|true_students
+0|0|0
+(1 row)
+
+--- ZERO-MAPPING companies ---
+zero_map_companies|unmapped_students
+11|23
+(1 row)
+
+--- campus coverage: 99-prefix split ---
+sector_128|sector_62|total
+120|245|392
+(1 row)

@@ -37,7 +37,7 @@ import os
 # stays off unless the caller sets PLACEMENT_HYBRID_LLM deliberately.
 os.environ.setdefault("PLACEMENT_HYBRID_LLM", "false")
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.classifiers.taxonomy import TAXONOMY
 from app.config import load_settings
@@ -79,7 +79,10 @@ GOLDEN: list[dict[str, Any]] = [
      "company": "smartShift Technologies", "offer_students": 8},
     {"gm": "1a0b7ee6e5486c2a", "gt": "FINAL_SELECTION",
      "company": "Keyence India", "offer_students": 4},
-    {"gm": "19ed55cde526a30b", "gt": "FINAL_SELECTION",
+    # Canonical, not its dedup twin 19ed55cde526a30b: a duplicate contributes
+    # no rows of its own any more (see METHOD_DEDUP_COPY), so pinning the copy
+    # would assert rows the pipeline is right not to write.
+    {"gm": "19ed56100c4f3337", "gt": "FINAL_SELECTION",
      "company": "LTIMindtree", "offer_students": 4},
     {"gm": "19ef8e389b433689", "gt": "FINAL_SELECTION",
      "company": "Infosys", "offer_students": 232},
@@ -433,12 +436,117 @@ def corpus_distribution() -> dict[str, int]:
 # ----------------------------------------------------------------- report
 
 
+def integrity_gate() -> dict[str, Any]:
+    """Mapping invariants that must hold AFTER the sync - read-only.
+
+    Two production regressions this exists to catch:
+
+    * **Fan-out** - the v1 sync linked an offer's company to *every* Jobs row
+      of that company, so a 7-job company (Procol) showed 140 placed rows for
+      20 students and the Infosys row ``Systems Engineer Trainee`` listed all
+      88 students although not one of them holds that offer.  ``v2`` keeps
+      exactly one job per (company, student), so placed rows and distinct
+      (company, roll) pairs must agree exactly - ``fan_out == 1.00``.  The
+      ratio is derived, so it fails on the over-count itself and not on a
+      hand-picked number.
+
+    * **Campus mis-filing** - ``fn_campus_from_roll_v1`` decides Sector 62 vs
+      Sector 128 from the roll's ``99`` prefix and JUIT from an alpha roll,
+      while ``fn_campus_resolved_v1`` lets the email's own ``University``
+      cell override ONLY for a different institution (JUET Guna, whose rolls
+      look like ``231B007`` and would otherwise be filed under JUIT).  Both
+      functions are pinned on golden rolls rather than trusted implicitly.
+    """
+    session = get_session_factory()()
+    try:
+        rows = session.execute(
+            text(
+                """
+                SELECT COUNT(*) AS rows,
+                       COUNT(DISTINCT (fn_norm_company_v1(company_name),
+                                       student_roll_no)) AS pairs,
+                       COUNT(*) FILTER (WHERE company_name IS NULL
+                                          OR btrim(company_name) = '') AS no_company
+                FROM job_placed_students
+                """
+            )
+        ).mappings().one()
+
+        # The exact row that made the over-count visible: Infosys has two Jobs
+        # rows, but no Infosys offer carries a Systems Engineer role.
+        over = session.execute(
+            text(
+                """
+                SELECT COUNT(*) AS rows
+                FROM job_placed_students jps
+                WHERE fn_norm_company_v1(jps.company_name) = 'infosys'
+                  AND EXISTS (SELECT 1 FROM jobs j
+                               WHERE j.id = jps.job_id
+                                 AND j.jobprofile ILIKE '%Systems Engineer%')
+                """
+            )
+        ).scalar_one()
+
+        campus = session.execute(
+            text(
+                """
+                SELECT fn_campus_from_roll_v1('22103312')  AS sector62,
+                       fn_campus_from_roll_v1('9922103312') AS sector128,
+                       fn_campus_from_roll_v1('23AB3001')   AS alpha,
+                       fn_campus_resolved_v1('231B007', 'JUET Guna')  AS juet,
+                       fn_campus_resolved_v1('22103312', 'JIIT, Noida') AS jiit_cell
+                """
+            )
+        ).mappings().one()
+    finally:
+        session.close()
+
+    pairs = int(rows["pairs"])
+    fan_out = (int(rows["rows"]) / pairs) if pairs else 1.0
+
+    checks: list[tuple[str, bool, str]] = [
+        (
+            "one job per (company, student) - fan_out == 1.00",
+            abs(fan_out - 1.0) < 1e-9,
+            f"rows={rows['rows']} pairs={pairs} ratio={fan_out:.4f}",
+        ),
+        ("every mapping has a company", rows["no_company"] == 0,
+         str(rows["no_company"])),
+        (
+            "Infosys 'Systems Engineer' job claims 0 students",
+            over == 0,
+            str(over),
+        ),
+        ("roll 22103312 -> Sector 62", campus["sector62"] == "Sector 62",
+         str(campus["sector62"])),
+        ("roll 9922103312 -> Sector 128",
+         campus["sector128"] == "Sector 128", str(campus["sector128"])),
+        ("alpha roll 23AB3001 -> JUIT", campus["alpha"] == "JUIT",
+         str(campus["alpha"])),
+        ("231B007 + 'JUET Guna' cell -> JUET Guna",
+         campus["juet"] == "JUET Guna", str(campus["juet"])),
+        ("a 'JIIT, Noida' cell never beats the roll rule",
+         campus["jiit_cell"] == "Sector 62", str(campus["jiit_cell"])),
+    ]
+
+    return {
+        "checks": [{"name": n, "ok": ok, "observed": obs} for n, ok, obs in checks],
+        "rows": int(rows["rows"]),
+        "pairs": pairs,
+        "fan_out": fan_out,
+        "infosys_overclaimed": int(over),
+        "passed": sum(1 for _, ok, _ in checks if ok),
+        "total": len(checks),
+    }
+
+
 def render_markdown(
     *,
     golden: list[dict[str, Any]],
     pipeline: dict[str, Any],
     distribution: dict[str, int],
     idempotent: bool,
+    gate: dict[str, Any],
     totals_run1: dict[str, int],
     totals_run2: dict[str, int],
 ) -> str:
@@ -482,10 +590,20 @@ def render_markdown(
            else "MISMATCH (see table)")
         + " |"
     )
+    add(
+        "| Mapping integrity (fan-out + campus) | "
+        f"{gate['passed']}/{gate['total']} checks, "
+        f"fan_out={gate['fan_out']:.2f} |"
+    )
     add("")
     taxonomy_ok = passed == len(golden)
     pipeline_ok = pipeline["samples_passed"] == pipeline["samples_total"]
-    overall = "PASS" if taxonomy_ok and pipeline_ok and idempotent else "FAIL"
+    gate_ok = gate["passed"] == gate["total"]
+    overall = (
+        "PASS"
+        if taxonomy_ok and pipeline_ok and idempotent and gate_ok
+        else "FAIL"
+    )
     add(f"**Overall: {overall}**")
     add("")
     add("## 2. Golden taxonomy samples")
@@ -552,6 +670,26 @@ def render_markdown(
     add("               fixed parser edge case -> 596/596 on re-run")
     add("```")
     add("")
+    add("## 7. Mapping integrity gate (job_placed_students)")
+    add("")
+    add(
+        "`fn_api_sync_offer_students_v2` writes exactly one job per "
+        "(company, student). The ratio below is derived from the live rows - "
+        "a fan-out would show up as `> 1.00` on its own, no hand-picked "
+        "threshold needed."
+    )
+    add("")
+    add(
+        f"Rows: **{gate['rows']}**  |  distinct (company, roll) pairs: "
+        f"**{gate['pairs']}**  |  fan-out: **{gate['fan_out']:.2f}**"
+    )
+    add("")
+    add("| Check | Result | Observed |")
+    add("|---|---|---|")
+    for check in gate["checks"]:
+        mark = "pass" if check["ok"] else "**FAIL**"
+        add(f"| {check['name']} | {mark} | `{check['observed']}` |")
+    add("")
     return "\n".join(lines)
 
 
@@ -572,34 +710,34 @@ def main(argv: list[str]) -> int:
         if not keep_going:
             return 1
 
-    print("[1/5] pipeline parser ground truth ...")
+    print("[1/6] pipeline parser ground truth ...")
     pipeline = run_pipeline_validation()
     print(
         f"      {pipeline['samples_passed']}/{pipeline['samples_total']} samples, "
         f"{pipeline['checks_passed']}/{pipeline['checks_total']} checks"
     )
 
-    print("[2/5] force-reprocess golden emails ...")
+    print("[2/6] force-reprocess golden emails ...")
     stats1 = force_process(golden_gm_ids())
     print(
         f"      {stats1['succeeded']}/{stats1['processed']} ok, "
         f"{stats1['failed']} failed"
     )
-    print("[3/5] golden checks ...")
+    print("[3/6] golden checks ...")
     session = get_session_factory()()
     try:
         golden = check_golden(session)
     finally:
         session.close()
     passed = sum(1 for g in golden if g["ok"])
-    print(f"[3/5] golden checks: {passed}/{len(golden)} samples pass")
+    print(f"[3/6] golden checks: {passed}/{len(golden)} samples pass")
     for g in golden:
         if not g["ok"]:
             for name, ok, obs in g["checks"]:
                 if not ok:
                     print(f"      FAIL {g['gm']} {name}: observed={obs}")
 
-    print("[4/5] reprocess again (idempotency) ...")
+    print("[4/6] reprocess again (idempotency) ...")
     totals_run1 = golden_row_totals()
     stats2 = force_process(golden_gm_ids())
     totals_run2 = golden_row_totals()
@@ -608,7 +746,19 @@ def main(argv: list[str]) -> int:
     )
     print(f"      identical derived rows: {idempotent}")
 
-    print("[5/5] rendering report ...")
+    print("[5/6] mapping integrity gate ...")
+    gate = integrity_gate()
+    gate_ok = gate["passed"] == gate["total"]
+    print(
+        f"      {gate['passed']}/{gate['total']} checks, "
+        f"fan_out={gate['fan_out']:.4f} "
+        f"(rows={gate['rows']}, pairs={gate['pairs']})"
+    )
+    for check in gate["checks"]:
+        if not check["ok"]:
+            print(f"      FAIL {check['name']}: observed={check['observed']}")
+
+    print("[6/6] rendering report ...")
     distribution = corpus_distribution()
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(
@@ -617,6 +767,7 @@ def main(argv: list[str]) -> int:
             pipeline=pipeline,
             distribution=distribution,
             idempotent=idempotent,
+            gate=gate,
             totals_run1=totals_run1,
             totals_run2=totals_run2,
         ),
@@ -626,7 +777,7 @@ def main(argv: list[str]) -> int:
 
     golden_ok = passed == len(golden)
     pipeline_ok = pipeline["samples_passed"] == pipeline["samples_total"]
-    ok = golden_ok and pipeline_ok and idempotent
+    ok = golden_ok and pipeline_ok and idempotent and gate_ok
     print("RESULT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

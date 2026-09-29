@@ -1,6 +1,6 @@
 # Backend validation report
 
-Generated: 2026-09-29T15:45:20+00:00  
+Generated: 2026-09-29T20:37:55+00:00  
 Golden samples: 33  
 Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled
@@ -12,6 +12,7 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | Pipeline parser GT (18 samples) | 18/18 samples, 99/99 checks |
 | Golden taxonomy + DB rows | 33/33 samples, 99/99 checks |
 | Reprocess idempotency (golden) | identical derived row counts |
+| Mapping integrity (fan-out + campus) | 8/8 checks, fan_out=1.00 |
 
 **Overall: PASS**
 
@@ -25,7 +26,7 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | 4 | `1a0a47528181e0b2` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 5=ok; company == ZS Associates=ok | PASS | ZS Associates-Pre Placement Offer From Batch 2027 |
 | 5 | `1a0af47cccbc929a` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 8=ok; company == smartShift Technologies=ok | PASS | smartShift Technologies - Hiring Interns from 2027 Batch - To Be Conve |
 | 6 | `1a0b7ee6e5486c2a` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 4=ok; company == Keyence India=ok | PASS | Keyence India - Hiring for Full Time Role from 2027 Batch - Offers |
-| 7 | `19ed55cde526a30b` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 4=ok; company == LTIMindtree=ok | PASS | Notification Regarding LTIMindtree (LTM) 2026 Batch Offers |
+| 7 | `19ed56100c4f3337` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 4=ok; company == LTIMindtree=ok | PASS | Notification Regarding LTIMindtree (LTM) 2026 Batch Offers |
 | 8 | `19ef8e389b433689` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 232=ok; company == Infosys=ok | PASS | HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026 |
 | 9 | `1a02449f9b4a752f` | HACKATHON | HACKATHON | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; deadline == 2026-08-24=ok; links >= 1=ok; company == Decimal Point Analytics=ok | PASS | Decimal Point Analytics - DPA Vivechana 2026 – National Level Hackatho |
 | 10 | `19fdbfcbc7fffaf1` | HACKATHON | HACKATHON | classification=ok; opportunity row=ok; opportunity.event_type == gt=ok; deadline == 2026-08-08=ok; revision_of -> 19fdbe578d2f0ea7=ok; company == Decimal Point Analytics=ok | PASS | Revised: Decimal Point Analytics - DPA Vivechana 2026 – National Level |
@@ -81,12 +82,12 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | classification | emails |
 |---|---|
 | SHORTLIST | 137 |
-| FINAL_SELECTION | 93 |
+| FINAL_SELECTION | 94 |
 | HACKATHON | 90 |
 | REGISTRATION | 50 |
 | EVENT | 44 |
-| UNKNOWN | 43 |
 | GENERAL_PLACEMENT_NOTICE | 42 |
+| UNKNOWN | 42 |
 | SELECTION_PROCESS_NOTICE | 28 |
 | INTERNSHIP_OPPORTUNITY | 27 |
 | WEBINAR | 21 |
@@ -102,12 +103,12 @@ Categories with zero corpus samples - rules are covered by unit tests only: `OFF
 
 | table | run 1 | run 2 | identical |
 |---|---|---|---|
-| offers | 93 | 93 | yes |
-| offer_students | 991 | 991 | yes |
-| shortlist_events | 185 | 185 | yes |
-| shortlist_students | 19276 | 19276 | yes |
+| offers | 84 | 84 | yes |
+| offer_students | 865 | 865 | yes |
+| shortlist_events | 182 | 182 | yes |
+| shortlist_students | 18637 | 18637 | yes |
 | funnel_counts | 12 | 12 | yes |
-| opportunities | 229 | 229 | yes |
+| opportunities | 222 | 222 | yes |
 
 ## 6. Recorded live-scale idempotency proofs
 
@@ -121,3 +122,20 @@ Process runs : 596/596 twice, 0 failed; derived row counts identical
 Error case   : Codestore 1a0c23cae824d3fb failed once (isolated),
                fixed parser edge case -> 596/596 on re-run
 ```
+
+## 7. Mapping integrity gate (job_placed_students)
+
+`fn_api_sync_offer_students_v2` writes exactly one job per (company, student). The ratio below is derived from the live rows - a fan-out would show up as `> 1.00` on its own, no hand-picked threshold needed.
+
+Rows: **420**  |  distinct (company, roll) pairs: **420**  |  fan-out: **1.00**
+
+| Check | Result | Observed |
+|---|---|---|
+| one job per (company, student) - fan_out == 1.00 | pass | `rows=420 pairs=420 ratio=1.0000` |
+| every mapping has a company | pass | `0` |
+| Infosys 'Systems Engineer' job claims 0 students | pass | `0` |
+| roll 22103312 -> Sector 62 | pass | `Sector 62` |
+| roll 9922103312 -> Sector 128 | pass | `Sector 128` |
+| alpha roll 23AB3001 -> JUIT | pass | `JUIT` |
+| 231B007 + 'JUET Guna' cell -> JUET Guna | pass | `JUET Guna` |
+| a 'JIIT, Noida' cell never beats the roll rule | pass | `Sector 62` |

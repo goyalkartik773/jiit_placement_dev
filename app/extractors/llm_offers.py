@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -109,6 +109,34 @@ def resolve_company_id(
     return company.id
 
 
+def _det_student_index(
+    ext: Extraction,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Index the deterministic table parse by roll, then by normalised name.
+
+    The model reads the same table but answers with ``roll_number`` / ``name``
+    / ``branch`` / ``program`` only - it never echoes the ``University``,
+    ``Role Offered`` or ``Status`` cells, and its ``role`` is the *email-level*
+    one ("Specialist Programmer (L1, L2, L3) and Digital Specialist Engineer").
+    Those per-student cells live on the deterministic row that
+    ``tables.extract_students`` already produced, so they are carried across
+    here rather than written as ``None`` - writing ``None`` is what left
+    ``offer_students.college`` 100 % blank even though every offer table
+    carries a ``University`` column.
+    """
+    by_roll: dict[str, Any] = {}
+    by_name: dict[str, Any] = {}
+    for row in ext.students:
+        roll = normalize_roll(row.roll_no)
+        if roll and roll not in by_roll:
+            by_roll[roll] = row
+        if row.name:
+            key = re.sub(r"\s+", " ", row.name).strip().lower()
+            if key and key not in by_name:
+                by_name[key] = row
+    return by_roll, by_name
+
+
 def build_llm_offer(
     result: FinalSelectionExtraction,
     *,
@@ -119,7 +147,17 @@ def build_llm_offer(
     ext: Extraction,
     method: str,
 ) -> tuple[Offer, list[OfferStudent]]:
-    """One ``offers`` row + its students, all fields sourced from the model."""
+    """One ``offers`` row + its students; model-sourced offer, cell-sourced students."""
+    by_roll, by_name = _det_student_index(ext)
+
+    def _det_row(s: Any) -> Any:
+        roll = normalize_roll(s.roll_number)
+        if roll and roll in by_roll:
+            return by_roll[roll]
+        if s.name:
+            return by_name.get(re.sub(r"\s+", " ", s.name).strip().lower())
+        return None
+
     offer = Offer(
         email_id=email_id,
         company_id=company_id,
@@ -137,20 +175,27 @@ def build_llm_offer(
         confidence=result.confidence,
         method=method,
     )
-    students = [
-        OfferStudent(
-            roll_no=normalize_roll(s.roll_number),
-            name=s.name or None,
-            branch=s.branch,
-            program=s.program,
-            college=None,
-            email=None,
-            role=result.role,
-            status_raw=None,
+    students: list[OfferStudent] = []
+    for s in result.students:
+        roll = normalize_roll(s.roll_number)
+        if not (roll or s.name):
+            continue
+        det = _det_row(s)
+        # Per-STUDENT "Role Offered" cell beats the email-level role the model
+        # returns; the model's value stays as the fallback for tables whose
+        # role column is missing or blank.
+        students.append(
+            OfferStudent(
+                roll_no=roll,
+                name=s.name or None,
+                branch=s.branch,
+                program=s.program,
+                college=getattr(det, "college", None),
+                email=getattr(det, "email", None),
+                role=(getattr(det, "role", None) or None) or result.role,
+                status_raw=getattr(det, "status", None),
+            )
         )
-        for s in result.students
-        if (normalize_roll(s.roll_number) or s.name)
-    ]
     return offer, students
 
 
