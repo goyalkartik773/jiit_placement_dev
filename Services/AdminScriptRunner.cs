@@ -285,7 +285,11 @@ namespace JIITPlacement.Services
                 int studentsBefore = GetInt(sourceBefore, "counts", "offerStudents");
                 int jobsBefore = GetInt(sourceBefore, "counts", "jobs");
 
-                DataTable dt = dataEntity.ExecuteDataTableFN("fn_api_sync_offer_students_v1");
+                // v2 scores each candidate job against the offer's own role and
+                // keeps exactly ONE job per (company, student); v1 linked the
+                // company to every Jobs row of that company.  v1 is still in
+                // the database untouched, this endpoint just no longer calls it.
+                DataTable dt = dataEntity.ExecuteDataTableFN("fn_api_sync_offer_students_v2");
                 if (dt.Rows.Count == 0)
                     throw new InvalidOperationException("Offer-student sync produced no result");
 
@@ -295,6 +299,7 @@ namespace JIITPlacement.Services
                         ? "Offer-student sync failed" : fnMessage);
 
                 int mappingsInserted = PlacementController.GetInt32(stats, "mappingsInserted");
+                int mappingsRemoved = PlacementController.GetInt32(stats, "mappingsRemoved");
                 int jobsMatched = PlacementController.GetInt32(stats, "jobsMatched");
                 int jobsTotal = PlacementController.GetInt32(stats, "jobsTotal");
                 int companiesMatched = PlacementController.GetInt32(stats, "companiesMatched");
@@ -302,7 +307,8 @@ namespace JIITPlacement.Services
                 int studentsMapped = PlacementController.GetInt32(stats, "studentsMapped");
 
                 _store.Line(OfferScript, "success",
-                    $"✓ {mappingsInserted} mappings inserted · {studentsMapped} students mapped · " +
+                    $"✓ {mappingsInserted} mappings inserted · {mappingsRemoved} duplicate rows removed · " +
+                    $"{studentsMapped} students mapped · " +
                     $"{jobsMatched}/{jobsTotal} jobs matched · {companiesMatched} companies · {companiesSkipped} skipped");
 
                 // What changed in THIS run — measured from placed_at, not guessed.
