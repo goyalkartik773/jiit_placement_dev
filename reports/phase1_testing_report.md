@@ -7,21 +7,21 @@ the raw values).  Nothing was hand-edited.
 ## 1. What was reset
 
 - Truncated: `companies`, `student_placement_events`, `offers`, `offer_students`, `opportunities`, `shortlist_events`, `shortlist_students`, `funnel_counts`
-- `emails` kept intact: **596** rows (`email_attachments` untouched)
+- `emails` kept intact: **598** rows (`email_attachments` untouched)
 - Every `emails.processing_status` reset to `PENDING`, `retry_count`/`error_message` cleared
 
 ## 2. Reprocessed counts
 
-Corpus: **596** emails -> **596** emails (input unchanged).
+Corpus: **598** emails -> **598** emails (input unchanged).
 
 | Derived table | Before | After | Delta |
 |---|---:|---:|---:|
 | `companies` | 118 | 118 | +0 |
-| `student_placement_events` | 20171 | 19941 | -230 |
-| `offers` | 94 | 89 | -5 |
-| `offer_students` | 895 | 665 | -230 |
+| `student_placement_events` | 20185 | 19954 | -231 |
+| `offers` | 91 | 90 | -1 |
+| `offer_students` | 909 | 678 | -231 |
 | `opportunities` | 229 | 229 | +0 |
-| `shortlist_events` | 184 | 184 | +0 |
+| `shortlist_events` | 185 | 185 | +0 |
 | `shortlist_students` | 19276 | 19276 | +0 |
 | `funnel_counts` | 12 | 12 | +0 |
 
@@ -30,15 +30,15 @@ Corpus: **596** emails -> **596** emails (input unchanged).
 | classification | Before | After | Delta |
 |---|---:|---:|---:|
 | `EVENT` | 44 | 44 | +0 |
-| `FINAL_SELECTION` | 94 | 89 | -5 |
+| `FINAL_SELECTION` | 91 | 90 | -1 |
 | `GENERAL_PLACEMENT_NOTICE` | 42 | 42 | +0 |
 | `HACKATHON` | 90 | 90 | +0 |
 | `INTERNSHIP_OPPORTUNITY` | 27 | 27 | +0 |
 | `JOB_OPPORTUNITY` | 20 | 20 | +0 |
-| `REGISTRATION` | 49 | 49 | +0 |
+| `REGISTRATION` | 50 | 50 | +0 |
 | `SELECTION_PROCESS_NOTICE` | 28 | 28 | +0 |
 | `SHORTLIST` | 137 | 137 | +0 |
-| `UNKNOWN` | 39 | 44 | +5 |
+| `UNKNOWN` | 43 | 44 | +1 |
 | `WEBINAR` | 21 | 21 | +0 |
 | `WORKSHOP` | 5 | 5 | +0 |
 
@@ -46,12 +46,12 @@ Corpus: **596** emails -> **596** emails (input unchanged).
 
 | normalized_status | Before | After | Delta |
 |---|---:|---:|---:|
-| `FINAL_SELECTED` | 231 | 13 | -218 |
-| `OFFERED` | 609 | 652 | +43 |
-| `REJECTED` | 55 | 0 | -55 |
+| `FINAL_SELECTED` | 221 | 13 | -208 |
+| `OFFERED` | 669 | 665 | -4 |
+| `REJECTED` | 19 | 0 | -19 |
 | `SHORTLISTED` | 19276 | 19276 | +0 |
 
-**Events marked `FINAL_SELECTED`/`OFFERED`: 840 -> 665 (-175).**
+**Events marked `FINAL_SELECTED`/`OFFERED`: 890 -> 678 (-212).**
 
 ## 3. Bug cases before / after
 
@@ -64,7 +64,7 @@ Subject: `HackWithInfy 2026 -Batch 2027 - Selection Status on 24 June 2026`
 | `classification` | `FINAL_SELECTION` | `FINAL_SELECTION` |
 | `classification_method` | `rule_based` | `llm` |
 | offer rows written | 232 | 5 |
-| `job_placed_students` from this email | 328 | 0 |
+| `job_placed_students` from this email | 10 | 10 |
 
 | event status | Before | After |
 |---|---:|---:|
@@ -78,21 +78,20 @@ Subject: `Fwd: HackWithInfy 2026 -Batch 2027 - Selection Status on 31 August 202
 | | Before | After |
 |---|---:|---:|
 | `classification` | `FINAL_SELECTION` | `FINAL_SELECTION` |
-| `classification_method` | `rule_based` | `llm` |
-| offer rows written | 54 | 8 |
-| `job_placed_students` from this email | 100 | 16 |
+| `classification_method` | `llm` | `llm` |
+| offer rows written | 8 | 8 |
+| `job_placed_students` from this email | 6 | 6 |
 
 | event status | Before | After |
 |---|---:|---:|
-| `FINAL_SELECTED` | 18 | 8 |
-| `REJECTED` | 36 | 0 |
+| `FINAL_SELECTED` | 8 | 8 |
 
 ### `job_placed_students` (what the college UI serves)
 
 | | Before | After |
 |---|---:|---:|
-| mappings | 906 | 487 |
-| distinct students | 417 | 250 |
+| mappings | 500 | 500 |
+| distinct students | 260 | 260 |
 
 > The per-email row above is *attribution*, not membership: `fn_api_sync_offer_students_v1` keeps one winner per `(company, student)` ordered by `offers.created_at`, so rebuilding the offers table can re-attribute the same student to a different email while the mapping set itself is unchanged.
 
@@ -139,25 +138,24 @@ of students), not a wrong category.
 
 | signal | emails |
 |---|---:|
-| llm_answered | 101 |
+| llm_answered | 102 |
 | suppresses_offers | 5 |
-| row_count | 9 |
+| row_count | 10 |
 | adds_offers | 0 |
 | agrees | 87 |
 | low_confidence | 0 |
-| failed_over | 1 |
+| failed_over | 5 |
 | unavailable | 0 |
-| candidates | 101 |
+| candidates | 102 |
 
-`method` breakdown: `llm` 101, `rule_based` 495
+`method` breakdown: `llm` 102, `rule_based` 496
 
 ## 6. LLM router / failover
 
 | pass | calls | ok | ok first attempt | ok after failover | schema retries | unavailable | attempts | requeued | failed | wall |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| pass 1 | 101 | 100 | 99 | 1 | 0 | 1 | 111 | 1 | 0 | 487.6s |
-| retry 1 | 1 | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0 | 5.3s |
-| idempotency pass (non-llm) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 28.6s |
+| pass 1 | 102 | 102 | 97 | 5 | 0 | 0 | 108 | 0 | 0 | 382.4s |
+| idempotency pass (full) | 102 | 102 | 98 | 4 | 0 | 0 | 106 | 0 | 0 | 405.4s |
 
 `requeued` is the designed behaviour when every provider is down: the deterministic rows stay, `method` becomes `rule_based_fallback`, and the email is tried again on the next pass.  Passes keep running until nothing is left over.
 
@@ -165,25 +163,18 @@ Accounts across every pass (round-robin + failover):
 
 | account | attempts | verdicts served |
 |---|---:|---:|
-| `deepseek_1` | 1 | 0 |
-| `deepseek_2` | 1 | 0 |
-| `deepseek_3` | 1 | 0 |
-| `deepseek_4` | 1 | 0 |
-| `gemini_1` | 32 | 30 |
-| `gemini_2` | 37 | 36 |
-| `gemini_3` | 36 | 35 |
-| `groq_1` | 1 | 0 |
-| `groq_2` | 1 | 0 |
-| `groq_3` | 1 | 0 |
+| `gemini_1` | 74 | 69 |
+| `gemini_2` | 67 | 64 |
+| `gemini_3` | 73 | 71 |
 
-Failed attempts by provider (the failover that followed): `deepseek` 4, `gemini` 4, `groq` 3
+Failed attempts by provider (the failover that followed): `gemini` 10
 
 ## 7. Cost estimate
 
 | provider | prompt tokens | completion tokens | USD |
 |---|---:|---:|---:|
-| `gemini` | 167573 | 45534 | $0.1102 |
-| **total** | **167573** | **45534** | **$0.1102** |
+| `gemini` | 338558 | 92680 | $0.2237 |
+| **total** | **338558** | **92680** | **$0.2237** |
 
 List prices assumed: gemini $0.25/M in, $1.5/M out, groq $0.15/M in, $0.6/M out, deepseek $0.27/M in, $1.1/M out (re-check before quoting).
 
@@ -193,21 +184,21 @@ Second full reprocess produced identical derived row counts: **yes**.
 
 ## 9. Corpus left unprocessed
 
-All 596 emails finished as `PROCESSED`; nothing is `PENDING` or `FAILED`.
+All 598 emails finished as `PROCESSED`; nothing is `PENDING` or `FAILED`.
 
 ## 10. Test suite
 
-`python -m pytest` -> 250 passed, 46 warnings in 25.64s
+`python -m pytest` -> 315 passed, 50 warnings in 31.06s
 
 
 ## Run configuration
 
 ```
 {
-  "max_retries": 3,
-  "settle_seconds": 120.0,
-  "idempotency_scope": "non-llm",
-  "rebuild_baseline": true,
+  "max_retries": 4,
+  "settle_seconds": 0.0,
+  "idempotency_scope": "full",
+  "rebuild_baseline": false,
   "stopped_early": null,
   "models": {
     "gemini": "gemini-3.1-flash-lite",

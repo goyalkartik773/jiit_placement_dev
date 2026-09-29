@@ -99,7 +99,7 @@ def _text(data) -> str:
 
 
 def _quote(value: str) -> str:
-    """IMAP quoted-string: ``"`` and ``\`` must be escaped."""
+    r"""IMAP quoted-string: ``"`` and ``\`` must be escaped."""
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
@@ -353,6 +353,17 @@ class ImapClient:
                 uids.append(int(token))
         return sorted(uids)
 
+    def _id_attrs(self) -> str:
+        """FETCH items for the listing pass - only what the server offers."""
+        return "(UID X-GM-MSGID)" if self._gmail_extension() else "(UID)"
+
+    def _message_attrs(self) -> str:
+        """FETCH items for one full message, minus unsupported extensions."""
+        items = "INTERNALDATE FLAGS UID"
+        if self._gmail_extension():
+            items += " X-GM-LABELS X-GM-MSGID X-GM-THRID"
+        return f"({items} BODY.PEEK[])"
+
     def _resolve_ids(
         self, uids: list[int], *, page_size: Optional[int] = None
     ) -> dict[int, str]:
@@ -360,18 +371,29 @@ class ImapClient:
 
         One round trip per page of ids (the old REST client paged 100 ids per
         call), so a full mailbox listing never costs one command per mail.
+
+        Without ``X-GM-EXT-1`` there is no ``X-GM-MSGID`` to read (and asking
+        for it would be a ``BAD``), so ids fall back to the portable
+        ``imap:{uidvalidity}:{uid}`` form documented at the top of the module.
         """
         chunk = max(1, page_size or self._config.page_size or 100)
+        gmail = self._gmail_extension()
         mapping: dict[int, str] = {}
         for start in range(0, len(uids), chunk):
             part = uids[start:start + chunk]
             spec = ",".join(str(u) for u in part)
-            _, data = self._cmd("uid", "FETCH", spec, "(UID X-GM-MSGID)")
+            _, data = self._cmd("uid", "FETCH", spec, self._id_attrs())
             for meta in _metadata_segments(data):
                 uid_m = _RE_METADATA.search(meta)
+                if not uid_m:
+                    continue
+                uid = int(uid_m.group(1))
                 mid = raw_message_id(meta)
-                if uid_m and mid:
-                    mapping[int(uid_m.group(1))] = mid
+                if mid is None:
+                    if gmail:
+                        continue  # Gmail promised X-GM-MSGID; skip malformed
+                    mid = self._fallback_id(uid)
+                mapping[uid] = mid
         return mapping
 
     def _discover(
@@ -418,7 +440,7 @@ class ImapClient:
         page_size: Optional[int] = None,
         max_results: Optional[int] = None,
     ) -> Iterator[str]:
-        """Same as :meth:`iter_message_ids` but only ``UNSEEN`` messages.
+        r"""Same as :meth:`iter_message_ids` but only ``UNSEEN`` messages.
 
         Used by the auto-watcher for discovery; nothing is marked ``\Seen``
         here - ``BODY.PEEK[]`` and this search leave flags untouched.
@@ -455,7 +477,7 @@ class ImapClient:
         return str(found[-1])
 
     def get_message(self, message_id: str, fmt: str = "full") -> ImapRawMessage:
-        """Fetch one message as an :class:`ImapRawMessage`.
+        r"""Fetch one message as an :class:`ImapRawMessage`.
 
         ``BODY.PEEK[]`` is used on purpose: the fetch must never set ``\Seen``
         as a side effect (only the watcher's explicit ``mark_seen`` does).
@@ -468,12 +490,7 @@ class ImapClient:
         cached = self._raw_by_id.get(message_id)
         if cached is not None:
             return cached
-        _, data = self._cmd(
-            "uid",
-            "FETCH",
-            uid,
-            "(INTERNALDATE FLAGS X-GM-LABELS UID X-GM-MSGID X-GM-THRID BODY.PEEK[])",
-        )
+        _, data = self._cmd("uid", "FETCH", uid, self._message_attrs())
         literal = None
         metadata = ""
         for part in data or []:
@@ -511,7 +528,7 @@ class ImapClient:
     # ----------------------------------------------------------------- flags
 
     def mark_seen(self, message_id: str) -> bool:
-        """Set ``\Seen`` - called only after the row is committed."""
+        r"""Set ``\Seen`` - called only after the row is committed."""
         uid = self._uid_for(message_id)
         if uid is None:
             return False
@@ -519,7 +536,7 @@ class ImapClient:
         return True
 
     def mark_unseen(self, message_id: str) -> bool:
-        """Clear ``\Seen`` (self-healing rollback if a later step failed)."""
+        r"""Clear ``\Seen`` (self-healing rollback if a later step failed)."""
         uid = self._uid_for(message_id)
         if uid is None:
             return False
@@ -527,7 +544,7 @@ class ImapClient:
         return True
 
     def mark_seen_many(self, message_ids) -> int:
-        """Batched ``UID STORE ... +FLAGS.SILENT (\Seen)`` -> marked count.
+        r"""Batched ``UID STORE ... +FLAGS.SILENT (\Seen)`` -> marked count.
 
         One command per *page* instead of one per mail: a cycle that
         self-heals a few hundred already-stored messages stays inside the

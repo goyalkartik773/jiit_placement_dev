@@ -1,4 +1,4 @@
-"""Live IMAP migration gate - run *before* writing any transport code.
+r"""Live IMAP migration gate - run *before* writing any transport code.
 
 Answers the one question the whole migration rests on:
 

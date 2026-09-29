@@ -240,9 +240,11 @@ def from_fetch(
         message_id = format(int(msgid.group(1)), "x")
 
     message = message_from_bytes(raw)
-    # Stash the resolved ids so parse_imap_message() does not re-derive them
-    # (and so a bare email.message.Message still parses sensibly).
-    setattr(message, "_gmail_hex_id", message_id)
+    if msgid:
+        # Stash the resolved id so parse_imap_message() does not re-derive it.
+        # Without X-GM-EXT-1 there is no id here at all: ImapClient.get_message
+        # supplies ``imap:{uidvalidity}:{uid}`` explicitly instead.
+        setattr(message, "_gmail_hex_id", message_id)
     if thrid:
         setattr(message, "_gmail_thread_hex_id", format(int(thrid.group(1)), "x"))
 

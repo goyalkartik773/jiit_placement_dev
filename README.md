@@ -44,7 +44,9 @@ app/
   api/           FastAPI routers (gmail, messages, companies, placements,
                  opportunities, status, deps)
   services/      sync_service, processing_service, status_store
-  gmail/         auth (OAuth refresh), client (quota pacing), mime, attachments
+  gmail/         imap_client (IMAP4_SSL + app password, pacing/backoff),
+                 imap_parse (RFC822 -> MailMessage), imap_watcher (auto-poll),
+                 mime, attachments
   parsers/       email_adapter: DB row -> placement_pipeline Email
   classifiers/   taxonomy (14-value mapping), llm_fallback (optional)
   extractors/    offers, shortlists, opportunities, events, companies, evidence
@@ -53,15 +55,19 @@ app/
   repositories/  email/company/placement/opportunity queries (pagination)
   workers/       JobRunner + live status counters
   utils/         structured JSON logging (secrets never logged)
-  tests/         44-test suite on the app_test schema of the same database
+  tests/         304-test suite on the app_test schema of the same database
 ```
 
 - The parser/classifier/dedup logic is reused from `src/placement_pipeline`
-  (installed editable); `app/` is the wiring: Gmail, status machine,
+  (installed editable); `app/` is the wiring: mail transport, status machine,
   PostgreSQL persistence, taxonomy mapping.
 - Jobs run in-process via `JobRunner` — one sync **and** one processing run
   at a time, with live counters on `/api/sync/status` and
   `/api/processing/status`. No Kafka/Redis/Celery/Kubernetes.
+- **Auto-watcher** (optional, separate process):
+  `python scripts/watch_mail.py` polls for UNSEEN group mail and runs
+  *store -> mark `\Seen` -> process* every cycle. See
+  `docs/mail_transport_migration.md`.
 
 ## 2. Database schema
 
@@ -95,26 +101,32 @@ SHORTLISTED → FINAL_SELECTED/OFFERED → JOINED` plus `REJECTED`,
 shortlisted rows are never auto-upgraded to selected, and every value comes
 from the source email or stays `NULL`.
 
-## 3. Gmail OAuth and environment variables
+## 3. Mail transport and environment variables
 
-OAuth mirrors the existing .NET admin app so both share one consent:
+Mail is fetched over **IMAP** with the standard library (`imaplib`) and a
+Google **app password** — no OAuth, no `credentials.json`, no `token.json`:
 
-- `credentials.json` — OAuth **web** client id/secret (`GMAIL_CREDENTIALS_PATH`)
-- `token.json` — `AccessToken`/`RefreshToken`/`ExpiresInSeconds`/`IssuedUtc`
-  cache (`GMAIL_TOKEN_PATH`), refreshed over HTTPS only when expired
-  (2-minute skew), written back atomically
-- scope: `gmail.readonly` (the backend never writes to the mailbox)
-- tokens are **never** logged or embedded in errors
+- `IMAP4_SSL(IMAP_HOST:IMAP_PORT)`, login = `IMAP_EMAIL` / `IMAP_APP_PASSWORD`
+- read-only in practice: every fetch uses `BODY.PEEK[]`, and `\Seen` is set
+  only by the watcher, only after a row for that message is committed
+- the app password is handed to `imaplib` and stripped from every log line and
+  exception; **never** logged, never returned by an API
+- requires 2-Step Verification so Google will issue an app password
+- 2-FA caveats and the non-Gmail fallback are documented in
+  `docs/mail_transport_migration.md`
 
 Secrets live only in the git-ignored `.env` / environment:
 
 | variable | purpose | default |
 |---|---|---|
 | `PLACEMENT_DATABASE_URL` or `PLACEMENT_PG_HOST/PORT/DB/USER` + `PLACEMENT_PG_PASSWORD`/`PGPASSWORD` | PostgreSQL connection | `localhost:5432/jiit_placement`, user `postgres` |
+| `IMAP_HOST`, `IMAP_PORT`, `IMAP_MAILBOX` | IMAP endpoint and folder | `imap.gmail.com`, `993`, `INBOX` |
+| `IMAP_EMAIL`, `IMAP_APP_PASSWORD` | mailbox + 16-char app password (required, never logged) | — |
+| `IMAP_POLL_SECONDS`, `IMAP_MARK_SEEN_AFTER_STORE`, `IMAP_IDLE_ENABLED` | watcher behaviour | 60 s / true / false |
+| `IMAP_MAX_RETRIES`, `IMAP_BACKOFF_BASE`, `IMAP_BACKOFF_CAP` | poison valve + reconnect backoff | 5 / 2 s / 300 s |
 | `GMAIL_SOURCE_GROUPS` | comma-separated Google Groups to sync | 5 JIIT/Jaypee groups (see `app/config.py`) |
-| `GMAIL_PAGE_SIZE`, `GMAIL_MIN_INTERVAL_MS`, `GMAIL_REQUEST_TIMEOUT` | request pacing (consumer quota ~60 queries/min) | 100 / 1100 ms / 30 s |
+| `GMAIL_PAGE_SIZE`, `GMAIL_MIN_INTERVAL_MS`, `GMAIL_REQUEST_TIMEOUT` | request pacing | 100 / 1100 ms / 30 s |
 | `GMAIL_MAX_ATTACHMENT_BYTES` | attachment download cap | 5 MiB |
-| `GMAIL_CREDENTIALS_PATH`, `GMAIL_TOKEN_PATH`, `GMAIL_APPLICATION_NAME` | OAuth material | shared .NET paths |
 | `PLACEMENT_LLM_ENABLED` | enable the Gemini fallback | off |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BASE_URL` | LLM fallback config | `gemini-2.5-flash` |
 | `LOG_LEVEL` | structured log level | `INFO` |
@@ -123,8 +135,8 @@ Secrets live only in the git-ignored `.env` / environment:
 
 All responses use the envelope `{success, message, data}`; errors use
 FastAPI's `{detail}` with **404** (unknown id), **422** (schema validation),
-**409** (a run of that kind is already in progress), **502/503** (Gmail
-API/auth failure).
+**409** (a run of that kind is already in progress), **502/503** (IMAP
+transport/auth failure).
 
 | method | path | purpose |
 |---|---|---|
@@ -212,19 +224,26 @@ shortlists, funnel rows, opportunities and student events.
 
 ## 8. Error handling
 
-- **Sync**: per-message isolation (a failing `messages.get` marks
-  `failed_messages` and continues); quota/pagination failures (403/429)
-  abort *gracefully* — every committed row is kept, `errors[]` records the
-  group, remaining groups are skipped, and a re-run resumes idempotently.
-  Client pacing: `GMAIL_MIN_INTERVAL_MS` spacing + 62 s backoff on quota.
+- **Sync**: per-message isolation (a failing message fetch marks
+  `failed_messages` and continues); a dropped connection or a transport-level
+  failure (e.g. `NO`/quota) aborts *gracefully* — every committed row is
+  kept, `errors[]` records the group, remaining groups are skipped, and a
+  re-run resumes idempotently. Client pacing: `GMAIL_MIN_INTERVAL_MS` spacing
+  per command *group* + one transparent reconnect + retry on a socket drop.
 - **Processing**: per-email isolation — an exception rolls back that email's
   partial rows, sets `FAILED` + `error_message` (type + message) +
   `retry_count += 1`, and the queue continues. Stale `PROCESSING` rows are
   reset to `PENDING` at the start of every run (crash recovery).
 - **Jobs**: one run per kind at a time → `409` with the live snapshot;
-  Gmail auth failure → `503`, Gmail API failure → `502`.
-- **Logging**: structured JSON events (`job.*`, `sync.*`, `process.*`) with
-  counters; secrets (passwords, tokens, client secrets) are never logged.
+  IMAP auth failure → `503` (variable names only), IMAP transport failure →
+  `502`.
+- **Watcher**: single-instance kernel lock, exponential reconnect backoff,
+  fatal-and-stop on an auth error, `\Seen` only after the row is committed,
+  `PENDING` past `IMAP_MAX_RETRIES` → `FAILED` (poison valve), SIGINT/SIGTERM
+  graceful shutdown.
+- **Logging**: structured JSON events (`job.*`, `sync.*`, `process.*`,
+  `watcher.*`) with counters; secrets (app passwords, API keys) are never
+  logged.
 
 ## 9. LLM strategy
 
@@ -293,8 +312,9 @@ Honest gaps:
 ## 12. Assumptions
 
 - The API has **no authentication**: it is an internal admin backend for
-  the placement cell's network (the Gmail OAuth is read-only and the DB is
-  the shared university instance). Add auth before exposing it publicly.
+  the placement cell's network (mail access is read-only — `BODY.PEEK[]`,
+  `\Seen` set only after a row is committed — and the DB is the shared
+  university instance). Add auth before exposing it publicly.
 - Sync reads the five configured Google Groups; the corpus-backed defaults
   are `jiitengg2027`/`jaypeeengg2027`, the rest come from the platform spec
   (empty lists are harmless).
