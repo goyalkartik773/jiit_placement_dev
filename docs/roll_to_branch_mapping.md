@@ -150,11 +150,19 @@ Over 260 distinct `job_placed_students` rolls / 366 `offer_students` rolls:
 **Open items — reported, deliberately NOT "fixed", because the numbers must
 stay verbatim:**
 
-1. **`22803xxx` (12 rolls) resolve to `"Other"`.** The reference's `202627`
-   config puts Intg. MTech CSE at `22903000-22904000`, but no live roll starts
-   with `229` — they are `22803001…22803031`. By the pattern of the `202526`
-   config (`218 03xxx` = Intg CSE) the range looks like it should be
-   `22803000-22804000`. Needs a decision on the reference numbers.
+1. ~~**`22803xxx` (12 rolls) resolve to `"Other"`.**~~ **DECIDED → mapped to
+   `"Intg. MTech"`.** The reference's `202627` config puts Intg. MTech CSE at
+   `22903000-22904000`, but no live roll starts with `229` — they are
+   `22803001…22803031`. By the pattern of the `202526` config
+   (`218 03xxx` = Intg CSE) the range should be `22803000-22804000`.
+   The range was **added, not substituted**, so the reference number stays
+   configured: key `CSE-22803` in `app/domain/enrollment_ranges.py`
+   (`BATCH_CONFIGS["202627"]`) and a matching row in
+   `JIITPlacement/SQL/migration_job_placed_students.sql`. Evidence: 20 of 30
+   live rows carry an email `Branch` cell of `CSE`, names carry an `Intgt`
+   suffix, and `offer_students.program` reads `"M.Tech (Integrated)"`.
+   `22102`/`22103`/`99221` remain `"CSE"`/`"ECE"` — those are 4-year B.Tech
+   2022 admits graduating 2026, a different cohort.
 2. **`21103186`, `21104026` (2021 admits) → `"Other"`** — no `2021` config
    exists in the reference either.
 3. **`99`-prefixed 2025 rolls (`9925101700xx`) → `"Other"`** — expected:

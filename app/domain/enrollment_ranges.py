@@ -11,9 +11,11 @@ VERBATIM port of the reference repo ``tashifkhan/JIIT-placement-alerts``:
     services/placement/analysis/models.py:7-13      ``BranchRange``
 
 Every number below is copied exactly - no rounding, no guessing, no
-re-ordering.  ``ENROLLMENT_RANGES`` and ``BATCH_CONFIGS[..]['enrollment_ranges']``
-carry the same 202526 numbers; the former is only a legacy alias kept for
-traceability (config.py:1-7 says so).
+re-ordering - with ONE documented local addition: the `CSE-22803` range under
+BATCH_CONFIGS["202627"] (see the comment there and
+``docs/roll_to_branch_mapping.md``).  ``ENROLLMENT_RANGES`` and
+``BATCH_CONFIGS[..]['enrollment_ranges']`` carry the same 202526 numbers; the
+former is only a legacy alias kept for traceability (config.py:1-7 says so).
 
 SCOPE NOTE - what was deliberately NOT ported (would be dead code here):
 ``label``, ``graduating_batch``, ``student_counts``, ``excluded_branches``,
@@ -193,6 +195,19 @@ BATCH_CONFIGS: dict[str, dict] = {
                 "BT": {
                     "start": 22801000,
                     "end": 22802000,
+                },
+                # OUR ADDITION - see docs/roll_to_branch_mapping.md (open item 1,
+                # now decided).  The reference's CSE key above reads 22903xxx,
+                # which matches ZERO live rolls; the real 2022 Intg. MTech CSE
+                # series is 22803001..22803031.  Evidence: the 202526 config
+                # uses 21803xxx for the same sub-branch (so 22 + 803, not
+                # 22 + 903), 20/30 live rows carry an email "Branch" cell of
+                # CSE, names carry an "Intgt" suffix and offer_students.program
+                # reads "M.Tech (Integrated)".  The reference range is kept
+                # rather than replaced so no configured number is dropped.
+                "CSE-22803": {
+                    "start": 22803000,
+                    "end": 22804000,
                 },
             },
         },

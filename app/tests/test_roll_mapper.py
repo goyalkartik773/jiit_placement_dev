@@ -28,7 +28,9 @@ REFERENCE_TABLE: list[tuple[str | None, str, int | None]] = [
     ("22103000", "CSE", 2022),
     (" 22103000 ", "CSE", 2022),      # leading/trailing padding
     ("22802005", "Intg. MTech", 2022),
-    ("22803001", "Other", 2022),      # outside every configured range
+    # OUR ADDITION (not reference): 22903xxx matches no live roll, the real
+    # 2022 Intg. MTech CSE series is 22803xxx. See docs open item 1.
+    ("22803001", "Intg. MTech", 2022),
     ("21103186", "Other", 2021),      # admission year never configured
     ("23101060", "BT", 2023),
     ("23102009", "ECE", 2023),

@@ -638,7 +638,7 @@ def gate_campus_pins(session: Any) -> Gate:
         ("23AB3001->JUIT", row["alpha"] == "JUIT"),
         ("JUET cell overrides alpha roll", row["juet"] == "JUET Guna"),
         ("JIIT cell never beats the roll", row["cell"] == "Sector 62"),
-        ("22803010 stays 'Other' (known gap)", row["branch_gap"] == "Other"),
+        ("22803010 -> Intg. MTech (former config gap, now mapped)", row["branch_gap"] == "Intg. MTech"),
     ]
     bad = [name for name, ok in checks if not ok]
     return Gate(

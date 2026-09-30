@@ -1,6 +1,6 @@
 # Backend validation report
 
-Generated: 2026-09-30T06:11:02+00:00  
+Generated: 2026-09-30T20:22:38+00:00  
 Golden samples: 33  
 Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled
@@ -84,18 +84,18 @@ Mode: deterministic (rule-based); LLM fallback disabled
 | SHORTLIST | 137 |
 | FINAL_SELECTION | 94 |
 | HACKATHON | 90 |
-| REGISTRATION | 50 |
+| REGISTRATION | 51 |
 | EVENT | 44 |
+| UNKNOWN | 44 |
 | GENERAL_PLACEMENT_NOTICE | 42 |
-| UNKNOWN | 42 |
 | SELECTION_PROCESS_NOTICE | 28 |
 | INTERNSHIP_OPPORTUNITY | 27 |
+| JOB_OPPORTUNITY | 21 |
 | WEBINAR | 21 |
-| JOB_OPPORTUNITY | 20 |
 | WORKSHOP | 5 |
 | OFF_CAMPUS_OPPORTUNITY | 0 |
 | IRRELEVANT | 0 |
-| **total** | **600** |
+| **total** | **604** |
 
 Categories with zero corpus samples - rules are covered by unit tests only: `OFF_CAMPUS_OPPORTUNITY`, `IRRELEVANT`.
 
@@ -105,10 +105,10 @@ Categories with zero corpus samples - rules are covered by unit tests only: `OFF
 |---|---|---|---|
 | offers | 84 | 84 | yes |
 | offer_students | 858 | 858 | yes |
-| shortlist_events | 182 | 182 | yes |
+| shortlist_events | 183 | 183 | yes |
 | shortlist_students | 18637 | 18637 | yes |
 | funnel_counts | 12 | 12 | yes |
-| opportunities | 222 | 222 | yes |
+| opportunities | 223 | 223 | yes |
 
 ## 6. Recorded live-scale idempotency proofs
 
