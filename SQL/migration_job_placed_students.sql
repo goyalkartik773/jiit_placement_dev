@@ -232,6 +232,14 @@ BEGIN
     _r := replace(_role, chr(160), ' ');
     _r := btrim(regexp_replace(_r, '\s+', ' ', 'g'));
 
+    -- "(Trainee)" names the contract PHASE, not a different seat.  The mail
+    -- emits "Specialist Programmer - L1 (Trainee)" (8 Sep list) and
+    -- "Specialist Programmer - L1" (21 Sep list) for the same offer, which
+    -- rendered as two rows on the card.  Scoped to that one word - a bare
+    -- "Systems Engineer Trainee" keeps its suffix, and "(L1, L2, L3)" is
+    -- untouched because it is matched here first, before the tier split.
+    _r := regexp_replace(_r, '\s*\(\s*[Tt][Rr][Aa][Ii][Nn][Ee][Ee]\s*\)', '', 'g');
+
     -- "(L1, L2, L3)" -> "(L1/L2/L3)".  Lookahead scope keeps an ordinary
     -- comma ("Engineer, Senior") out of the substitution.
     _r := regexp_replace(_r, '\s*,\s*(?=[Ll][0-9]+)', '/', 'g');
@@ -242,6 +250,14 @@ BEGIN
     -- Wrapped cells leave " - " / " / " runs behind; canonicalise each.
     _r := regexp_replace(_r, '\s*/\s*', ' / ', 'g');
     _r := regexp_replace(_r, '\s*-\s*', ' - ', 'g');
+    _r := btrim(regexp_replace(_r, '\s+', ' ', 'g'));
+
+    -- "Specialist Programmer L3" (the job's own packageinfo) and "Specialist
+    -- Programmer - L3" (the offer cell) are the same seat: pick the dashed
+    -- form so both sides of the rollup land in one bucket.  "-" and "/" are
+    -- excluded, so an already-dashed "- L1" is left alone and "L1 / L2" does
+    -- not grow a second dash.
+    _r := regexp_replace(_r, '(^|[^-/\s]) +L([0-9]+)', '\1 - L\2', 'g');
     _r := btrim(regexp_replace(_r, '\s+', ' ', 'g'));
 
     -- Trailing separator a wrapped first cell can leave ("DSE Engineer /").
@@ -914,11 +930,60 @@ BEGIN
         ) p
         GROUP BY p.ckey, 2
     ),
+    company_role_families AS (
+        -- A role bucket reduced to its first two significant words, so that
+        -- "Specialist Programmer - L1" and a packageinfo label saying
+        -- "Specialist Programmer L3" can be seen as one family.
+        SELECT ckey, role, students, ctcmax,
+               regexp_replace(
+                   btrim(regexp_replace(lower(role), '[^a-z0-9]+', ' ', 'g')),
+                   '^([^ ]+ [^ ]+).*$', '\1') AS fam
+        FROM company_role_counts
+    ),
+    company_role_catalog AS (
+        -- The card must also show what the job ADVERTISES but nobody has
+        -- landed yet, otherwise "Specialist Programmer - L3" is invisible
+        -- even though the seat exists and holds zero students.  packageinfo
+        -- is hand-written HTML, so a label qualifies only when it normalises
+        -- to a role of a family that really does carry students: that one
+        -- guard rejects all 41 labels elsewhere that are actually "Stipend
+        -- during Internship", "Total CTC", "Duration of Internship", ...
+        -- ``[^<]*`` keeps nested markup (which is always prose, never a
+        -- role) out of the capture instead of tagging it back in.
+        SELECT DISTINCT x.ck AS ckey, x.role
+        FROM (
+            SELECT jc.ckey AS ck,
+                   fn_norm_role_v1(btrim(split_part(
+                       replace(replace(m.mm[1], '&nbsp;', ' '), '&amp;', '&'),
+                       ':', 1))) AS role
+            FROM job_company jc
+            CROSS JOIN LATERAL regexp_matches(
+                       coalesce(jc.packageinfo, ''),
+                       '<li[^>]*>([^<]*)</li>', 'gi') AS m(mm)
+        ) x
+        WHERE x.role IS NOT NULL AND length(x.role) <= 70
+    ),
     company_roles AS (
         SELECT ckey,
                json_agg(json_build_object('role', role, 'students', students, 'ctcmax', ctcmax)
                         ORDER BY students DESC, role) AS roles
-        FROM company_role_counts
+        FROM (
+            SELECT ckey, role, students, ctcmax FROM company_role_families
+            UNION ALL
+            -- an advertised seat nobody has filled yet, shown as 0
+            SELECT k.ckey, k.role, 0, NULL
+            FROM company_role_catalog k
+            WHERE NOT EXISTS (
+                      SELECT 1 FROM company_role_families a
+                      WHERE a.ckey = k.ckey AND a.role = k.role)
+              AND EXISTS (
+                      SELECT 1 FROM company_role_families b
+                      WHERE b.ckey = k.ckey
+                        AND b.fam = regexp_replace(
+                                btrim(regexp_replace(lower(k.role),
+                                                     '[^a-z0-9]+', ' ', 'g')),
+                                '^([^ ]+ [^ ]+).*$', '\1'))
+        ) u
         GROUP BY ckey
     ),
     -- One row per (company, student); branch / campus come from the roll
