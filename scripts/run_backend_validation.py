@@ -67,8 +67,13 @@ REPORT_PATH = Path(__file__).resolve().parents[1] / "reports" / "backend_validat
 #: exist (their row counts were never independently validated).
 GOLDEN: list[dict[str, Any]] = [
     # -- the 18 parser-validated samples -----------------------------------
+    # 37 students sit in this mail, but 7 of them were already listed by the
+    # earlier HackWithInfy status mail (24 Jun) under the same Infosys role,
+    # so the cross-mail repeat guard keeps the earlier row and this mail
+    # contributes 30.  The students are still on the card - a repeat only
+    # ever adds a second row for someone already stored.
     {"gm": "1a07f91284991c5c", "gt": "FINAL_SELECTION",
-     "company": "Infosys", "offer_students": 37},
+     "company": "Infosys", "offer_students": 30},
     {"gm": "19e024fd393cbd5c", "gt": "FINAL_SELECTION",
      "company": "Amazon", "offer_students": 3},
     {"gm": "1a0a93a7210d64bd", "gt": "FINAL_SELECTION",

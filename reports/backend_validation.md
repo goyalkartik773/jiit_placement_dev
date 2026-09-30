@@ -1,6 +1,6 @@
 # Backend validation report
 
-Generated: 2026-09-29T20:37:55+00:00  
+Generated: 2026-09-30T06:11:02+00:00  
 Golden samples: 33  
 Support seeds (revision parent, not scored): `19fdbe578d2f0ea7`  
 Mode: deterministic (rule-based); LLM fallback disabled
@@ -20,7 +20,7 @@ Mode: deterministic (rule-based); LLM fallback disabled
 
 | # | gmail id | taxonomy GT | actual | checks | verdict | subject |
 |---|---|---|---|---|---|---|
-| 1 | `1a07f91284991c5c` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 37=ok; company == Infosys=ok | PASS | Infosys Niche Roles (SP & DSE) Full-Time Hiring for Batch 2027 - Offer |
+| 1 | `1a07f91284991c5c` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 30=ok; company == Infosys=ok | PASS | Infosys Niche Roles (SP & DSE) Full-Time Hiring for Batch 2027 - Offer |
 | 2 | `19e024fd393cbd5c` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 3=ok; company == Amazon=ok | PASS | Amazon - SDE intern (six months July-Dec 2026 ) hiring - Batch 2027 -  |
 | 3 | `1a0a93a7210d64bd` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 54=ok; company == Cognizant=ok | PASS | Cognizant Mass Recruitment Drive-Hiring for Full Time Role from 2027 B |
 | 4 | `1a0a47528181e0b2` | FINAL_SELECTION | FINAL_SELECTION | classification=ok; offer_students == 5=ok; company == ZS Associates=ok | PASS | ZS Associates-Pre Placement Offer From Batch 2027 |
@@ -104,7 +104,7 @@ Categories with zero corpus samples - rules are covered by unit tests only: `OFF
 | table | run 1 | run 2 | identical |
 |---|---|---|---|
 | offers | 84 | 84 | yes |
-| offer_students | 865 | 865 | yes |
+| offer_students | 858 | 858 | yes |
 | shortlist_events | 182 | 182 | yes |
 | shortlist_students | 18637 | 18637 | yes |
 | funnel_counts | 12 | 12 | yes |

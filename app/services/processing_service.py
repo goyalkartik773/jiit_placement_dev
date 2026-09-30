@@ -34,11 +34,12 @@ Guarantees:
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.orm import Session
 
 from placement_pipeline.dedup import deduplicate
@@ -67,6 +68,7 @@ from app.models import (
     EmailStatus,
     FunnelCountRow,
     Offer,
+    OfferStudent,
     Opportunity,
     ShortlistEvent,
     StudentPlacementEvent,
@@ -143,6 +145,133 @@ def _attachment_texts(session: Session, email_id: str) -> list[str]:
         )
     )
     return [text for text in rows if text]
+
+
+def _drop_repeated_students(
+    session: Session,
+    row: Email,
+    company_id: Optional[str],
+    offer_role: Optional[str],
+    students: list[OfferStudent],
+) -> list[OfferStudent]:
+    """Drop students this company + role already holds from another mail.
+
+    The placement cell does not send one list, it sends a series: an initial
+    list, a new one, then another that folds the previous ones in.  The same
+    student therefore legitimately reappears under the same company and the
+    same role, and storing the repeat would put that student on the card
+    twice.  The row already in the database is kept - never rewritten - so an
+    already-correct row is untouched and the distinct-student count cannot
+    drift upwards as more lists arrive.  Ownership follows each mail's own
+    ``received_at`` (ties broken by id), so the outcome depends on the corpus
+    and not on which mail this run happened to process first.
+
+    An offer with no role at all cannot be compared, so it is kept as is
+    rather than dropped on a guess.  Identity is the enrollment roll; a
+    student's name is only consulted when the row carries no roll, because
+    two distinct students in one list can legitimately share a name.
+    """
+    if not students or not company_id:
+        return students
+
+    raw_by_id = {
+        id(s): (s.role or "").strip() or (offer_role or "").strip() for s in students
+    }
+    raws = {r for r in raw_by_id.values() if r}
+    if not raws:
+        return students
+
+    norm = dict(
+        session.execute(
+            text(
+                # qualified: the test suite runs with search_path=app_test
+                "SELECT x.raw, public.fn_norm_role_v1(x.raw) "
+                "FROM unnest(CAST(:raws AS text[])) AS x(raw)"
+            ),
+            {"raws": sorted(raws)},
+        ).fetchall()
+    )
+
+    # existing identities per (company, role), from every EARLIER mail
+    known: dict[Optional[str], tuple[set[str], set[str]]] = {}
+    for raw in sorted(raws):
+        role = norm.get(raw)
+        if role is None:
+            continue
+        rows = session.execute(
+            text(
+                "SELECT DISTINCT btrim(os.roll_no), "
+                "btrim(lower(coalesce(os.name, ''))) "
+                "FROM offer_students os JOIN offers o ON o.id = os.offer_id "
+                "JOIN emails oe ON oe.id = o.email_id "
+                "WHERE o.company_id = CAST(:cid AS varchar) "
+                # Only a mail that arrived EARLIER owns the row, so the drop
+                # is a property of the corpus and not of the order this run
+                # happened to process the mails in - otherwise reprocessing a
+                # single older mail would hand the student back to it and the
+                # row count would oscillate between two states.
+                "  AND (oe.received_at < CAST(:mrecv AS timestamptz) "
+                "       OR (oe.received_at = CAST(:mrecv AS timestamptz) "
+                "           AND oe.id < :eid)) "
+                "  AND public.fn_norm_role_v1(nullif(btrim(coalesce(os.role, o.role)), '')) "
+                "      IS NOT DISTINCT FROM CAST(:role AS text) "
+                "  AND (btrim(coalesce(os.roll_no, '')) <> '' "
+                "       OR btrim(coalesce(os.name, '')) <> '')"
+            ),
+            {
+                "cid": company_id,
+                "eid": row.id,
+                "mrecv": row.received_at,
+                "role": role,
+            },
+        ).fetchall()
+        known[role] = (
+            {r for r, _ in rows if r},
+            {n for _, n in rows if n},
+        )
+
+    keep: list[OfferStudent] = []
+    seen_rolls: dict[Optional[str], set[str]] = {}
+    seen_names: dict[Optional[str], set[str]] = {}
+    for s in students:
+        raw = raw_by_id[id(s)]
+        role = norm.get(raw)
+        roll = (s.roll_no or "").strip().lower()
+        name = re.sub(r"\s+", " ", s.name or "").strip().lower()
+
+        if role is not None:
+            have_rolls, have_names = known[role]
+            my_rolls = seen_rolls.setdefault(role, set())
+            my_names = seen_names.setdefault(role, set())
+            # A roll identifies the student; a name does not - two different
+            # students legitimately share one (Yash Chaudhary 23103042 and
+            # 23102113 both sit in the same Infosys list).  Name is only the
+            # identity when there is no roll to compare, which is the same
+            # fallback the reporting gate uses.
+            if roll:
+                repeated = roll in have_rolls or roll in my_rolls
+            else:
+                repeated = bool(name) and (
+                    name in have_names or name in my_names
+                )
+            if repeated:
+                log_event(
+                    log,
+                    "offer.student.repeat",
+                    email_id=row.id,
+                    company_id=company_id,
+                    role=role,
+                    roll=roll or None,
+                    name=name or None,
+                )
+                continue
+            if roll:
+                my_rolls.add(roll)
+            if name:
+                my_names.add(name)
+        keep.append(s)
+
+    return keep
 
 
 def _extract_and_store(session: Session, row: Email, settings: Settings) -> dict:
@@ -258,6 +387,9 @@ def _extract_and_store(session: Session, row: Email, settings: Settings) -> dict
             ext=ext,
             method=method,
         )
+        offer_students = _drop_repeated_students(
+            session, row, company_id, offer.role, offer_students
+        )
         session.add(offer)
         session.flush()
         for student in offer_students:
@@ -280,6 +412,9 @@ def _extract_and_store(session: Session, row: Email, settings: Settings) -> dict
             company_id=company_id,
             subject=row.subject,
             body=row.body_text,
+        )
+        offer_students = _drop_repeated_students(
+            session, row, company_id, offer.role, offer_students
         )
         session.add(offer)
         session.flush()
