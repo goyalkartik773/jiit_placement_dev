@@ -105,7 +105,8 @@ export function Dashboard() {
       </header>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Hero row — four statistics                                      */}
+      {/* Hero row — six statistics (the two coverage tiles are additive;   */}
+      {/* the original four are untouched)                                  */}
       {/* ---------------------------------------------------------------- */}
       <section className="dash-hero" aria-label="Placement highlights">
         <StatTile
@@ -120,6 +121,20 @@ export function Dashboard() {
           value={summary.companiesPlacing.toLocaleString()}
           hint={`of ${summary.companiesTotal.toLocaleString()} companies on file`}
           icon="building"
+          tone="neutral"
+        />
+        <StatTile
+          label="Streams covered"
+          value={summary.streamsCovered.toLocaleString()}
+          hint="distinct branches with at least one offer"
+          icon="layers"
+          tone="neutral"
+        />
+        <StatTile
+          label="Campuses"
+          value={summary.campusesCovered.toLocaleString()}
+          hint="distinct campuses with at least one offer"
+          icon="pin"
           tone="neutral"
         />
         <StatTile

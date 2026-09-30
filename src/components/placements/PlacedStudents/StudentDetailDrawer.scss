@@ -1,0 +1,264 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Student detail drawer — an in-flow side panel on desktop (width 0 <-> 320px,
+// 220ms) and a fixed bottom sheet with a scrim below `lg`. The inner column is
+// ALWAYS 320px wide so the content never reflows mid-transition; the outer
+// wrapper is what animates, and `overflow: hidden` is what hides it at 0.
+// ============================================================================
+.student-drawer {
+  position: relative;
+  flex: 0 0 auto;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  transition: width 220ms ease;
+
+  &.is-open {
+    width: 320px;
+  }
+
+  &__inner {
+    box-sizing: border-box;
+    width: 320px;
+    padding: $space-4;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-panel);
+    font-family: var(--ui-font);
+  }
+
+  // ----- Identity + close -----
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-3;
+    padding-bottom: $space-3;
+    border-bottom: 1px solid var(--ui-border-soft);
+  }
+
+  &__avatar {
+    @include flex-center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: $radius-pill;
+    background: var(--ui-pill);
+    color: var(--ui-muted);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  &__ident {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    margin: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ui-faint);
+  }
+
+  &__title {
+    margin: 3px 0 0;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--ui-ink);
+    overflow-wrap: anywhere;
+  }
+
+  &__roll {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: var(--ui-faint);
+    overflow-wrap: anywhere;
+  }
+
+  &__close {
+    @include flex-center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-field);
+    background: transparent;
+    color: var(--ui-muted);
+    cursor: pointer;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: var(--ui-pill);
+      color: var(--ui-ink);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  // ----- Facts -----
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $space-4;
+    padding-top: $space-3;
+  }
+
+  &__facts {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2-5;
+    margin: 0;
+  }
+
+  &__fact {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $space-3;
+
+    dt {
+      flex: 0 0 auto;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ui-faint);
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ui-ink);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  // Declared after `__fact` so it wins the specificity tie on colour
+  dd.student-drawer__ctc {
+    color: var(--ui-green);
+    font-weight: 800;
+  }
+
+  // ----- Sections -----
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-faint);
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__timeline {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: $space-2;
+    font-size: 12.5px;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: $radius-pill;
+    background: var(--ui-accent);
+  }
+
+  &__step-label {
+    color: var(--ui-ink);
+    font-weight: 600;
+  }
+
+  &__step-at {
+    color: var(--ui-faint);
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+}
+
+// Mobile-only backdrop. Hidden from `lg` upward, where the drawer is an
+// in-flow panel and a scrim would swallow the whole page's clicks.
+.student-drawer__scrim {
+  display: none;
+}
+
+// ============================================================================
+// Narrow viewports: the panel leaves the flow entirely and becomes a fixed
+// bottom sheet. `translateY(100%)` parks it off-screen while closed, so it
+// never intercepts pointer events — no inert shim required.
+// ============================================================================
+@include down('lg') {
+  .student-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 140;
+    width: auto;
+    max-height: 82vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 220ms ease;
+
+    &.is-open {
+      width: auto;
+      transform: translateY(0);
+    }
+
+    &__inner {
+      width: 100%;
+      padding: $space-4 $space-4 $space-5;
+      border: 0;
+      border-top: 1px solid var(--ui-border);
+      border-radius: $radius-lg $radius-lg 0 0;
+      box-shadow: 0 -10px 34px rgba(27, 30, 39, 0.16);
+    }
+  }
+
+  .student-drawer__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 139;
+    padding: 0;
+    border: 0;
+    background: rgba(27, 30, 39, 0.44);
+    cursor: pointer;
+  }
+}

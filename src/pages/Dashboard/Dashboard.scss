@@ -37,19 +37,14 @@
   }
 }
 
-// ----- Hero row: four tiles -----
+// ----- Hero row: six tiles -----
+// auto-fit rather than a fixed column count, so 4 (older build) and 6 (now)
+// tiles both fill the row and then wrap cleanly as the viewport narrows. The
+// 140px floor is the narrowest a tile may get before it claims its own track.
 .dash-hero {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: $space-4;
-
-  @include down('xl') {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @include down('sm') {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 // ----- Two-up rows (breakdown, highlight strip) -----

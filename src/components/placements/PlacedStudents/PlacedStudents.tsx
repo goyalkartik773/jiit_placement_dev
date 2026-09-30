@@ -1,40 +1,48 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../common/Button/Button';
+import { EmptyState } from '../../common/EmptyState/EmptyState';
 import { Icon } from '../../common/Icon/Icon';
 import { Skeleton } from '../../common/Skeleton/Skeleton';
-import { Pill } from '../../ui/Pill/Pill';
 import { isAbortError } from '../../../services/apiClient';
 import { fetchPlacedStudents, type FetchedPlacedStudents } from '../../../services/placementService';
-import { formatDate, formatINR } from '../../../utils/format';
-import type { PlacedStudent } from '../../../types/dashboard.types';
+import { StudentDetailDrawer } from './StudentDetailDrawer';
+import { StudentRow } from './StudentRow';
+import {
+  EMPTY_FILTERS,
+  PlacedStudentsFilterBar,
+  type PlacedStudentFilters,
+} from './PlacedStudentsFilterBar';
+import { branchOf, campusOf } from './badgePalette';
 import './PlacedStudents.scss';
 
 interface PlacedStudentsProps {
   jobId: string;
 }
 
-function ctcLabel(ctcraw: string | null, ctctotal: number | null): string {
-  const raw = (ctcraw ?? '').trim();
-  return raw || formatINR(ctctotal) || 'Not disclosed';
+/** Non-empty, de-duplicated, alphabetised options for one filter select. */
+function collectOptions(values: (string | null | undefined)[]): string[] {
+  const set = new Set<string>();
+  for (const value of values) {
+    const trimmed = (value ?? '').trim();
+    if (trimmed) set.add(trimmed);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
 }
 
-/**
- * The email's own ``Branch`` cell is actual data and wins; the
- * enrollment-range rule (`branchfromroll`) fills the rolls the config cannot
- * resolve - the 22803xxx series and every alpha roll. Before this, the rule
- * was the only answer on offer, so those students showed "-".
- */
-function branchLabel(student: PlacedStudent): string | null {
-  return (
-    (student.branch ?? '').trim() ||
-    (student.branchfromroll ?? '').trim() ||
-    null
-  );
+/** Batch years sort numerically (2021 before 2022), unlike the text options. */
+function collectBatches(values: (number | null | undefined)[]): string[] {
+  const set = new Set<number>();
+  for (const value of values) if (typeof value === 'number' && value > 0) set.add(value);
+  return [...set].sort((a, b) => a - b).map(String);
 }
 
 /**
  * Offer students already matched to one job (roll no, name, branch, role,
  * CTC and offer date), loaded on demand from the placed-students endpoint.
+ *
+ * This component owns ALL of this screen's state: the fetched rows, the four
+ * filter values and which row's drawer is open. The table and the drawer are
+ * pure children — they receive data and callbacks, never fetch or mutate.
  */
 export function PlacedStudents({ jobId }: PlacedStudentsProps) {
   const [data, setData] = useState<FetchedPlacedStudents | null>(null);
@@ -42,11 +50,18 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
   const [loading, setLoading] = useState(true);
   const [retryToken, setRetryToken] = useState(0);
 
+  const [filters, setFilters] = useState<PlacedStudentFilters>(EMPTY_FILTERS);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     setData(null);
     setError(null);
     setLoading(true);
+    // A different job has a different row set — an id from the old one would
+    // either vanish or, worse, match an unrelated student.
+    setSelectedId(null);
+    setFilters(EMPTY_FILTERS);
 
     fetchPlacedStudents(jobId, controller.signal)
       .then((result) => {
@@ -63,6 +78,43 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
     return () => controller.abort();
   }, [jobId, retryToken]);
 
+  // ---- derived (every hook sits above the early returns) ------------------
+  const students = useMemo(() => data?.students ?? [], [data]);
+
+  const branches = useMemo(() => collectOptions(students.map(branchOf)), [students]);
+  const campuses = useMemo(() => collectOptions(students.map(campusOf)), [students]);
+  const batches = useMemo(() => collectBatches(students.map((s) => s.batchyear)), [students]);
+
+  const filtered = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    return students.filter((student) => {
+      if (filters.branch && branchOf(student) !== filters.branch) return false;
+      if (filters.campus && campusOf(student) !== filters.campus) return false;
+      if (filters.batch && String(student.batchyear ?? '') !== filters.batch) return false;
+      if (query) {
+        const haystack =
+          `${student.studentname ?? ''} ${student.rollno ?? ''} ${student.email ?? ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [students, filters]);
+
+  // Filtering never closes an open drawer: it is a detail panel, not a
+  // dropdown. Only an explicit close or a job switch dismisses it.
+  const selected = useMemo(
+    () => (selectedId ? students.find((student) => student.id === selectedId) ?? null : null),
+    [students, selectedId],
+  );
+
+  const closeDrawer = useCallback(() => setSelectedId(null), []);
+  const patchFilters = useCallback(
+    (patch: Partial<PlacedStudentFilters>) => setFilters((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+  const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
+
+  // ---- early views --------------------------------------------------------
   if (loading) {
     return (
       <div className="placed-students" role="status" aria-live="polite">
@@ -88,64 +140,82 @@ export function PlacedStudents({ jobId }: PlacedStudentsProps) {
     );
   }
 
-  const students = data?.students ?? [];
-
   if (students.length === 0) {
     return <p className="placed-students__empty">No offer students are mapped to this job yet.</p>;
   }
 
+  const total = data?.placedCount ?? students.length;
+
   return (
     <div className="placed-students">
       <p className="placed-students__count" aria-live="polite">
-        <strong>{data?.placedCount ?? students.length}</strong> student
-        {(data?.placedCount ?? students.length) === 1 ? '' : 's'} matched to{' '}
+        <strong>{total}</strong> student{total === 1 ? '' : 's'} matched to{' '}
         <strong>{data?.job.jobprofile ?? 'this job'}</strong>
       </p>
 
-      <div className="placed-students__scroll">
-        <table className="placed-students__table">
-          <caption className="sr-only">Students placed through this job</caption>
-          <thead>
-            <tr>
-              <th scope="col">Student</th>
-              <th scope="col">Branch</th>
-              <th scope="col">Campus</th>
-              <th scope="col">Role</th>
-              <th scope="col" className="placed-students__ctc">CTC</th>
-              <th scope="col">Offer date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((student) => (
-              <tr key={student.id}>
-                <td className="placed-students__person">
-                  <span className="placed-students__name">{student.studentname}</span>
-                  <span className="placed-students__roll">{student.rollno}</span>
-                  {student.email ? <span className="placed-students__email">{student.email}</span> : null}
-                </td>
-                <td className="placed-students__branch-cell">
-                  {branchLabel(student) ? (
-                    <Pill className="placed-students__branch">{branchLabel(student)}</Pill>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-                <td className="placed-students__branch-cell">
-                  {student.campus ? (
-                    <Pill className="placed-students__branch">{student.campus}</Pill>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-                <td className="placed-students__role">
-                  {student.rolelevel || student.role || '-'}
-                </td>
-                <td className="placed-students__ctc">{ctcLabel(student.ctcraw, student.ctctotal)}</td>
-                <td className="placed-students__date">{formatDate(student.placedat)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <PlacedStudentsFilterBar
+        value={filters}
+        onChange={patchFilters}
+        onReset={resetFilters}
+        branches={branches}
+        campuses={campuses}
+        batches={batches}
+        shown={filtered.length}
+        total={students.length}
+      />
+
+      <div className="placed-students__layout">
+        <div className="placed-students__main">
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No students match these filters"
+              description="Every row was excluded by the current search, branch, campus or batch selection."
+              action={
+                <Button variant="soft" size="sm" onClick={resetFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <div className="placed-students__scroll">
+              <table className="placed-students__table">
+                <caption className="sr-only">Students placed through this job</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Student</th>
+                    <th scope="col">Branch</th>
+                    <th scope="col">Campus</th>
+                    <th scope="col">Role</th>
+                    <th scope="col" className="placed-students__ctc">CTC</th>
+                    <th scope="col">Offer date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((student) => (
+                    <StudentRow
+                      key={student.id}
+                      student={student}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile-only backdrop (display:none from `lg` up) */}
+        {selected ? (
+          <button
+            type="button"
+            className="student-drawer__scrim"
+            aria-label="Close"
+            onClick={closeDrawer}
+          />
+        ) : null}
+
+        <StudentDetailDrawer student={selected} onClose={closeDrawer} />
       </div>
     </div>
   );

@@ -39,6 +39,14 @@ export interface PlacementSummary {
   averagePackage: number;
   /** How many placed students sit in a band with no disclosed package. */
   undisclosedStudents: number;
+  /**
+   * Distinct branch labels with at least one placed student — the union of
+   * every row's `branches[]`, never a sum (a branch appearing at three
+   * companies counts once).
+   */
+  streamsCovered: number;
+  /** Distinct campus labels with at least one placed student (same union rule). */
+  campusesCovered: number;
   bands: PackageBand[];
   /** Top companies by students placed (highest first). */
   topCompanies: CompanyRow[];
@@ -97,11 +105,25 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
   const bandMap = new Map<string, PackageBand>();
   for (const band of BANDS) bandMap.set(band.label, { label: band.label, students: 0, companies: 0 });
 
+  // Coverage is a SET union, not a sum: the same branch/campus at three
+  // companies is one stream/campus, and a label of "" must never become one.
+  const streams = new Set<string>();
+  const campuses = new Set<string>();
+
   for (const row of unique) {
     const placed = Number(row.placedstudents) || 0;
     if (placed <= 0) continue;
     companiesPlacing += 1;
     studentsPlaced += placed;
+
+    for (const item of row.branches ?? []) {
+      const label = (item?.branch ?? '').trim();
+      if (label) streams.add(label);
+    }
+    for (const item of row.campuses ?? []) {
+      const label = (item?.campus ?? '').trim();
+      if (label) campuses.add(label);
+    }
 
     const pkg = disclosedPackage(row);
     if (pkg > 0) {
@@ -136,6 +158,8 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
     highestPackage: highestPackage > 0 ? highestPackage : null,
     averagePackage: weightedStudents > 0 ? Math.round(weightedPackage / weightedStudents) : 0,
     undisclosedStudents,
+    streamsCovered: streams.size,
+    campusesCovered: campuses.size,
     bands: BANDS.map((band) => bandMap.get(band.label)!),
     topCompanies: byPlaced.slice(0, 6),
     topOffers: byPackage.slice(0, 6),
