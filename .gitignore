@@ -43,3 +43,5 @@ logs/
 # Retired Gmail OAuth material (the backend uses an IMAP app password now)
 .gmail_token.json
 gmail_token.json
+# transient commit message file passed to git commit -F
+.git_commit_msg.txt
