@@ -84,7 +84,7 @@ export function badgeColors(
 /**
  * The email's own ``Branch`` cell is actual data and wins; the
  * enrollment-range rule (`branchfromroll`) fills the rolls the config cannot
- * resolve — the 22803xxx series and every alpha roll. Null means "neither
+ * resolve — alpha rolls, unconfigured admission years. Null means "neither
  * answered", and callers render a dash rather than the string "null".
  */
 export function branchOf(student: PlacedStudent): string | null {

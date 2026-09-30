@@ -1,0 +1,410 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// Branch-wise statistics — the additive block on the Company-Wise page.
+// Same calm system: one accent + green (money) + amber (attention) + neutral
+// grey, Plus Jakarta Sans, tabular numerals everywhere numbers line up.
+// Colour only where the meaning is real:
+//   amber  = Upto 5.99 L        accent = 6.00 - 12.99 L
+//   green  = 13.00 L and above  faint  = Not disclosed
+// ============================================================================
+.branch-stats {
+  @include stack($space-5);
+  padding: $space-5;
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+
+  // The shared <Card> ships the 16px card radius; this panel sits inside a
+  // page of 14px panels, so it matches them.
+  &.ui-card {
+    border-radius: var(--ui-radius-panel);
+  }
+
+  // ----- head ---------------------------------------------------------------
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  &__head-text {
+    @include stack($space-1);
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 17px;
+    font-weight: 800;
+    line-height: $lh-tight;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 14.5px;
+    font-weight: 700;
+    line-height: $lh-snug;
+    color: var(--ui-ink);
+
+    &--inline {
+      margin: 0;
+    }
+  }
+
+  &__sub {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 13px;
+    line-height: $lh-snug;
+    color: var(--ui-muted);
+
+    strong {
+      color: var(--ui-ink);
+      font-weight: 700;
+    }
+  }
+
+  // ----- small print --------------------------------------------------------
+  &__note {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-2;
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 12.5px;
+    line-height: $lh-snug;
+    color: var(--ui-muted);
+
+    > svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: var(--ui-faint);
+    }
+  }
+
+  &__foot {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 12px;
+    line-height: $lh-snug;
+    // Meaningful sentence -> needs the 4.9:1 token, not the 2.59:1 one.
+    color: var(--ui-muted);
+  }
+
+  &__empty {
+    margin: 0;
+    padding: $space-5 $space-4;
+    text-align: center;
+    font-family: var(--ui-font);
+    font-size: 13px;
+    color: var(--ui-muted);
+    background: var(--ui-quiet);
+    border: 1px dashed var(--ui-border);
+    border-radius: var(--ui-radius-nested);
+  }
+
+  // ----- keyboard-scrollable table region -----------------------------------
+  &__scroll {
+    overflow-x: auto;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-nested);
+
+    &:focus-visible {
+      outline: 2px solid var(--ui-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  // ----- tables -------------------------------------------------------------
+  &__table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    font-family: var(--ui-font);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+
+    th,
+    td {
+      padding: $space-3 $space-4;
+      border-bottom: 1px solid var(--ui-border-soft);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    thead th {
+      background: var(--ui-sunken);
+      border-bottom-color: var(--ui-border);
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ui-muted);
+      white-space: nowrap;
+    }
+
+    tfoot th,
+    tfoot td {
+      background: var(--ui-sunken);
+      border-top: 1px solid var(--ui-border);
+      border-bottom: 0;
+      font-weight: 800;
+      color: var(--ui-ink);
+    }
+
+    th[scope='row'] {
+      font-weight: 700;
+      color: var(--ui-ink);
+      white-space: nowrap;
+    }
+
+    // Numeric columns only need a comfortable gutter, not a wide one - the
+    // narrower they are, the more often the whole table fits without the
+    // horizontal scroll the region below provides.
+    .is-num {
+      padding-left: $space-3;
+      padding-right: $space-3;
+      text-align: right;
+      white-space: nowrap;
+    }
+  }
+
+  &__table--bands {
+    min-width: 640px;
+  }
+
+  // First column is the branch name only; its disclosure coverage rides
+  // under the average package as `n=`, which costs no width at all.
+  &__branch {
+    display: block;
+  }
+
+  &__pkg {
+    display: block;
+  }
+
+  // Sample size behind the three package figures - real information, so
+  // --ui-muted (4.9:1 on white) rather than --ui-faint (2.59:1).
+  &__n {
+    display: block;
+    margin-top: 1px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ui-muted);
+  }
+
+  // ----- placement-rate cell: figure + proportional track --------------------
+  &__rate {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1-5;
+    min-width: 150px;
+  }
+
+  &__rate-text {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ui-ink);
+    white-space: nowrap;
+  }
+
+  &__track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    background: var(--ui-track);
+    border-radius: var(--ui-radius-pill);
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    background: var(--ui-accent);
+    border-radius: var(--ui-radius-pill);
+    transition: width $transition-base;
+  }
+
+  // ----- band legend swatches (meaning-coloured) -----------------------------
+  &__th {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $space-1-5;
+  }
+
+  &__swatch {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+
+    &--low {
+      background: var(--ui-amber);
+    }
+
+    &--mid {
+      background: var(--ui-accent);
+    }
+
+    &--high {
+      background: var(--ui-green);
+    }
+
+    &--none {
+      background: var(--ui-faint);
+    }
+  }
+
+  // ----- timeline controls ---------------------------------------------------
+  &__chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  &__select {
+    select {
+      height: 34px;
+      padding: 0 30px 0 $space-3;
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-field);
+      background: var(--ui-panel)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1b0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        no-repeat right 10px center;
+      font-family: var(--ui-font);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ui-ink);
+      cursor: pointer;
+      transition: border-color $transition-fast, box-shadow $transition-fast;
+
+      &:hover {
+        border-color: var(--ui-faint);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: var(--ui-accent);
+        box-shadow: 0 0 0 3px rgba(62, 99, 221, 0.14);
+      }
+    }
+  }
+
+  // ----- monthly bar chart ---------------------------------------------------
+  &__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: $space-2;
+    margin: 0;
+    padding: $space-4 $space-3 $space-3;
+    list-style: none;
+    background: var(--ui-quiet);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-nested);
+  }
+
+  &__bar {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-1;
+    min-width: 0;
+  }
+
+  &__bar-values {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: $lh-tight;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__bar-students {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--ui-ink);
+  }
+
+  &__bar-offers {
+    font-size: 11px;
+    font-weight: 600;
+    // Exact offer counts, so this must clear 4.5:1 on the quiet panel.
+    color: var(--ui-muted);
+  }
+
+  &__bar-track {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    height: 104px;
+  }
+
+  &__bar-shape {
+    display: block;
+    width: 100%;
+    min-height: 3px;
+    background: var(--ui-accent);
+    border-radius: 6px 6px 3px 3px;
+    transition: height $transition-base;
+  }
+
+  &__bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ui-muted);
+    white-space: nowrap;
+  }
+
+  // ----- responsive ----------------------------------------------------------
+  @include down('md') {
+    padding: $space-4;
+
+    &__table {
+      min-width: 660px;
+
+      th,
+      td {
+        padding: $space-2-5 $space-3;
+      }
+    }
+
+    &__rate {
+      min-width: 130px;
+    }
+
+    &__bars {
+      gap: $space-1;
+      padding: $space-3 $space-2 $space-2;
+    }
+
+    &__bar-students {
+      font-size: 11.5px;
+    }
+
+    &__bar-offers,
+    &__bar-label {
+      font-size: 10px;
+    }
+  }
+
+  @include down('sm') {
+    &__title {
+      font-size: 16px;
+    }
+
+    &__subtitle {
+      font-size: 14px;
+    }
+  }
+}

@@ -9,6 +9,7 @@ import { ListSkeleton } from '../../components/common/ListSkeleton/ListSkeleton'
 import { SearchField } from '../../components/common/SearchField/SearchField';
 import { Pagination } from '../../components/jobs/Pagination/Pagination';
 import { CompanyCard } from '../../components/placements/CompanyCard/CompanyCard';
+import { BranchStats } from '../../components/placements/BranchStats/BranchStats';
 import { Card } from '../../components/ui/Card/Card';
 import type { CompanyRow } from '../../types/dashboard.types';
 import './Placements.scss';
@@ -122,7 +123,13 @@ export function Placements() {
         </div>
       </Card>
 
+      {/* ----- Branch-wise statistics (batch 2026-27) ---------------------- */}
+      <BranchStats />
+
       {/* ----- Toolbar ----- */}
+      {/* The company list is the H1's own subject; this sr-only level-2 keeps
+          the outline correct now that a second H2 (branch stats) precedes it. */}
+      <h2 className="sr-only">Companies with a job posting</h2>
       <section className="placements-page__toolbar" aria-label="Search and sort companies">
         <SearchField
           value={searchInput}

@@ -26,7 +26,7 @@ The header navigation exposes the four sections of the dashboard:
 | # | Section | Route | Data source |
 |---|---|---|---|
 | 1 | **Active Job Listing** | `/` (+ `/jobs/:jobId`) | `GET /api/jobs` — untouched by the dashboard work |
-| 2 | **Company-Wise Placement** | `/placements` | `GET /api/placements/company-wise` + `GET /api/placements/jobs/{jobId}/placed-students` |
+| 2 | **Company-Wise Placement** | `/placements` | `GET /api/placements/company-wise` + `GET /api/placements/branch-stats` + `GET /api/placements/jobs/{jobId}/placed-students` |
 | 3 | **Email Notices** | `/email-notices` | `GET /api/notices/email` (congratulation / final-offer mails are excluded on purpose) |
 | 4 | **Superset Notices** | `/superset-notices` | `GET /api/notices` |
 | — | Admin console | `/admin` | sign-in gate, inventory tiles from `GET /api/admin/overview`, the five script actions (3 syncs + 2 deletes) and the run history from `GET /api/admin/activity` |
@@ -177,12 +177,16 @@ Same `{status, Message, Data}` envelope as the jobs API, `pageSize` capped at 10
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/placements/company-wise?page&pageSize&search` | One row per company that has a job: `jobcount`, `activejobs`, `placedstudents`, `firstplacedat/lastplacedat`, `jobs[]` (id, jobprofile, package, status, deadline, …) and `roles[]` (`{role, students, ctcmax}` — one role per student, earliest offer wins). Sorted by `placedstudents` DESC then company ASC; `TotalCount` = 83 companies. |
+| `GET /api/placements/branch-stats` | One payload for the whole graduating batch: `{batch, graduatingbatch, generatedat, currency, branches[7], totals, timeline[], branchtimeline[]}`. Each branch carries `totalstudents` (hardcoded head-count denominator), `placedstudents`, `placementpercentage`, `totaloffers`, `companies`, `studentswithpackage`, `average/median/highestpackage` (LPA, `null` = nobody disclosed one) and a 4-band `distribution` (Upto 5.99 L / 6.00–12.99 L / 13.00 L and above / Not disclosed). `timeline` is offers bucketed by `emails.received_at` (`YYYY-MM`); `branchtimeline` is the same per branch. |
 | `GET /api/placements/jobs/{jobId}/placed-students` | `{job, placedCount, students[]}` — `rollno`, `studentname`, `branch`, `program`, `role`, `ctcraw/ctctotal/stipend`, `offersubject`, `placedat`. 404 when the job is unknown. |
 | `GET /api/notices/email?page&pageSize&search&type` | Canonical Gmail notices minus the congratulation/final-offer ones. Returns `Facets` (`{classification, count}` for the chips) and accepts an UPPERCASE `type` filter. Fields: `classificationlabel`, `company`, `headline`, `deadline`, `link`, `studentcount`, `rounds[]`. |
 
 Wiring lives in `services/placementService.ts` + `services/noticeService.ts` (the only files
 that know these paths), consumed through `hooks/useCompanyPlacements.ts`,
-`hooks/useEmailNotices.ts`, `hooks/useSupersetNotices.ts`.
+`hooks/useEmailNotices.ts`, `hooks/useSupersetNotices.ts`. The branch-statistics block is a
+self-contained `components/placements/BranchStats/` section mounted on `/placements` (no extra
+route) — it fetches on mount and renders its own loading / error / retry states, so a failure
+there never takes the company list down with it.
 
 The token lives in `sessionStorage` (per tab — never logged or rendered) and is
 attached by `services/adminService.ts`, the only file that knows these paths. The frontend

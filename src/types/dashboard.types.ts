@@ -62,7 +62,7 @@ export interface CompanyRole {
  * Both are resolved per DISTINCT (company, student) - i.e. they always sum to
  * `placedstudents`, never to the raw `job_placed_students` row count.
  * `branch` is the enrollment-range rule, with the email's own ``Branch`` cell
- * filling the ranges the config does not cover (22803xxx). `campus` is the
+ * filling the ranges the config does not cover. `campus` is the
  * roll's `99` campus prefix (Sector 62 / Sector 128), overridden only when the
  * ``University`` cell names a different institution (JUET Guna).
  */
@@ -259,4 +259,71 @@ export interface SupersetNoticeListData {
   Page: number;
   PageSize: number;
   TotalPages: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Branch-wise statistics — GET /api/placements/branch-stats                    */
+/* All figures are computed by fn_api_select_branch_stats_v1.                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One JIIT-official CTC band of the distribution. `students` counts DISTINCT
+ * students (one figure each — their best disclosed offer), never offers.
+ * Bands: "Upto 5.99 L" / "6.00 - 12.99 L" / "13.00 L and above" /
+ * "Not disclosed" (no offer ever spelled out a CTC — NOT the same as 0).
+ */
+export interface BranchStatBand {
+  band: string;
+  students: number;
+}
+
+/** Shared shape of a branch row and of the all-branches `totals` row. */
+export interface BranchStatsSummary {
+  /** Hardcoded head-count denominator the placement rate is divided by. */
+  totalstudents: number;
+  placedstudents: number;
+  /** 0–100, rounded server-side to 2 decimals. */
+  placementpercentage: number;
+  totaloffers: number;
+  companies: number;
+  /** How many of `placedstudents` had a disclosed CTC — the package figures
+   *  are averaged over this subset only, so a low count means a wide spread. */
+  studentswithpackage: number;
+  /** LPA. Null when no offer in that group disclosed a CTC (render "—"). */
+  averagepackage: number | null;
+  medianpackage: number | null;
+  highestpackage: number | null;
+  distribution: BranchStatBand[];
+}
+
+export interface BranchStat extends BranchStatsSummary {
+  /** One of CSE / ECE / IT / BT / Intg. MTech / EC-ACT / EE-VLSI. */
+  branch: string;
+}
+
+/** One month bucketed on `emails.received_at` (ISO YYYY-MM, always sorted). */
+export interface BranchTimelinePoint {
+  month: string;
+  offers: number;
+  students: number;
+  /** Overall timeline only; the per-branch series omits it. */
+  companies?: number;
+}
+
+/** The same bucket tagged with its branch (one row per branch per month). */
+export interface BranchTimelineSeriesPoint extends BranchTimelinePoint {
+  branch: string;
+}
+
+/** GET /api/placements/branch-stats -> Data */
+export interface BranchStatsData {
+  batch: string;
+  graduatingbatch: number;
+  generatedat: string;
+  /** Every package field in this payload is expressed in this unit ("LPA"). */
+  currency: string;
+  branches: BranchStat[];
+  totals: BranchStatsSummary;
+  timeline: BranchTimelinePoint[];
+  branchtimeline: BranchTimelineSeriesPoint[];
 }
