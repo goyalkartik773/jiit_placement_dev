@@ -9,6 +9,7 @@ namespace JIITPlacement.Controllers
     /// Public, read-only dashboard APIs (same { status, Message, Data } envelope
     /// as the job APIs):
     ///   GET /api/placements/company-wise?page&amp;pageSize&amp;search
+    ///   GET /api/placements/branch-stats
     ///   GET /api/placements/jobs/{jobId}/placed-students
     ///
     /// Both read job_placed_students, which is only ever written by the
@@ -62,6 +63,45 @@ namespace JIITPlacement.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to load company-wise placements");
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
+
+        /// <summary>
+        /// GET /api/placements/branch-stats - branch-wise statistics for the
+        /// graduating batch (placement rate, package quartiles, distribution,
+        /// monthly timeline). Read-only; the whole payload is computed by
+        /// fn_api_select_branch_stats_v1, which hardcodes the head-count
+        /// denominators taken from the reference repo's BATCH_CONFIGS.
+        /// </summary>
+        [HttpGet("placements/branch-stats")]
+        public ActionResult GetBranchStats()
+        {
+            var response = new Common.ReturnResponse();
+            try
+            {
+                DataTable dt = _dataEntity.ExecuteDataTableFN("fn_api_select_branch_stats_v1");
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Branch statistics fetched successfully";
+                    response.Data = result;
+                    return Ok(response);
+                }
+
+                response.status = true;
+                response.Message = "No statistics found";
+                response.Data = null;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load branch statistics");
                 response.status = false;
                 response.Message = "Error: " + ex.Message;
                 return StatusCode(500, response);

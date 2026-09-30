@@ -427,6 +427,7 @@ GET /api/jobs/{jobId}/documents/{documentId} → raw file bytes
 GET /api/notices?page&pageSize&search        → { status, Message, Data }
 GET /api/notices/email?page&pageSize&search&type → { status, Message, Data }
 GET /api/placements/company-wise?page&pageSize&search → { status, Message, Data }
+GET /api/placements/branch-stats                      → { status, Message, Data }
 GET /api/placements/jobs/{jobId}/placed-students      → { status, Message, Data }
 ```
 
@@ -437,6 +438,13 @@ GET /api/placements/jobs/{jobId}/placed-students      → { status, Message, Dat
   final-offer emails are excluded on purpose — that data is served by the placement endpoints.
 * **`/api/placements/company-wise`** — one row per company that has a job: its listings, the number of
   distinct students placed and their role / CTC distribution (`roles[].ctcmax`).
+* **`/api/placements/branch-stats`** — one payload for the whole graduating batch, computed entirely
+  inside `fn_api_select_branch_stats_v1` (`SQL/migration_branch_stats.sql`): per-branch placement rate,
+  offers, companies, avg/median/highest package (LPA, from `offers.ctc_total` taken once per student),
+  JIIT's four official distribution bands and a monthly timeline bucketed on `emails.received_at`.
+  The head-count denominators are the reference repo's hardcoded `student_counts` (BATCH_CONFIGS
+  `202627`, total 1322), so a rate can never exceed 100%. Purely read-only — no existing table,
+  column or function is touched.
 * **`/api/placements/jobs/{jobId}/placed-students`** — the public twin of the admin endpoint above.
 
 ## Cleanup performed in this revamp (dependency-audited)

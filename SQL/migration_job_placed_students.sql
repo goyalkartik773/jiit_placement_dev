@@ -156,7 +156,14 @@ BEGIN
                    ('BT',          23101000::bigint,    23102000::bigint),
                    ('Intg. MTech', 22903000::bigint,    22904000::bigint),
                    ('Intg. MTech', 22802000::bigint,    22803000::bigint),
-                   ('Intg. MTech', 22801000::bigint,    22802000::bigint)
+                   ('Intg. MTech', 22801000::bigint,    22802000::bigint),
+                   -- OUR ADDITION - mirrors CSE-22803 in
+                   -- placement_pipeline/app/domain/enrollment_ranges.py.  The
+                   -- reference's 22903xxx CSE series above matches zero live
+                   -- rolls; the real 2022 Intg. MTech CSE series is
+                   -- 22803001..22803031.  docs/roll_to_branch_mapping.md
+                   -- open item 1.
+                   ('Intg. MTech', 22803000::bigint,    22804000::bigint)
         ) AS r(branch, start_no, end_no)
         WHERE r.start_no <= _num AND _num < r.end_no
         LIMIT 1
