@@ -1,35 +1,35 @@
-import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState/ErrorState';
 import { Icon } from '../../components/common/Icon/Icon';
 import { ListSkeleton } from '../../components/common/ListSkeleton/ListSkeleton';
 import { Avatar } from '../../components/ui/Avatar/Avatar';
+import { CalloutBanner } from '../../components/ui/CalloutBanner/CalloutBanner';
 import { Card } from '../../components/ui/Card/Card';
+import { DonutChart } from '../../components/ui/DonutChart/DonutChart';
 import { PageHeader, SESSION_EYEBROW } from '../../components/ui/PageHeader/PageHeader';
 import { HeroStat } from '../../components/ui/HeroStat/HeroStat';
 import { Pill } from '../../components/ui/Pill/Pill';
 import { StatCard } from '../../components/ui/StatCard/StatCard';
 import { disclosedPackage, usePlacementSummary } from '../../hooks/usePlacementSummary';
+import type { BranchTotal } from '../../hooks/usePlacementSummary';
 import { formatDate, formatLpa, lpaFigure } from '../../utils/format';
 import type { CompanyRow } from '../../types/dashboard.types';
 import './Dashboard.scss';
 
 /** Tint of a bar fill — one per package band, so the bands stay tellable apart. */
-type BarTone = 'teal' | 'accent' | 'indigo' | 'green' | 'violet';
+type BarTone = 'teal' | 'accent' | 'indigo' | 'green';
 
 /** One horizontal bar: label · track · value. */
 function BarRow({
   label,
   value,
   pct,
-  prefix,
   tone = 'accent',
 }: {
   label: string;
   value: string;
   pct: number;
-  prefix?: ReactNode;
   tone?: BarTone;
 }) {
   return (
@@ -38,10 +38,7 @@ function BarRow({
       <span className="dash-bars__track" aria-hidden="true">
         <span className={`dash-bars__fill dash-bars__fill--${tone}`} style={{ width: `${Math.max(pct, 2)}%` }} />
       </span>
-      <span className="dash-bars__value">
-        {prefix}
-        {value}
-      </span>
+      <span className="dash-bars__value">{value}</span>
     </li>
   );
 }
@@ -65,12 +62,53 @@ function CompanyLine({ row, meta, tone }: { row: CompanyRow; meta: string; tone:
 }
 
 /**
+ * How many branches the donut names before folding the tail into "Other".
+ * Four keeps the legend to one short column (five rows beside a 148px ring)
+ * while still naming every stream that carries a real share — the fifth-largest
+ * branch on this feed is 4.3% of the total, so anything past four is noise a
+ * reader has to decode instead of a fact they can use.
+ */
+const NAMED_BRANCHES = 4;
+
+/**
+ * Turn the hook's per-branch totals into donut slices that add back up to
+ * `studentsPlaced` — the ONE invariant this panel must not break:
+ *
+ *   1. the top N branches, exactly as the feed spells them;
+ *   2. everything below the cut, folded into "Other";
+ *   3. any placed student whose row arrived with NO branch breakdown, in its
+ *      own "Branch not stated" slice — never silently dropped, because a
+ *      donut that quietly loses heads under-reports the total it sits under.
+ *
+ * On the live feed step 3 is empty (every placing row ships a breakdown that
+ * sums to its own headcount), but the branch field is optional, so the rule
+ * is implemented rather than assumed.
+ */
+function donutSegments(branchTotals: BranchTotal[], studentsPlaced: number) {
+  const named = branchTotals.slice(0, NAMED_BRANCHES);
+  const folded = branchTotals.slice(NAMED_BRANCHES).reduce((sum, entry) => sum + entry.students, 0);
+  const stated = branchTotals.reduce((sum, entry) => sum + entry.students, 0);
+  const unstated = Math.max(0, studentsPlaced - stated);
+
+  return [
+    ...named.map((entry) => ({ label: entry.branch, value: entry.students })),
+    // Colours beyond the default palette are explicit so the tail cannot pick
+    // up an accent hue and read as a branch of its own.
+    ...(folded > 0 ? [{ label: 'Other', value: folded, color: 'var(--ui-muted)' }] : []),
+    ...(unstated > 0
+      ? [{ label: 'Branch not stated', value: unstated, color: 'var(--ui-tint-neutral-ink)' }]
+      : []),
+  ];
+}
+
+/**
  * Client home.
  *
- * A calm, celebratory summary rather than an analytical dashboard: four hero
- * numbers, one breakdown chart and a highlight strip. Every figure is summed
- * from the same read-only company-wise feed the Company-Wise screen uses —
- * nothing here is estimated, extrapolated or hand-entered.
+ * A calm, celebratory summary rather than an analytical dashboard: an anchor
+ * pair, four tiles, one record banner, a breakdown row, the package bands on
+ * their own row, and a highlight strip. Every figure is summed from the same
+ * read-only company-wise feed the Company-Wise screen uses — nothing here is
+ * estimated, extrapolated or hand-entered.
  */
 export function Dashboard() {
   const { summary, loading, error, reload } = usePlacementSummary();
@@ -106,10 +144,19 @@ export function Dashboard() {
   }
 
   const maxBand = Math.max(1, ...summary.bands.map((band) => band.students));
-  const maxCompany = Math.max(1, ...summary.topCompanies.map((row) => row.placedstudents || 0));
+  // Ranked list shows five, so the bars are scaled to the five a reader can
+  // actually see — a sixth company outside the panel would only flatten them.
+  const topFive = summary.topCompanies.slice(0, 5);
+  const maxCompany = Math.max(1, ...topFive.map((row) => row.placedstudents || 0));
   const totalRead = summary.companiesRead;
   const highestLpa = lpaFigure(summary.highestPackage);
   const averageLpa = lpaFigure(summary.averagePackage);
+
+  // The record behind the banner: the same row `highestPackage` came from,
+  // so the company name, the headcount and the figure cannot disagree.
+  const record = summary.topOffers[0] ?? null;
+  const recordLpa = record ? lpaFigure(disclosedPackage(record)) : null;
+  const recordPlaced = record?.placedstudents ?? 0;
 
   return (
     <div className="page dashboard">
@@ -122,6 +169,7 @@ export function Dashboard() {
         title="Dashboard"
         summary={
           <>
+            <Icon name="info" size={17} className="page-header__summary-icon" />
             <strong>{summary.studentsPlaced.toLocaleString()}</strong>
             <span>students have accepted offers from</span>
             <strong>{summary.companiesPlacing.toLocaleString()}</strong>
@@ -131,31 +179,37 @@ export function Dashboard() {
       />
 
       {/* ---------------------------------------------------------------- */}
-      {/* THE ANCHOR. Six tiles of equal weight gave the eye nowhere to      */}
-      {/* land, so the headline figure is promoted to display scale and the  */}
-      {/* one true X / Y on this feed stands beside it behind a hairline.    */}
-      {/* Same StatCard vocabulary at a larger size — nothing is derived:    */}
-      {/* 420, 46 and 91 are the exact figures the old tiles printed.        */}
+      {/* THE ANCHOR, split into two cards. The headline figure and the one  */}
+      {/* true X / Y on this feed used to share one surface behind a         */}
+      {/* hairline; standing them side by side gives each its own frame, so  */}
+      {/* the eye lands on 420 first and on 46 / 92 as the qualifier it is. */}
+      {/* Same StatCard vocabulary, same figures — 420, 46 and 92 are exactly */}
+      {/* what the old block printed.                                        */}
       {/* ---------------------------------------------------------------- */}
-      <HeroStat
-        tint="accent"
-        lead={{
-          label: 'Students placed',
-          value: summary.studentsPlaced.toLocaleString(),
-          sublabel: `counted across ${totalRead.toLocaleString()} companies`,
-          icon: 'users',
-        }}
-        support={{
-          label: 'Companies that placed',
-          value: summary.companiesPlacing.toLocaleString(),
-          sublabel: `of ${summary.companiesTotal.toLocaleString()} companies on file`,
-          icon: 'building',
-          progress: {
-            current: summary.companiesPlacing,
-            total: Math.max(summary.companiesTotal, summary.companiesPlacing),
-          },
-        }}
-      />
+      <div className="dash-hero">
+        <HeroStat
+          tint="accent"
+          lead={{
+            label: 'Students placed',
+            value: summary.studentsPlaced.toLocaleString(),
+            sublabel: `counted across ${totalRead.toLocaleString()} companies`,
+            icon: 'users',
+          }}
+        />
+        <HeroStat
+          tint="accent"
+          lead={{
+            label: 'Companies that placed',
+            value: summary.companiesPlacing.toLocaleString(),
+            unit: `/ ${summary.companiesTotal.toLocaleString()}`,
+            icon: 'building',
+            progress: {
+              current: summary.companiesPlacing,
+              total: Math.max(summary.companiesTotal, summary.companiesPlacing),
+            },
+          }}
+        />
+      </div>
 
       {/* ---------------------------------------------------------------- */}
       {/* The four supporting figures, still the loose tinted tiles that     */}
@@ -204,51 +258,55 @@ export function Dashboard() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Breakdown — package bands + top companies                        */}
+      {/* The record. A tile states 56 LPA; this states WHO paid it and how  */}
+      {/* many students got it — the two facts the tile has no room for.     */}
+      {/* Rendered only from a row that actually carries a disclosed offer,  */}
+      {/* so an empty feed never prints a banner about nothing.              */}
+      {/* ---------------------------------------------------------------- */}
+      {record && recordLpa ? (
+        <CalloutBanner
+          icon="award"
+          tone="amber"
+          eyebrow="Highest package this season"
+          title={`${record.company} · ${recordPlaced.toLocaleString()} ${
+            recordPlaced === 1 ? 'student' : 'students'
+          } placed`}
+          figure={recordLpa}
+          unit="LPA"
+        />
+      ) : null}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Breakdown — top companies (heads) beside the branch split. Both    */}
+      {/* count students, so neither sits next to the package bands below,   */}
+      {/* which measure money: the page never puts two different units in    */}
+      {/* one row.                                                            */}
       {/* ---------------------------------------------------------------- */}
       <section className="dash-row" aria-label="Placement breakdown">
-        <Card as="section" className="dash-panel" ariaLabel="Placements by package band">
-          <h2 className="dash-panel__title">Placements by package band</h2>
-          <p className="dash-panel__sub">Students placed, grouped by the disclosed package of their company.</p>
-          <ul className="dash-bars">
-            {summary.bands.map((band, index) => (
-              <BarRow
-                key={band.label}
-                label={band.label}
-                value={band.students.toLocaleString()}
-                pct={Math.round((band.students / maxBand) * 100)}
-                /* Ascending ramp: the four bands step teal → accent → indigo →
-                   green as the package rises, so a colour alone locates a bar
-                   on the scale. Green is the same green as the "Highest
-                   package" tile — the top band and the record are the idea. */
-                tone={(['teal', 'accent', 'indigo', 'green'] as const)[index] ?? 'accent'}
-              />
-            ))}
-          </ul>
-          {summary.undisclosedStudents > 0 ? (
-            <p className="dash-panel__foot">
-              {summary.undisclosedStudents.toLocaleString()} placed{' '}
-              {summary.undisclosedStudents === 1 ? 'student sits' : 'students sit'} with no disclosed package and are
-              not counted in a band.
-            </p>
-          ) : null}
-        </Card>
-
-        <Card as="section" className="dash-panel" ariaLabel="Top companies by students placed">
-          <h2 className="dash-panel__title">Top companies</h2>
+        <Card as="section" className="dash-panel" ariaLabel="Top 5 companies by students placed">
+          <h2 className="dash-panel__title">Top 5 companies</h2>
           <p className="dash-panel__sub">Ranked by students placed — the same rows the Company-Wise screen lists.</p>
           <ol className="dash-bars">
-            {summary.topCompanies.map((row) => (
-              <li className="dash-bars__row dash-bars__row--company" key={row.company}>
+            {topFive.map((row, index) => (
+              <li className="dash-bars__row dash-bars__row--ranked" key={row.company}>
+                {/* The <ol> already announces rank to assistive tech, so the
+                    numeral is a visual echo only. */}
+                <span className="dash-bars__rank" aria-hidden="true">
+                  {index + 1}
+                </span>
                 <Avatar name={row.company} size={30} radius={8} />
                 <Link className="dash-bars__link" to="/placements" title={row.company}>
                   {row.company}
                 </Link>
                 <span className="dash-bars__track" aria-hidden="true">
-                  {/* Violet, not accent: this chart counts heads while the band
-                      chart measures money, so the two never read as one scale. */}
+                  {/* Green: the page's placements hue — shared with the
+                      "Highest package" tile and the top-offers strip below.
+                      The money ramp also closes in green, but these two
+                      charts never share a row, each is titled, and each bar
+                      prints its own value, so the hue reads as one family
+                      rather than as a shared axis. */}
                   <span
-                    className="dash-bars__fill dash-bars__fill--violet"
+                    className="dash-bars__fill dash-bars__fill--green"
                     style={{ width: `${Math.max(Math.round(((row.placedstudents || 0) / maxCompany) * 100), 2)}%` }}
                   />
                 </span>
@@ -261,7 +319,57 @@ export function Dashboard() {
             <Icon name="chevron-right" size={15} />
           </Link>
         </Card>
+
+        <Card as="section" className="dash-panel" ariaLabel="Branch-wise placements">
+          <h2 className="dash-panel__title">Branch-wise placements</h2>
+          <p className="dash-panel__sub">
+            Share of {summary.studentsPlaced.toLocaleString()} students placed.
+          </p>
+          {/* The ring is the illustration; the legend beside it and the
+              visually-hidden table inside `DonutChart` are the data — so a
+              phone or a screen reader gets every label and share without
+              needing a hover target. */}
+          <DonutChart
+            ariaLabel="Students placed by branch"
+            centerValue={summary.studentsPlaced.toLocaleString()}
+            centerLabel="placed"
+            segments={donutSegments(summary.branchTotals, summary.studentsPlaced)}
+          />
+        </Card>
       </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Money — full width, on its own row. Splitting it from the two      */}
+      {/* headcount panels above is what keeps the page's units legible:     */}
+      {/* heads up top, rupees here, and no bar chart sharing a row with     */}
+      {/* another chart on a different scale.                                */}
+      {/* ---------------------------------------------------------------- */}
+      <Card as="section" className="dash-panel" ariaLabel="Placements by package band">
+        <h2 className="dash-panel__title">Placements by package band</h2>
+        <p className="dash-panel__sub">Students placed, grouped by the disclosed package of their company.</p>
+        <ul className="dash-bars">
+          {summary.bands.map((band, index) => (
+            <BarRow
+              key={band.label}
+              label={band.label}
+              value={band.students.toLocaleString()}
+              pct={Math.round((band.students / maxBand) * 100)}
+              /* Ascending ramp: the four bands step teal → accent → indigo →
+                 green as the package rises, so a colour alone locates a bar
+                 on the scale. Green is the same green as the "Highest
+                 package" tile — the top band and the record are the idea. */
+              tone={(['teal', 'accent', 'indigo', 'green'] as const)[index] ?? 'accent'}
+            />
+          ))}
+        </ul>
+        {summary.undisclosedStudents > 0 ? (
+          <p className="dash-panel__foot">
+            {summary.undisclosedStudents.toLocaleString()} placed{' '}
+            {summary.undisclosedStudents === 1 ? 'student sits' : 'students sit'} with no disclosed package and are
+            not counted in a band.
+          </p>
+        ) : null}
+      </Card>
 
       {/* ---------------------------------------------------------------- */}
       {/* Highlight strip — recently placed + top offers                   */}

@@ -80,6 +80,22 @@
     overflow-wrap: normal;
   }
 
+  // ----- Variant 1 of 2: the tinted card (Dashboard) ------------------------
+  // The label row parks its icon on the card's right edge, exactly as
+  // `StatCard`'s head does — so every card on the screen puts its mark in the
+  // same corner instead of the hero's trailing inline. Scoped to `card`: the
+  // report hero keeps its inline icon, so Analytics is untouched.
+  &--card &__label {
+    justify-content: space-between;
+  }
+
+  // One zone only (`support` omitted): one full-width column instead of the
+  // two-zone 1.3fr / 1fr split, which would leave a dead gutter beside a lone
+  // figure.
+  &--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   &__icon {
     flex-shrink: 0;
     color: var(--tile-ink);

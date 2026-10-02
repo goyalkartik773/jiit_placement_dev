@@ -24,6 +24,13 @@ export interface PackageBand {
   companies: number;
 }
 
+export interface BranchTotal {
+  /** Branch label exactly as the feed spells it ("CSE", "Intg. MTech"). */
+  branch: string;
+  /** Placed students in that branch, summed across every placing company. */
+  students: number;
+}
+
 export interface PlacementSummary {
   /** TotalCount reported by the API — companies with at least one job. */
   companiesTotal: number;
@@ -48,6 +55,14 @@ export interface PlacementSummary {
   /** Distinct campus labels with at least one placed student (same union rule). */
   campusesCovered: number;
   bands: PackageBand[];
+  /**
+   * Placed students per branch, highest first — the sum over each placing
+   * row's `branches[]`. Together with `studentsPlaced` this is the donut's
+   * whole contract: the page folds the tail into "Other" and adds a
+   * "Branch not stated" slice when a row arrived without a breakdown, so the
+   * slices always add back up to `studentsPlaced`.
+   */
+  branchTotals: BranchTotal[];
   /** Top companies by students placed (highest first). */
   topCompanies: CompanyRow[];
   /** Companies with the highest disclosed package (placed someone, package known). */
@@ -105,6 +120,12 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
   const bandMap = new Map<string, PackageBand>();
   for (const band of BANDS) bandMap.set(band.label, { label: band.label, students: 0, companies: 0 });
 
+  // Head-count per branch — the donut's feed. Same rule as `streams` below:
+  // an empty label is never a branch, and each row's own count is what is
+  // summed (the API ships `branches[].students` per company, so this stays a
+  // pure sum over rows the feed actually returned).
+  const branchMap = new Map<string, number>();
+
   // Coverage is a SET union, not a sum: the same branch/campus at three
   // companies is one stream/campus, and a label of "" must never become one.
   const streams = new Set<string>();
@@ -118,7 +139,9 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
 
     for (const item of row.branches ?? []) {
       const label = (item?.branch ?? '').trim();
-      if (label) streams.add(label);
+      if (!label) continue;
+      streams.add(label);
+      branchMap.set(label, (branchMap.get(label) ?? 0) + (Number(item.students) || 0));
     }
     for (const item of row.campuses ?? []) {
       const label = (item?.campus ?? '').trim();
@@ -161,6 +184,9 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
     streamsCovered: streams.size,
     campusesCovered: campuses.size,
     bands: BANDS.map((band) => bandMap.get(band.label)!),
+    branchTotals: [...branchMap.entries()]
+      .map(([branch, students]) => ({ branch, students }))
+      .sort((a, b) => b.students - a.students || a.branch.localeCompare(b.branch)),
     topCompanies: byPlaced.slice(0, 6),
     topOffers: byPackage.slice(0, 6),
     recentCompanies: byRecent.slice(0, 6),

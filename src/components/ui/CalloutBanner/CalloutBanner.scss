@@ -1,0 +1,137 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// CalloutBanner — eyebrow · statement · figure, one strip, full width.
+//
+// WHY A THIRD SHAPE. The page already has tiles (a figure with a sublabel)
+// and the hero (a figure at display scale). A record — one line of prose with
+// one number in it — belongs to neither: with no denominator it cannot be a
+// StatCard, and as the page's only instance it is not the anchor. This strip
+// is the shape in between, so the page reads headline → tiles → record →
+// analysis instead of headline → tiles → tiles.
+//
+// COLOURS — tokens only, none invented here:
+//   --ui-tint-<tone>-bg / -ink   the wash, the 4px rail, the border, the
+//                                 eyebrow and the icon (>= 4.5:1 on the wash)
+//   --ui-ink                      the statement and the figure
+// ============================================================================
+.ui-callout {
+  --callout-ink: var(--ui-tint-amber-ink);
+  --callout-bg: var(--ui-tint-amber-bg);
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  min-width: 0;
+  padding: $space-4 $space-5;
+  overflow: hidden;
+  background: var(--callout-bg);
+  border: 1px solid color-mix(in srgb, var(--callout-ink) 22%, var(--ui-panel));
+  border-radius: var(--ui-radius-card);
+  box-shadow: $shadow-xs;
+  font-family: var(--ui-font);
+
+  // 4px, the same rail the tiles carry — this belongs to that family.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 4px;
+    background: var(--callout-ink);
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    // The wash and the badge wash are the same colour; the badge reads as a
+    // tile only because it sits on top of a border the banner doesn't have.
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--callout-ink) 24%, transparent);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__eyebrow {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--callout-ink);
+    overflow-wrap: normal;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 16.5px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+    overflow-wrap: anywhere;
+  }
+
+  // The figure sits on the right edge, above the statement's baseline — the
+  // last thing the eye lands on and the number worth remembering.
+  &__figure {
+    display: flex;
+    align-items: baseline;
+    gap: $space-2;
+    margin: 0;
+    flex: 0 0 auto;
+    color: var(--ui-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__value {
+    font-size: clamp(26px, 4vw, 32px);
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+  }
+
+  &__unit {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--callout-ink);
+  }
+
+  // ----- Tones: the same pairing the tiles use ------------------------------
+  &--accent {
+    --callout-ink: var(--ui-tint-accent-ink);
+    --callout-bg: var(--ui-tint-accent-bg);
+  }
+
+  &--green {
+    --callout-ink: var(--ui-tint-green-ink);
+    --callout-bg: var(--ui-tint-green-bg);
+  }
+
+  &--neutral {
+    --callout-ink: var(--ui-tint-neutral-ink);
+    --callout-bg: var(--ui-tint-neutral-bg);
+  }
+
+  // Figure drops under the statement rather than squeezing it: the strip
+  // grows one row instead of the text column collapsing to a ribbon.
+  @include down('sm') {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: $space-3;
+
+    &__figure {
+      width: 100%;
+      padding-left: calc(42px + #{$space-4}); // badge + gap, so it aligns
+    }
+  }
+}

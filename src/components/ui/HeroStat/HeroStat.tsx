@@ -87,7 +87,18 @@ function FigureZone({ figure, size }: { figure: HeroFigure; size: 'lead' | 'supp
  * `--ui-tint-label` for label and sublabel (4.84–5.06:1 on these washes).
  */
 export function HeroStat({ lead, support, tint = 'accent', variant = 'card', className = '' }: HeroStatProps) {
-  const classes = ['ui-hero', `ui-hero--${tint}`, `ui-hero--${variant}`, className].filter(Boolean).join(' ');
+  const classes = [
+    'ui-hero',
+    `ui-hero--${tint}`,
+    `ui-hero--${variant}`,
+    // With no second zone the two-column grid would strand the lead in 1.3fr
+    // and leave a dead 1fr gutter, so the card re-flows to one full-width
+    // zone. Auto from the props: a caller can never forget to set it.
+    support ? '' : 'ui-hero--single',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <section className={classes} aria-label={lead.label}>

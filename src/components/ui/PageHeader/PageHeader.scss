@@ -44,20 +44,29 @@
   // The standing summary: a stated line with an accent bar and a soft
   // surface, not a muted caption. `strong` is the lead figure — sized here
   // so callers pass plain semantics and still get identical emphasis.
+  //
+  // No `max-width`: the card variant is a banner, not a caption, so it runs
+  // the full content column like the rest of the Dashboard's blocks (the
+  // 'report' variant restores its own 96ch measure below).
   &__summary {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 6px;
     margin: 0;
-    max-width: 68ch;
     padding: $space-3 $space-4;
     border-left: 3px solid var(--ui-accent);
     border-radius: 0 var(--ui-radius-field) var(--ui-radius-field) 0;
     background: var(--ui-accent-soft);
     font-size: 15px;
     line-height: 1.6;
-    color: var(--ui-muted);
+    // `--ui-muted` measures 4.37:1 on `--ui-accent-soft` — short of AA for
+    // 15px text. Full ink clears it by a wide margin and matches the intent
+    // ("a stated line … not a muted caption"): the sentence is the page's
+    // thesis, and the accent figures beside it still carry the emphasis.
+    // Analytics is untouched — its 'report' summary re-asserts `--ui-muted`
+    // on the plain page background, where that colour measures 4.94:1.
+    color: var(--ui-ink);
 
     @include down('md') {
       padding: $space-2-5 $space-3;
@@ -71,6 +80,16 @@
     letter-spacing: -0.01em;
     color: var(--ui-accent);
     font-variant-numeric: tabular-nums;
+  }
+
+  // Optional leading mark in the card summary (the Dashboard's info cue).
+  // The row is baseline-aligned, which drops a square icon below the text it
+  // should sit level with — so the icon opts out to centre. Purely decorative:
+  // `Icon` ships aria-hidden, and the sentence beside it says everything.
+  &__summary-icon {
+    flex-shrink: 0;
+    align-self: center;
+    color: var(--ui-accent);
   }
 
   // ----- variant: 'report' (Analytics) -------------------------------------

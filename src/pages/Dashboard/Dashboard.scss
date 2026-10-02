@@ -2,22 +2,32 @@
 @use '../../styles/mixins' as *;
 
 // ============================================================================
-// Dashboard — the client home.  Anchor → supporting tiles → breakdown →
-// highlight strip.  Every surface is a token-driven soft tint; nothing here
-// is analytical.
+// Dashboard — the client home.  Anchor pair → tiles → record banner →
+// breakdown (heads) → bands (money) → highlight strip.  Every surface is a
+// token-driven soft tint; nothing here is analytical.
 // ============================================================================
 .dashboard {
   @include stack($space-6);
 }
 
-// ----- The anchor, then its four supporting tiles -----
-// The top block is `HeroStat` (components/ui/HeroStat/HeroStat.scss): one
-// figure at display scale plus the feed's single true X / Y beside it. The
-// four tiles below are laid out by `.ui-stat-card-row` with
-// `data-cells="4"` (components/ui/StatCard/StatCard.scss) — the ONE grid
-// rule shared with Analytics, so the two pages never drift.
+// ----- The anchor: two cards, side by side -----
+// Each hero is a single-zone `HeroStat` (`ui-hero--single`), so the pair reads
+// as two statements rather than one card split by a hairline: the headline
+// figure gets its own frame, and the X / Y beside it gets its own. They stack
+// below 'lg' — two 58px figures on a phone would fight each other.
+.dash-hero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-4;
+
+  @include down('lg') {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 // ----- Two-up rows (breakdown, highlight strip) -----
+// Columns align across rows: breakdown and strip share this rule, so their
+// left and right panels sit on the same vertical edges.
 .dash-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -28,7 +38,7 @@
   }
 }
 
-// ----- Breakdown panel -----
+// ----- Breakdown panel (also used full-width for the package bands) -----
 .dash-panel {
   display: flex;
   flex-direction: column;
@@ -57,7 +67,7 @@
     border-top: 1px solid var(--ui-border-soft);
     font-size: 12.5px;
     line-height: 1.5;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   &__more {
@@ -118,9 +128,23 @@
       }
     }
 
-    &--company {
-      grid-template-columns: auto minmax(80px, 150px) 1fr auto;
+    // The ranked company list: rank numeral, then avatar, then name. The
+    // name column stays fluid and the bar sits in the slack, so a long name
+    // ellipsises instead of squeezing the fill below legibility.
+    &--ranked {
+      grid-template-columns: auto auto minmax(70px, 140px) 1fr auto;
     }
+  }
+
+  // Rank numeral — tabular so 1..5 align down the column, muted so it reads
+  // as position rather than as a figure worth comparing against the bar.
+  &__rank {
+    min-width: 1.2em;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    color: var(--ui-muted);
+    font-variant-numeric: tabular-nums;
   }
 
   &__label {
@@ -164,10 +188,15 @@
     background: var(--ui-accent);
     transition: width $transition-base, filter $transition-fast;
 
-    // Five fills, one per meaning. The band ramp (teal → accent → indigo →
-    // green) steps with the package scale; violet marks the head-count chart.
-    // All five clear 3:1 against the --ui-track trough, which is all a bar
-    // fill needs — the number beside it carries the exact value.
+    // Four fills, one per meaning. The band ramp (teal → accent → indigo →
+    // green) steps with the package scale, so a colour alone locates a bar on
+    // that scale. The head-count chart takes the ramp's top green for every
+    // bar — the same green as the "Highest package" tile and the top-offers
+    // figures, so "students placed" keeps one hue down the page. The two
+    // charts sit in different rows under their own titles, so the reuse reads
+    // as a family rather than as one shared axis. All four clear 3:1 against
+    // the --ui-track trough, which is all a bar fill needs — the number
+    // beside it carries the exact value.
     &--teal {
       background: var(--ui-tint-teal-ink);
     }
@@ -182,10 +211,6 @@
 
     &--green {
       background: var(--ui-tint-green-ink);
-    }
-
-    &--violet {
-      background: var(--ui-tint-violet-ink);
     }
   }
 
@@ -261,7 +286,7 @@
 
   &__meta {
     font-size: 12.5px;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -278,15 +303,20 @@
       color: var(--ui-accent);
     }
 
+    // `--ui-green` (#1aa179) is the pill colour meant for a *soft green*
+    // fill — on white it measures 3.16:1, under AA for 15px text. The tint
+    // ink (#0f7a56) is the same hue at 5.33:1, and it is the green the band
+    // ramp and the record banner already use, so "success" now reads as one
+    // green instead of two.
     &--green {
-      color: var(--ui-green);
+      color: var(--ui-tint-green-ink);
     }
   }
 
   &__empty {
     margin: 0;
     font-size: 13.5px;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 }
 
@@ -295,7 +325,7 @@
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
-  color: var(--ui-faint);
+  color: var(--ui-muted);
 
   a {
     color: var(--ui-accent);

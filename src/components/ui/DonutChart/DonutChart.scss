@@ -1,0 +1,154 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// DonutChart — ring + legend in one component.
+//
+// WHY THE LEGEND IS PART OF THE COMPONENT. A donut read through a tooltip is
+// unreadable without a pointer, so the label/share pairs sit beside the ring
+// as real text and the ring itself is aria-hidden decoration. The host never
+// has to remember that.
+//
+// COLOURS — none of its own. The ring, swatches and centre text all come from
+// the segments or from the token palette passed down by the component; the
+// only tokens read here are the neutrals for chrome (`--ui-panel`,
+// `--ui-track`, `--ui-ink`, `--ui-muted`).
+// ============================================================================
+.ui-donut {
+  display: flex;
+  align-items: center;
+  gap: $space-5;
+  min-width: 0;
+
+  &__figure {
+    position: relative;
+    flex: 0 0 auto;
+    width: 148px;
+    height: 148px;
+  }
+
+  &__ring {
+    display: block;
+    width: 100%;
+    height: 100%;
+    // Decorative by construction (aria-hidden on the element).
+    pointer-events: none;
+  }
+
+  &__track {
+    fill: none;
+    stroke: var(--ui-track);
+    stroke-width: 15;
+  }
+
+  &__arc {
+    fill: none;
+    stroke-width: 15;
+    // Butt caps: the 2px gap between slices is the separation, and a round
+    // cap would smear it back together while inflating each arc past its
+    // true share.
+    stroke-linecap: butt;
+  }
+
+  &__center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  &__value {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--ui-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ui-muted);
+  }
+
+  // ----- Legend: the data, in text -----------------------------------------
+  &__legend {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__legend-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: $space-2-5;
+    min-width: 0;
+  }
+
+  &__swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    // The ring already states the value in text beside it; the swatch only
+    // ties a colour to a label.
+    flex-shrink: 0;
+  }
+
+  &__legend-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ui-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__legend-value {
+    display: flex;
+    align-items: baseline;
+    gap: $space-2;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__legend-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ui-muted);
+  }
+
+  &__legend-pct {
+    min-width: 4ch; // right edge lines up down the column
+    text-align: right;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ui-ink);
+  }
+
+  // Stacked, centred — the ring keeps its size, the legend drops under it.
+  @include down('sm') {
+    flex-direction: column;
+    gap: $space-4;
+
+    &__figure {
+      width: 132px;
+      height: 132px;
+    }
+
+    &__legend {
+      width: 100%;
+    }
+  }
+}
