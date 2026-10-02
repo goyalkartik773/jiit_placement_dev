@@ -1,0 +1,853 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// PlacedStudentsDialog — the roster for ONE job as a master–detail dialog.
+//
+// WHY A DIALOG. The old design nested the table four levels deep (card ->
+// job list -> job row -> student table) and then opened a 320px drawer
+// INSIDE that, squeezing six columns into the leftover ~250px. Nothing had
+// room and only four of the row's fields ever reached the screen. This
+// portal renders the roster at full width instead: a list you scan on the
+// left, a reading pane for the selected record on the right.
+//
+// LAYOUT
+//   .placed-students  fixed scrim + centred panel (ported to <body>)
+//     __head          company identity, package/status, count, close
+//     __toolbar       search + branch / campus / batch (PlacedStudentsFilterBar)
+//     __body          grid: master | detail  ->  one pane below 1024px
+//
+// COLOURS — tokens only, none invented here: --ui-panel / --ui-bg surfaces,
+// --ui-border and --ui-border-soft hairlines, --ui-ink / --ui-muted /
+// --ui-faint for the type ramp, --ui-accent + --ui-accent-soft for the
+// selected row, --ui-green for the package figure. Branch and role chips
+// carry their own palette, written inline by badgePalette.ts.
+//
+// RULES CARRIED OVER FROM the deleted PlacedStudents.scss:
+//   1. `overflow-wrap` never `anywhere` on a label — names and roles break
+//      at spaces only, so "Specialist Programmer" is not shredded.
+//   2. A single Plus Jakarta Sans ramp. No monospace: identifiers are set in
+//      `tabular-nums` instead, which aligns them without a second family.
+//   3. The selected row is marked by BOTH a tint and an inset bar, so the
+//      link between row and pane is never carried by colour alone.
+// ============================================================================
+
+.placed-students {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  font-family: var(--ui-font);
+
+  // ----- scrim -------------------------------------------------------------
+  &__scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(15, 23, 42, 0.46);
+    cursor: default;
+  }
+
+  // ----- panel -------------------------------------------------------------
+  &__panel {
+    position: fixed;
+    // clamp() keeps a margin of the page visible on a desktop so the dialog
+    // still reads as an overlay, and goes edge-to-edge on a phone.
+    inset: clamp(0px, 3.5vh, 34px) clamp(0px, 2.4vw, 44px);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 1280px;
+    margin: auto;
+    overflow: hidden;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-border);
+    border-radius: $radius-xl;
+    box-shadow: $shadow-lg;
+
+    // Focused programmatically on open (to announce the dialog's name); the
+    // container itself must not draw a ring around the whole panel.
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // ----- header ------------------------------------------------------------
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: $space-4;
+    padding: $space-5 $space-5 $space-4;
+    border-bottom: 1px solid var(--ui-border-soft);
+  }
+
+  &__ident {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+  }
+
+  &__title {
+    margin: 2px 0 0;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+    overflow-wrap: break-word;
+  }
+
+  &__meta {
+    margin: 3px 0 0;
+    font-size: 13px;
+    color: var(--ui-muted);
+    overflow-wrap: break-word;
+  }
+
+  &__joblink {
+    color: var(--ui-accent);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__place {
+    color: var(--ui-muted);
+  }
+
+  &__head-side {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    flex: 0 0 auto;
+  }
+
+  &__facts-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-bg);
+    font-size: 12.5px;
+    color: var(--ui-muted);
+    white-space: nowrap;
+
+    strong {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ui-ink);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__close {
+    @include flex-center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-panel);
+    color: var(--ui-muted);
+    cursor: pointer;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: var(--ui-pill);
+      color: var(--ui-ink);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  // ----- toolbar -----------------------------------------------------------
+  &__toolbar {
+    padding: $space-3 $space-5;
+    border-bottom: 1px solid var(--ui-border-soft);
+    background: var(--ui-bg);
+  }
+
+  // ----- body: master | reading pane ---------------------------------------
+  &__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 430px);
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  &__master {
+    min-width: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+  }
+
+  &__detail {
+    min-width: 0;
+    overflow: auto;
+    border-left: 1px solid var(--ui-border-soft);
+    background: var(--ui-panel);
+    scrollbar-width: thin;
+  }
+
+  // ----- states ------------------------------------------------------------
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+    padding: $space-5;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: $space-4;
+    padding: $space-2-5 $space-3;
+    border: 1px solid rgba(213, 72, 75, 0.28);
+    border-radius: var(--ui-radius-field);
+    background: var(--ui-red-soft);
+    color: var(--ui-red);
+    font-size: 13px;
+
+    > svg {
+      flex-shrink: 0;
+    }
+
+    > span {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  // ----- master list table -------------------------------------------------
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: $space-2-5 $space-3;
+      border-bottom: 1px solid var(--ui-border);
+      background: var(--ui-panel);
+      color: var(--ui-muted);
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-align: left;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: $space-3;
+      border-bottom: 1px solid var(--ui-border-soft);
+      color: var(--ui-muted);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    // Long text wraps instead of forcing an even wider table.
+    td.placed-students__person,
+    td.placed-students__role {
+      white-space: normal;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover td {
+      background: var(--ui-quiet);
+    }
+
+    // Selected row — tint PLUS an inset bar, so the link between the row and
+    // the reading pane is not carried by colour alone.
+    tbody tr.placed-students__row.is-selected td {
+      background: var(--ui-accent-soft);
+    }
+
+    tbody tr.placed-students__row.is-selected td:first-child {
+      box-shadow: inset 3px 0 0 0 var(--ui-accent);
+    }
+
+    // Column budget for a ~740px master pane: identity gets the room it
+    // needs, the rest are fixed so the CTC and date columns never dance
+    // between rows.
+    th:nth-child(1) {
+      width: 36%;
+    }
+    th:nth-child(2) {
+      width: 13%;
+    }
+    th:nth-child(3) {
+      width: 19%;
+    }
+    th:nth-child(4) {
+      width: 16%;
+    }
+    th:nth-child(5) {
+      width: 16%;
+    }
+
+    th.placed-students__ctc {
+      text-align: right;
+    }
+  }
+
+  // Name cell = avatar + a real <button> (keyboard: Tab + Enter/Space)
+  &__person {
+    min-width: 200px;
+  }
+
+  &__open {
+    display: flex;
+    align-items: center;
+    gap: $space-2-5;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__avatar {
+    @include flex-center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border-radius: $radius-pill;
+    background: var(--ui-pill);
+    color: var(--ui-muted);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  &__identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--ui-ink);
+    // Spaces only — a name is never shredded mid-word.
+    overflow-wrap: normal;
+  }
+
+  &__roll {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ui-faint);
+    overflow-wrap: normal;
+  }
+
+  &__badge-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__role {
+    overflow-wrap: normal;
+  }
+
+  // Money: bold green, right-aligned
+  &__ctc {
+    font-weight: 800;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  td.placed-students__ctc {
+    color: var(--ui-green);
+  }
+
+  td.placed-students__date {
+    font-size: 12.5px;
+    color: var(--ui-faint);
+    white-space: nowrap;
+  }
+
+  // ----- chips (shared by the list, the profile header and the pane) -------
+  // Colour is decoration: the label is always real text beside it.
+  &__badge {
+    display: inline-block;
+    max-width: 100%;
+    padding: 3px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-pill);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  // Campus: outlined instead of filled — `JUIT` is BOTH a branch and a campus
+  // value, so two identical neutral fills side by side would be ambiguous.
+  &__badge--outline {
+    background: transparent;
+    border-color: var(--ui-border);
+    color: $text-soft;
+  }
+
+  // Long, spelled-out role labels wrap instead of widening the column.
+  &__badge--wrap {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  // ----- filter bar (PlacedStudentsFilterBar) ------------------------------
+  &__filters {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+  }
+
+  &__filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2;
+  }
+
+  &__filters-search {
+    flex: 1 1 240px;
+    min-width: 180px;
+  }
+
+  &__filters-selects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__filter {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+
+    select {
+      appearance: none;
+      box-sizing: border-box;
+      min-width: 132px;
+      padding: 7px 30px 7px 11px;
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-field);
+      background: var(--ui-panel);
+      color: var(--ui-ink);
+      font-family: var(--ui-font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+
+      &:focus-visible {
+        @include focus-ring;
+      }
+    }
+  }
+
+  &__filter-caret {
+    position: absolute;
+    right: 10px;
+    color: var(--ui-faint);
+    pointer-events: none;
+  }
+
+  &__filters-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 11px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-field);
+    background: transparent;
+    color: var(--ui-muted);
+    font-family: var(--ui-font);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: var(--ui-pill);
+      color: var(--ui-ink);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__filters-meta {
+    margin: 0;
+    font-size: 12px;
+    // --ui-muted, not --ui-faint: this line carries the "Showing X of Y"
+    // count, not decoration.
+    color: var(--ui-muted);
+  }
+}
+
+// ============================================================================
+// StudentProfile — the reading pane's content: every field the feed returns.
+// ============================================================================
+.placed-students {
+  &__profile {
+    display: flex;
+    flex-direction: column;
+    gap: $space-4;
+    padding: $space-5;
+
+    &.is-empty {
+      align-items: center;
+      justify-content: center;
+      gap: $space-3;
+      min-height: 220px;
+      text-align: center;
+      color: var(--ui-muted);
+      font-size: 13.5px;
+
+      p {
+        margin: 0;
+        max-width: 26ch;
+      }
+
+      > svg {
+        color: var(--ui-faint);
+      }
+    }
+  }
+
+  &__profile-back {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 6px 12px 6px 9px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ui-panel);
+    color: var(--ui-ink);
+    font-family: var(--ui-font);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__profile-head {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    min-width: 0;
+  }
+
+  &__profile-avatar {
+    @include flex-center;
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-pill;
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  &__profile-ident {
+    min-width: 0;
+  }
+
+  &__profile-eyebrow {
+    margin: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+  }
+
+  &__profile-name {
+    margin: 2px 0 0;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+    // Names break at spaces only.
+    overflow-wrap: normal;
+  }
+
+  &__profile-sub {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--ui-muted);
+    overflow-wrap: break-word;
+  }
+
+  &__profile-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    // Empty <li>s still cost a flex slot otherwise.
+    &:empty {
+      display: none;
+    }
+
+    > li:empty {
+      display: none;
+    }
+  }
+
+  // ----- the three figures people open this record for ---------------------
+  &__profile-figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    background: var(--ui-border-soft);
+    border: 1px solid var(--ui-border);
+    border-radius: $radius-md;
+  }
+
+  &__figure {
+    min-width: 0;
+    padding: $space-3;
+    background: var(--ui-panel);
+  }
+
+  &__figure-label {
+    margin: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+  }
+
+  &__figure-value {
+    margin: 4px 0 0;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--ui-ink);
+    font-variant-numeric: tabular-nums;
+    // "Not disclosed" and long CTC strings wrap; they never widen the pane.
+    overflow-wrap: break-word;
+  }
+
+  // The package is the headline number, so it takes the compensation colour.
+  &__figure--money &__figure-value {
+    color: var(--ui-green);
+  }
+
+  // ----- grouped facts ------------------------------------------------------
+  &__psection {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2-5;
+    padding-top: $space-4;
+    border-top: 1px solid var(--ui-border-soft);
+  }
+
+  &__psection-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+
+    > svg {
+      color: var(--ui-accent);
+    }
+  }
+
+  &__facts {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2-5;
+    margin: 0;
+  }
+
+  &__fact {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: $space-3;
+    align-items: baseline;
+
+    dt {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ui-muted);
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--ui-ink);
+      overflow-wrap: break-word;
+    }
+  }
+
+  &__fact-value {
+    &.is-identifier {
+      font-size: 13px;
+      // Tabular figures align the roll numbers without a second font family.
+      font-variant-numeric: tabular-nums;
+      color: var(--ui-muted);
+    }
+  }
+
+  &__fact-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--ui-faint);
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ui-accent);
+    font-weight: 600;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// ============================================================================
+// Responsive — two panes become two screens with a Back button.
+// ============================================================================
+@media (max-width: 1024px) {
+  .placed-students__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .placed-students__body[data-pane='list'] .placed-students__detail {
+    display: none;
+  }
+
+  .placed-students__body[data-pane='profile'] .placed-students__master {
+    display: none;
+  }
+
+  .placed-students__detail {
+    border-left: 0;
+  }
+
+  .placed-students__profile-back {
+    display: inline-flex;
+  }
+
+  .placed-students__table th:nth-child(1) {
+    width: 42%;
+  }
+}
+
+@media (max-width: 860px) {
+  .placed-students__head {
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  .placed-students__ident {
+    flex: 1 1 200px;
+  }
+
+  .placed-students__head-side {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .placed-students__panel {
+    inset: 0;
+    max-width: none;
+    border-radius: 0;
+    border-width: 0;
+  }
+
+  .placed-students__head,
+  .placed-students__toolbar,
+  .placed-students__profile {
+    padding: $space-4;
+  }
+
+  .placed-students__profile-figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .placed-students__fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .placed-students__table th:nth-child(1) {
+    width: auto;
+  }
+}

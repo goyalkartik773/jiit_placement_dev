@@ -1,4 +1,4 @@
-import type { FocusEvent, ReactNode } from 'react';
+import type { FocusEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '../Icon/Icon';
 import { Loader, type LoaderSize } from '../Loader/Loader';
@@ -30,7 +30,13 @@ function loaderSizeFor(size: ButtonSize): LoaderSize {
 interface ButtonProps extends ButtonBaseProps {
   type?: 'button' | 'submit';
   loading?: boolean;
-  onClick?: () => void;
+  /**
+   * The event is passed through (rather than `() => void`) so a caller can
+   * read `currentTarget` — that is how a dialog knows which control opened it
+   * and returns focus there on close. Every `() => void` handler already
+   * satisfies this signature, so nothing that exists today has to change.
+   */
+  onClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
   ariaLabel?: string;
 }
 

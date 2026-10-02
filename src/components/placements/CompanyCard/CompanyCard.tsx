@@ -6,9 +6,9 @@ import { CtcChip } from '../../common/CtcChip/CtcChip';
 import { Icon } from '../../common/Icon/Icon';
 import { Avatar } from '../../ui/Avatar/Avatar';
 import { Card } from '../../ui/Card/Card';
-import { PlacedStudents } from '../PlacedStudents/PlacedStudents';
+import { PlacedStudentsDialog } from '../PlacedStudents/PlacedStudentsDialog';
 import { formatDate, formatDateTime } from '../../../utils/format';
-import type { CompanyRow } from '../../../types/dashboard.types';
+import type { CompanyJob, CompanyRow } from '../../../types/dashboard.types';
 import './CompanyCard.scss';
 
 interface CompanyCardProps {
@@ -18,11 +18,13 @@ interface CompanyCardProps {
 /**
  * One company in the company-wise table: identity + placed count in the
  * header, roles / job listings behind an expandable disclosure, and the
- * per-job student detail fetched from the placed-students endpoint.
+ * per-job student roster opened as a MASTER-DETAIL DIALOG rather than a
+ * table nested inside this card (four levels deep, with no room left for
+ * its columns).
  */
 export function CompanyCard({ row }: CompanyCardProps) {
   const [open, setOpen] = useState(false);
-  const [studentsJobId, setStudentsJobId] = useState<string | null>(null);
+  const [roster, setRoster] = useState<{ job: CompanyJob; trigger: HTMLElement | null } | null>(null);
   const panelId = useId();
 
   const jobs = row.jobs ?? [];
@@ -31,8 +33,9 @@ export function CompanyCard({ row }: CompanyCardProps) {
   const campuses = row.campuses ?? [];
   const jobLabel = `${row.jobcount} job${row.jobcount === 1 ? '' : 's'}`;
 
-  function toggleStudents(jobId: string): void {
-    setStudentsJobId((current) => (current === jobId ? null : jobId));
+  /** `trigger` is the button itself, so closing the dialog can refocus it. */
+  function openRoster(job: CompanyJob, trigger: HTMLElement | null): void {
+    setRoster({ job, trigger });
   }
 
   return (
@@ -170,17 +173,11 @@ export function CompanyCard({ row }: CompanyCardProps) {
                     variant="soft"
                     size="sm"
                     icon="users"
-                    onClick={() => toggleStudents(job.id)}
-                    title="Load the offer students matched to this job"
+                    onClick={(event) => openRoster(job, event.currentTarget)}
+                    title="Open the full roster of students placed through this job"
                   >
-                    {studentsJobId === job.id ? 'Hide students' : 'Placed students'}
+                    Placed students
                   </Button>
-
-                  {studentsJobId === job.id ? (
-                    <div className="company-card__students">
-                      <PlacedStudents jobId={job.id} />
-                    </div>
-                  ) : null}
                 </li>
               ))}
             </ul>
@@ -193,6 +190,16 @@ export function CompanyCard({ row }: CompanyCardProps) {
           </p>
         ) : null}
       </div>
+
+      {/* Portalled to <body>: a dialog must escape this card's stacking
+          context, and closing it returns focus to `roster.trigger`. */}
+      {roster ? (
+        <PlacedStudentsDialog
+          job={roster.job}
+          trigger={roster.trigger}
+          onClose={() => setRoster(null)}
+        />
+      ) : null}
     </Card>
   );
 }
