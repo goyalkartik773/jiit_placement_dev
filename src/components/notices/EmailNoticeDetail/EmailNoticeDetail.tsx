@@ -423,12 +423,30 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
               <th scope="col" className="notice-detail__num-col">
                 #
               </th>
-              <th scope="col">Roll no</th>
-              <th scope="col">Name</th>
-              <th scope="col">Branch</th>
-              {showProgram ? <th scope="col">Program</th> : null}
-              {showCollege ? <th scope="col">College</th> : null}
-              {hasAnyStatus ? <th scope="col">Status</th> : null}
+              <th scope="col" className="notice-detail__roll-col">
+                Roll no
+              </th>
+              <th scope="col" className="notice-detail__name-col">
+                Name
+              </th>
+              <th scope="col" className="notice-detail__branch-col">
+                Branch
+              </th>
+              {showProgram ? (
+                <th scope="col" className="notice-detail__program-col">
+                  Program
+                </th>
+              ) : null}
+              {showCollege ? (
+                <th scope="col" className="notice-detail__college-col">
+                  College
+                </th>
+              ) : null}
+              {hasAnyStatus ? (
+                <th scope="col" className="notice-detail__status-col">
+                  Status
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>

@@ -44,14 +44,14 @@
 
     svg {
       flex-shrink: 0;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
   }
 
   &__meta {
     font-size: 12px;
     font-weight: 600;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-variant-numeric: tabular-nums;
   }
 
@@ -93,7 +93,7 @@
     font-weight: 800;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   &__value {
@@ -143,14 +143,14 @@
 
     svg {
       flex-shrink: 0;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
   }
 
   &__chip-meta {
     font-size: 11px;
     font-weight: 500;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-variant-numeric: tabular-nums;
   }
 
@@ -232,7 +232,7 @@
     font-size: 12px;
     font-style: italic;
     line-height: $lh-normal;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     overflow-wrap: anywhere;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -294,9 +294,44 @@
   }
 
   &__table {
+    // FIXED geometry, taken from the header row rather than from whichever
+    // cell happens to hold the longest string. Under `auto` an 8-digit roll
+    // number claimed 288px and "ECE" claimed 225px while "#" got 48px —
+    // columns that no longer describe what they hold, which reads as a table
+    // that has stopped aligning. Only the name column is left unspecified, so
+    // it absorbs every spare pixel no matter which optional columns are shown.
+    //
+    // `width: 100%` + an explicit floor is the pair that makes this survive
+    // a narrow panel: the table takes every pixel on offer, but never drops
+    // below the space its own columns need. The floor is computed from the
+    // columns actually rendered — each optional one declares its own width —
+    // so a four-column roster at 430px scrolls ~120px sideways rather than
+    // squeezing "Tanishq Vijay" into a 76px column.
+    //
+    // If a browser lacks `:has()`, the optional terms read as 0px: the floor
+    // falls back to the fixed columns plus the name, which is still enough to
+    // keep them intact.
+    --nd-name: 200px;
     width: 100%;
+    min-width: calc(
+      44px + 124px + 104px + var(--nd-name) +
+      var(--nd-program, 0px) + var(--nd-college, 0px) + var(--nd-status, 0px)
+    );
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 13px;
+
+    &:has(.notice-detail__program-col) {
+      --nd-program: 128px;
+    }
+
+    &:has(.notice-detail__college-col) {
+      --nd-college: 140px;
+    }
+
+    &:has(.notice-detail__status-col) {
+      --nd-status: 120px;
+    }
 
     th {
       padding: 9px 12px;
@@ -305,7 +340,7 @@
       letter-spacing: 0.05em;
       text-align: left;
       text-transform: uppercase;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
       background: var(--ui-quiet);
       border-bottom: 1px solid var(--ui-border);
       white-space: nowrap;
@@ -315,7 +350,10 @@
       padding: 8px 12px;
       color: var(--ui-muted);
       border-bottom: 1px solid var(--ui-border-soft);
-      overflow-wrap: anywhere;
+      // `anywhere` broke words at any character and made "Tanishq Vijay"
+      // wrap mid-surname once the name column tightened. `break-word` only
+      // breaks when the word genuinely cannot fit.
+      overflow-wrap: break-word;
     }
 
     tbody tr:last-child td {
@@ -332,12 +370,35 @@
     }
 
     // Cell modifiers: scoped under the table so they outrank `td { color }`
-    // by specificity instead of leaning on !important.
+    // by specificity instead of leaning on !important. The `*-col` classes
+    // carry the geometry (they are on the header cells, which is what
+    // `table-layout: fixed` measures); the plain `__roll` / `__name` classes
+    // carry the type treatment of the cell below.
     .notice-detail__num-col {
-      width: 48px;
-      color: var(--ui-faint);
+      width: 44px;
+      color: var(--ui-muted);
       text-align: right;
       font-variant-numeric: tabular-nums;
+    }
+
+    .notice-detail__roll-col {
+      width: 124px;
+    }
+
+    .notice-detail__branch-col {
+      width: 104px;
+    }
+
+    .notice-detail__program-col {
+      width: 128px;
+    }
+
+    .notice-detail__college-col {
+      width: 140px;
+    }
+
+    .notice-detail__status-col {
+      width: 120px;
     }
 
     .notice-detail__roll {
@@ -354,13 +415,13 @@
     }
 
     .notice-detail__dash {
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
 
     .notice-detail__empty-row {
       padding: 20px 12px;
       text-align: center;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
   }
 
@@ -373,7 +434,7 @@
 
   &__showing {
     font-size: 12px;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-variant-numeric: tabular-nums;
   }
 
@@ -412,7 +473,7 @@
     margin: 0;
     font-size: 13px;
     font-style: italic;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   @include down('sm') {

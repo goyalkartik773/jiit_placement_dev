@@ -26,8 +26,11 @@
     color: var(--ui-ink);
     transition: border-color $transition-fast, box-shadow $transition-fast, background $transition-fast;
 
+    // A placeholder is text: it has to clear AA like everything else. The
+    // old `--ui-faint` managed 2.4:1, which meant the one string telling a
+    // user what they could search was the hardest to read on the page.
     &::placeholder {
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
 
     &:focus {
@@ -47,7 +50,9 @@
     position: absolute;
     left: 15px;
     display: flex;
-    color: var(--ui-faint);
+    // Matched to the placeholder it leads — a grey-blue icon beside a darker
+    // hint reads as two different controls.
+    color: var(--ui-muted);
     pointer-events: none;
   }
 
