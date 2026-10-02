@@ -226,6 +226,65 @@ export interface EmailNoticeListData {
   Facets: NoticeFacet[] | null;
 }
 
+/** One student named inside a shortlist email (`shortlist_students`). */
+export interface NoticeStudent {
+  rollno: string | null;
+  name: string | null;
+  branch: string | null;
+  program: string | null;
+  college: string | null;
+  /** Raw status cell from the email ("Registered", "Not Registered", ...). */
+  status: string | null;
+}
+
+/** One funnel count with the source sentence it was parsed from. */
+export interface NoticeRoundDetail extends NoticeRound {
+  evidence: string | null;
+}
+
+/** One attachment carried by the email (metadata only - no download API). */
+export interface NoticeAttachment {
+  filename: string | null;
+  mimetype: string | null;
+  filesize: number | null;
+}
+
+/** Miss-shape of GET /api/notices/email/{id} for an unknown id. */
+export interface EmailNoticeDetailMiss {
+  found: false;
+}
+
+/**
+ * GET /api/notices/email/{id} -> Data (the "Read more" payload).
+ * Everything the list ships, PLUS the full body (capped server-side at
+ * 60,000 chars - compare `bodylength` to detect truncation), recipients,
+ * the parsed student rows, funnel counts with evidence and attachments.
+ */
+export interface EmailNoticeDetail extends EmailNotice {
+  found: true;
+  recipient: string | null;
+  cc: string | null;
+  /** Full body text (quote-stripped), capped at 60,000 chars. */
+  body: string;
+  /** Length of the untouched body, before the cap. */
+  bodylength: number;
+  /** Normalized stage enum ("SHORTLISTED", "TEST_SHORTLISTED", ...). */
+  stage: string | null;
+  /** Stage exactly as the email worded it. */
+  stageraw: string | null;
+  /** ISO datetimes of interviews / reporting mentioned in the email. */
+  interviewdates: string[] | null;
+  /** Sentence(s) the shortlist extraction came from. */
+  evidence: string | null;
+  careernote: string | null;
+  /** Ordered stage labels of an opportunity email ("Round 1", ...). */
+  stages: string[] | null;
+  eligibility: string[] | null;
+  rounds: NoticeRoundDetail[] | null;
+  students: NoticeStudent[] | null;
+  attachments: NoticeAttachment[] | null;
+}
+
 /** Query params accepted by GET /api/notices (all server-side). */
 export interface SupersetNoticeParams {
   page?: number;

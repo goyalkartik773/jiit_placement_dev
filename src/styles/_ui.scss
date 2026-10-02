@@ -83,3 +83,31 @@
   --ui-radius-field: 11px;
   --ui-radius-pill: 999px;
 }
+
+// ----- Semantic text highlights (e-mail bodies behind "Read more") ---------
+// Green = money, accent = dates/times, amber = action words. Tints only -
+// never saturated fills - and the ink/bg halves are the already contrast-
+// checked `--ui-tint-*` pairs, so a paragraph full of marks still passes
+// 4.5:1. Rendered by utils/highlight.tsx as real <mark> elements.
+.ui-mark {
+  padding: 0 2px;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border-radius: 4px;
+
+  &--money {
+    color: var(--ui-tint-green-ink);
+    background: var(--ui-tint-green-bg);
+  }
+
+  &--date {
+    color: var(--ui-tint-accent-ink);
+    background: var(--ui-tint-accent-bg);
+  }
+
+  &--action {
+    color: var(--ui-tint-amber-ink);
+    background: var(--ui-tint-amber-bg);
+  }
+}

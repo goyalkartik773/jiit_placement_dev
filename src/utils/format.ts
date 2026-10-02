@@ -166,3 +166,33 @@ export function initials(name: string | null | undefined): string {
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[1][0]).toUpperCase();
 }
+
+/** How close a date is, in whole calendar days (negative = already past). */
+export function daysUntil(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const raw = value.includes('T') ? value : `${value}T00:00:00`;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const that = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return Math.round((that - today) / 86_400_000);
+}
+
+/**
+ * Deadline wording + urgency for notices: a date that has passed or lands
+ * inside a week is urgent (red); further out it stays quiet metadata.
+ * Date-only strings are parsed as local dates so they never shift a day.
+ * (Shared by the email notice card footer and its "Read more" detail.)
+ */
+export function deadlineInfo(value: string | null | undefined): { text: string; urgent: boolean } | null {
+  if (!value) return null;
+  const raw = value.includes('T') ? value : `${value}T00:00:00`;
+  const days = daysUntil(value);
+  if (days === null) return null;
+  const label = formatDate(raw);
+  if (days < 0) return { text: `Deadline passed ${label}`, urgent: true };
+  if (days === 0) return { text: `Deadline today · ${label}`, urgent: true };
+  if (days <= 7) return { text: `Deadline in ${days} day${days === 1 ? '' : 's'} · ${label}`, urgent: true };
+  return { text: `Deadline ${label}`, urgent: false };
+}

@@ -86,15 +86,60 @@
     }
   }
 
-  // ----- row 2: the bold title -----
+  // ----- row 2: the bold title (a real button: it discloses the detail) -----
   &__subject {
     margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-3;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+  }
+
+  &__toggle-text {
+    flex: 1;
+    min-width: 0;
     font-size: 17px;
     font-weight: 800;
     line-height: $lh-snug;
     letter-spacing: -0.005em;
     color: var(--ui-ink);
     overflow-wrap: anywhere;
+    transition: color $transition-fast;
+
+    .email-notice__toggle:hover & {
+      color: var(--ui-accent);
+    }
+  }
+
+  &__chevron {
+    display: flex;
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--ui-faint);
+    transition: transform $transition-fast, color $transition-fast;
+
+    .email-notice__toggle:hover & {
+      color: var(--ui-accent);
+    }
+  }
+
+  .email-notice__toggle[aria-expanded='true'] .email-notice__chevron {
+    transform: rotate(180deg);
   }
 
   // ----- row 3: company/source line + one-line preview -----
@@ -209,8 +254,68 @@
     }
   }
 
+  // Visible affordance of the subject button (aria-expanded lives there).
+  // Accent while closed = the invitation; quiet once the panel is open.
+  &__hint {
+    flex-shrink: 0;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ui-accent);
+    transition: color $transition-fast;
+
+    &.is-open {
+      color: var(--ui-faint);
+    }
+  }
+
+  // ----- expanded detail panel (EmailNoticeDetail) -----
+  &__panel {
+    padding-top: $space-4;
+    border-top: 1px solid var(--ui-border-soft);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--ui-red);
+    background: var(--ui-red-soft);
+    border-radius: var(--ui-radius-nested);
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    span {
+      flex: 1;
+      min-width: 0;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+  }
+
   @include down('sm') {
     padding: $space-4;
+
+    &__toggle-text {
+      font-size: 16px;
+    }
 
     &__deadline {
       margin-left: 0;

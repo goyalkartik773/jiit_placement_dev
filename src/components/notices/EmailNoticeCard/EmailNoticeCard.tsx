@@ -1,10 +1,19 @@
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { IconName } from '../../common/Icon/Icon';
 import { Icon } from '../../common/Icon/Icon';
+import { Button } from '../../common/Button/Button';
+import { Skeleton } from '../../common/Skeleton/Skeleton';
 import { Avatar } from '../../ui/Avatar/Avatar';
 import { IconBadge, type IconBadgeTone } from '../../ui/IconBadge/IconBadge';
 import { Pill, type PillTone } from '../../ui/Pill/Pill';
-import type { EmailNotice } from '../../../types/dashboard.types';
-import { formatDate, formatDateTime } from '../../../utils/format';
+import { isAbortError } from '../../../services/apiClient';
+import { fetchEmailNoticeDetail } from '../../../services/noticeService';
+import type {
+  EmailNotice,
+  EmailNoticeDetail as EmailNoticeDetailData,
+} from '../../../types/dashboard.types';
+import { deadlineInfo, formatDateTime } from '../../../utils/format';
+import { EmailNoticeDetail } from '../EmailNoticeDetail/EmailNoticeDetail';
 import './EmailNoticeCard.scss';
 
 /**
@@ -45,34 +54,6 @@ function cueFor(classification: string): ClassCue {
   return CLASSIFICATION_CUES[(classification || '').toUpperCase()] ?? DEFAULT_CUE;
 }
 
-/** How close a deadline is, in whole calendar days. */
-function daysUntil(value: string): number | null {
-  const raw = value.includes('T') ? value : `${value}T00:00:00`;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return null;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const that = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  return Math.round((that - today) / 86_400_000);
-}
-
-/**
- * Deadline wording + urgency. A date that has passed or lands inside a week is
- * urgent (red); further out it stays a quiet piece of metadata.
- * Date-only strings are parsed as local dates so they never shift a day.
- */
-function deadlineInfo(value: string | null): { text: string; urgent: boolean } | null {
-  if (!value) return null;
-  const raw = value.includes('T') ? value : `${value}T00:00:00`;
-  const days = daysUntil(value);
-  if (days === null) return null;
-  const label = formatDate(raw);
-  if (days < 0) return { text: `Deadline passed ${label}`, urgent: true };
-  if (days === 0) return { text: `Deadline today · ${label}`, urgent: true };
-  if (days <= 7) return { text: `Deadline in ${days} day${days === 1 ? '' : 's'} · ${label}`, urgent: true };
-  return { text: `Deadline ${label}`, urgent: false };
-}
-
 interface StatChip {
   key: string;
   text: string;
@@ -84,15 +65,54 @@ interface EmailNoticeCardProps {
   notice: EmailNotice;
 }
 
+/** Detail fetch lifecycle: idle until the first "Read more" click. */
+type DetailStatus = 'idle' | 'loading' | 'ready' | 'error';
+
 /**
  * One parsed placement email.
  *
  * Order is fixed by the revamp: category icon tile + label, the subject as a
- * bold title, the company / one-line preview, then the footer with the sender
- * avatar and a muted timestamp. Counts are pills, deadlines sit in the top row
- * and turn red the moment they are close or gone.
+ * bold title (which now doubles as the "Read more" disclosure, same pattern
+ * as the Superset notice), the company / one-line preview, then the footer
+ * with the sender avatar and a muted timestamp. The detail payload (full
+ * body, students, funnel evidence, attachments) is fetched lazily on the
+ * FIRST expand and kept, so Hide/Show never re-hits the API.
  */
 export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<DetailStatus>('idle');
+  const [detail, setDetail] = useState<EmailNoticeDetailData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const panelId = useId();
+
+  // Abort an in-flight fetch when the card unmounts (page/search change).
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const loadDetail = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setStatus('loading');
+    setError(null);
+    try {
+      const data = await fetchEmailNoticeDetail(notice.id, controller.signal);
+      setDetail(data);
+      setStatus('ready');
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setError(err instanceof Error ? err.message : 'Could not load this email.');
+      setStatus('error');
+    }
+  }, [notice.id]);
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && status === 'idle') void loadDetail();
+  };
+
   const label = (notice.classificationlabel ?? '').trim() || classificationLabelOf(notice.classification);
   const cue = cueFor(notice.classification);
   const deadline = deadlineInfo(notice.deadline);
@@ -140,8 +160,21 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
         ) : null}
       </div>
 
-      {/* ----- bold title ----- */}
-      <h3 className="email-notice__subject">{notice.subject}</h3>
+      {/* ----- bold title, doubles as the disclosure control ----- */}
+      <h3 className="email-notice__subject">
+        <button
+          type="button"
+          className="email-notice__toggle"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={handleToggle}
+        >
+          <span className="email-notice__toggle-text">{notice.subject}</span>
+          <span className="email-notice__chevron" aria-hidden="true">
+            <Icon name="chevron-down" size={17} />
+          </span>
+        </button>
+      </h3>
 
       {/* ----- company/source line + one-line preview ----- */}
       <p className="email-notice__source">
@@ -170,7 +203,7 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
         </ul>
       ) : null}
 
-      {/* ----- footer: sender avatar + muted timestamp ----- */}
+      {/* ----- footer: sender avatar + muted timestamp + read-more hint ----- */}
       <div className="email-notice__footer">
         <span className="email-notice__sender" title={`From ${notice.sender} <${notice.senderemail}>`}>
           <Avatar name={notice.sender || notice.senderemail} size={26} radius={8} />
@@ -192,6 +225,37 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
             <Icon name="external-link" size={13} />
           </a>
         ) : null}
+
+        {/* The subject button owns the disclosure state for assistive tech;
+            this is its visible affordance only. */}
+        <span className={`email-notice__hint${open ? ' is-open' : ''}`} aria-hidden="true">
+          {open ? 'Hide' : 'Read more'}
+        </span>
+      </div>
+
+      {/* ----- expanded detail: fetched once, then cached in state ----- */}
+      <div className="email-notice__panel" id={panelId} hidden={!open}>
+        {status === 'loading' ? (
+          <div className="email-notice__loading" role="status">
+            <span className="sr-only">Loading email details...</span>
+            <Skeleton width="sm" height="xs" shape="pill" />
+            <Skeleton width="full" height="lg" shape="rect" />
+            <Skeleton width="full" height="lg" shape="rect" />
+            <Skeleton width="full" height="md" shape="rect" />
+          </div>
+        ) : null}
+
+        {status === 'error' ? (
+          <p className="email-notice__error" role="alert">
+            <Icon name="alert-circle" size={15} />
+            <span>{error ?? 'Could not load this email.'}</span>
+            <Button variant="soft" size="sm" icon="refresh" onClick={() => void loadDetail()}>
+              Retry
+            </Button>
+          </p>
+        ) : null}
+
+        {status === 'ready' && detail ? <EmailNoticeDetail detail={detail} /> : null}
       </div>
     </article>
   );

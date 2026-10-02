@@ -1,11 +1,19 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { htmlToBlocks } from '../../../utils/html';
+import { highlightText } from '../../../utils/highlight';
 import './Prose.scss';
 
 interface ProseProps {
   /** Backend HTML or flattened text - never rendered as markup. */
   content: string | null | undefined;
   className?: string;
+  /**
+   * Tint the important parts of the text - money green, dates accent,
+   * action words amber - through utils/highlight.tsx (real <mark> nodes,
+   * no DOM mutation). Off by default so the Superset notice screen keeps
+   * its current, already-approved look.
+   */
+  highlight?: boolean;
 }
 
 /**
@@ -19,8 +27,12 @@ interface ProseProps {
  *
  * Paragraphs keep their line breaks (`white-space: pre-line`), so `<br>`-fed
  * address/date lines in a Superset notice survive intact.
+ *
+ * Exported memoized: the e-mail "Read more" panel re-renders on every
+ * student-search keystroke, and this body can be 60,000 characters of
+ * highlighted text - props are all primitives, so memo skips it cleanly.
  */
-export function Prose({ content, className }: ProseProps) {
+export const Prose = memo(function Prose({ content, className, highlight = false }: ProseProps) {
   const blocks = useMemo(() => htmlToBlocks(content), [content]);
 
   if (blocks.length === 0) return null;
@@ -31,7 +43,7 @@ export function Prose({ content, className }: ProseProps) {
         if (block.kind === 'p') {
           return (
             <p key={index} className="prose__p">
-              {block.text}
+              {highlight ? highlightText(block.text, `p${index}`) : block.text}
             </p>
           );
         }
@@ -40,7 +52,7 @@ export function Prose({ content, className }: ProseProps) {
           <ListTag key={index} className={`prose__list prose__list--${block.kind}`}>
             {block.items.map((item, itemIndex) => (
               <li key={itemIndex} className="prose__li">
-                {item}
+                {highlight ? highlightText(item, `l${index}-${itemIndex}`) : item}
               </li>
             ))}
           </ListTag>
@@ -48,4 +60,4 @@ export function Prose({ content, className }: ProseProps) {
       })}
     </div>
   );
-}
+});

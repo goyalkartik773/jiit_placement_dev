@@ -1,6 +1,8 @@
-import { getJson } from './apiClient';
+import { ApiError, getJson } from './apiClient';
 import type { ApiEnvelope } from '../types/job.types';
 import type {
+  EmailNoticeDetail,
+  EmailNoticeDetailMiss,
   EmailNoticeListData,
   EmailNoticeParams,
   NoticeFacet,
@@ -14,6 +16,7 @@ import type {
  * Notice API service - the ONLY place that knows notice endpoint paths.
  *
  * GET /api/notices/email?page&pageSize&search&type   (parsed placement emails)
+ * GET /api/notices/email/{id}                        (one email, full detail)
  * GET /api/notices?page&pageSize&search              (Superset portal notices)
  */
 export interface FetchedEmailNotices {
@@ -81,6 +84,31 @@ export async function fetchEmailNotices(
   const facets = Array.isArray(rawFacets) ? rawFacets.filter((facet) => facet && typeof facet === 'object') : [];
 
   return { ...unwrapList<EmailNotice>(envelope.Data, page, pageSize), facets };
+}
+
+/**
+ * Fetches the full detail for ONE email notice - the lazy "Read more"
+ * payload (body, students, funnel evidence, attachments). The list only
+ * ships a 300-char snippet, so this is fetched on first expand and kept.
+ * Throws ApiError when the id is unknown ({"found": false} miss-shape).
+ */
+export async function fetchEmailNoticeDetail(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EmailNoticeDetail> {
+  const trimmed = id.trim();
+  if (!trimmed) throw new ApiError('This email notice has no id.');
+
+  const envelope = await getJson<ApiEnvelope<EmailNoticeDetail | EmailNoticeDetailMiss | null>>(
+    `/api/notices/email/${encodeURIComponent(trimmed)}`,
+    { signal },
+  );
+
+  const data = envelope.Data;
+  if (!data || data.found !== true) {
+    throw new ApiError('This email notice could not be found.');
+  }
+  return data;
 }
 
 /** Fetches one page of Superset portal notices (unchanged existing endpoint). */
