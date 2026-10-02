@@ -8,6 +8,7 @@ import './MainLayout.scss';
 /** Section name for the slim top bar — derived from the current route. */
 function contextLabel(pathname: string): string {
   if (pathname === '/') return 'Dashboard';
+  if (pathname === '/analytics') return 'Analytics';
   if (pathname.startsWith('/jobs/')) return 'Job Details';
   if (pathname.startsWith('/jobs')) return 'Active Job Listing';
   if (pathname === '/placements') return 'Company-Wise Placement';

@@ -20,8 +20,8 @@ export interface BadgeColors {
 }
 
 /**
- * Neutral chip for everything the palette does not name (Intg. MTech, MTech,
- * JUIT, Other, blank roles, internships...). Reads the app's own tokens where
+ * Neutral chip for everything the palette does not name (MTech, JUIT, Other,
+ * blank roles, internships...). Reads the app's own tokens where
  * they pass contrast; the text is `$text-soft` (mirrored as a literal here,
  * since this file cannot read SCSS) rather than `--ui-muted`, because
  * `--ui-muted` on `--ui-pill` measures 4.36:1 — just under the 4.5:1 floor
@@ -31,15 +31,28 @@ export const NEUTRAL_BADGE: BadgeColors = { bg: 'var(--ui-pill)', text: '#4a4f59
 
 /**
  * Branch palette (from the design mock-up). `student_branch_campus.branch`
- * carries nine values in the live corpus — CSE, ECE, IT and BT are named
- * here; JUIT, Other, MTech, EE-VLSI, EC-ACT and Intg. MTech fall through to
- * `NEUTRAL_BADGE` rather than inventing six more tints.
+ * carries nine values in the live corpus — all seven the branch-stats report
+ * shows are named here; JUIT, Other and MTech still fall through to
+ * `NEUTRAL_BADGE` rather than inventing more tints.
  */
 export const BRANCH_COLORS: Record<string, BadgeColors> = {
   CSE: { bg: '#E6F1FB', text: '#042C53' },
   ECE: { bg: '#EEEDFE', text: '#26215C' },
   IT: { bg: '#E1F5EE', text: '#04342C' },
   BT: { bg: '#EAF3DE', text: '#173404' },
+  // The three the reference reports but this map was never given, added when
+  // the Analytics distribution chart had to draw a line per branch. Cool tints
+  // only, so no branch reads as a warning against another; every one still
+  // clears 4.5:1 as text on its own background. badgeColors()'s neutral
+  // fallback for genuinely unknown keys is untouched.
+  //
+  // KEYS MUST BE UPPERCASED: badgeColors() upper-cases the incoming label
+  // before it indexes this map, so 'Intg. MTech' would never be found and the
+  // branch would silently fall back to NEUTRAL_BADGE. ('EC-ACT' and 'EE-VLSI'
+  // are typed uppercase only because that happens to be their display form.)
+  'INTG. MTECH': { bg: '#F2ECFB', text: '#331466' },
+  'EC-ACT': { bg: '#E4F1FD', text: '#05345F' },
+  'EE-VLSI': { bg: '#E7F4F3', text: '#05403C' },
 };
 
 /**

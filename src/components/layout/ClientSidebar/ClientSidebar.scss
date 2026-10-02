@@ -130,22 +130,34 @@
   }
 
   // Active: soft accent fill + accent label + accent bar on the left edge.
+  // The fill runs edge-to-edge inside the rail (negative margin) so the item
+  // reads as "selected" from the icon-only rail too, and the label steps to
+  // 700 — weight, not a new colour, is what makes it unmistakable.
   &__item.is-active {
+    margin: 0 -6px;
+    padding-left: 18px; // 12px + 6px of negative margin: text never moves
+    padding-right: 18px;
     background: var(--ui-accent-soft);
     color: var(--ui-accent);
+    font-weight: 700;
 
     &::before {
       content: '';
       position: absolute;
       left: 0;
-      top: 8px;
-      bottom: 8px;
-      width: 3px;
+      top: 6px;
+      bottom: 6px;
+      width: 4px;
       border-radius: 0 3px 3px 0;
       background: var(--ui-accent);
     }
 
     .client-nav__icon {
+      color: var(--ui-accent);
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--ui-accent-soft) 70%, var(--ui-accent) 8%);
       color: var(--ui-accent);
     }
   }

@@ -11,6 +11,9 @@
 //   · ONE accent (#3E63DD) + green (money/positive) + red (urgent only)
 //   · neutral gray is the default for every pill/tag/chip that carries no
 //     meaning; colour appears only where the meaning is real
+//   · the six STAT TINTS below are card identities, not meanings: they name a
+//     hero tile's type and appear on StatCard only - never on a pill, tag or
+//     status, so they cannot be mistaken for a status signal
 //   · Plus Jakarta Sans everywhere on these screens, tabular numerals
 // ============================================================================
 :root {
@@ -36,6 +39,32 @@
   --ui-red-soft: #fdeeee;
   --ui-amber: #b9750c; // registration/attention — warm, not yet urgent
   --ui-amber-soft: #fdf3e2;
+
+  // ----- Stat tints: six fixed card identities for the hero stat blocks ----
+  // A StatCard is a LIGHT TINTED surface (`*-bg`) with a matching ink; the
+  // pair is what tells the six metrics apart at a glance. Both halves ship
+  // together so nothing can fill with an ink it was never measured against.
+  // The ink is deliberately NOT --ui-green / --ui-amber: those measure
+  // 2.98 / 3.40 on their own soft background, i.e. below the 3:1 a 32px bold
+  // number needs.  The paired `*-ink` values all clear 4.85:1 on white, so
+  // the whole set also passes 4.5:1 for the 16px icon.
+  --ui-tint-accent-bg: var(--ui-accent-soft);
+  --ui-tint-accent-ink: #3e63dd;
+  --ui-tint-indigo-bg: #eef0ff;
+  --ui-tint-indigo-ink: #4338ca;
+  --ui-tint-violet-bg: #f1edfd;
+  --ui-tint-violet-ink: #5b3fd6;
+  --ui-tint-teal-bg: #e3f7f5;
+  --ui-tint-teal-ink: #0b7269;
+  --ui-tint-green-bg: var(--ui-green-soft);
+  --ui-tint-green-ink: #0f7a56;
+  --ui-tint-amber-bg: var(--ui-amber-soft);
+  --ui-tint-amber-ink: #8a5a08;
+  --ui-tint-neutral-bg: var(--ui-pill);
+  --ui-tint-neutral-ink: var(--ui-ink);
+  // Label/hint ink that sits on ANY tint above: 4.84-5.06:1 across all six
+  // (the stock --ui-muted only reaches 4.29-4.48 there and would fail 4.5:1).
+  --ui-tint-label: #626879;
 
   // Neutral building blocks shared by both screens
   --ui-pill: #f0f1f4; // default pill background (filters, tags)

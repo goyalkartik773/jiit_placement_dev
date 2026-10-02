@@ -1,0 +1,247 @@
+@use '../../../styles/variables' as *;
+
+// ============================================================================
+// StatCard — one KPI tile: a soft tinted fill, a 3px tint rail, a neutral
+// number.
+//
+// THE FILL. Every tile carries its own light `--ui-tint-<tint>-bg` wash, so
+// the six metrics are tellable apart at a glance — but the wash is LIGHT by
+// design (those tokens were authored as card backgrounds), which is what lets
+// the number stay `--ui-ink` on all six. Colour identifies; type carries the
+// hierarchy. One surface treatment, one border recipe, one shadow, one type
+// scale: only the tint differs between tiles.
+//
+// COLOURS — every value from `styles/_ui.scss`, none invented here:
+//   --ui-tint-<tint>-bg         the fill (paired with its ink, same token set)
+//   --ui-panel                  mixed into the hairline border
+//   --ui-ink                    the number (identical on all six tiles)
+//   --ui-tint-label             label, unit, sublabel — the only ink measured
+//                               against these washes (4.84–5.06:1); the stock
+//                               --ui-muted would fall to 4.3 here
+//   --ui-tint-<tint>-ink        rail, icon, progress fill (>= 4.85:1)
+//
+// THREE RULES THE LAYOUT ENFORCES — each one fixes a shipped defect:
+//   1. `overflow-wrap: normal`. Labels break at spaces only; the old
+//      `anywhere` shredded them into "STUDENT / S PLACED".
+//   2. No `margin-top: auto` on the text. Label, number and sublabel flow
+//      from the top, so the tile can never grow a hollow middle.
+//   3. `white-space: nowrap` plus a separate `unit` span, so "11.67 LPA"
+//      and "345 / 1,322" can never stack onto two lines.
+// ============================================================================
+.ui-stat-card {
+  --tile-ink: var(--ui-tint-neutral-ink);
+  --tile-bg: var(--ui-tint-neutral-bg);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 16px 14px;
+  background: var(--tile-bg);
+  // The wash is so light that a stock grey border would vanish into it, so
+  // the hairline is mixed FROM the tile's own ink over its own panel white —
+  // one recipe that lands on the right weight for all seven tints.
+  border: 1px solid color-mix(in srgb, var(--tile-ink) 22%, var(--ui-panel));
+  border-radius: var(--ui-radius-card);
+  box-shadow: $shadow-xs;
+  font-family: var(--ui-font);
+
+  // The tint identity: a rail across the top edge, drawn over the hairline
+  // so the tile's own colour is the first thing the eye reads.
+  &::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    left: -1px;
+    height: 3px;
+    border-radius: var(--ui-radius-card) var(--ui-radius-card) 0 0;
+    background: var(--tile-ink);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    // Two lines' worth, reserved on EVERY card: a label that happens to wrap
+    // ("Companies that placed") then still pushes its number down by exactly
+    // the same amount as a one-line neighbour, so the six numbers stay on one
+    // invisible line across the row.
+    min-height: 33px;
+  }
+
+  &__label {
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ui-tint-label);
+    // Spaces only — never mid-word. See rule 1 above.
+    overflow-wrap: normal;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: var(--tile-ink);
+  }
+
+  &__value {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: nowrap;
+    gap: 5px;
+    margin: 0;
+    min-width: 0;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    color: var(--ui-ink);
+    font-variant-numeric: tabular-nums;
+    // Rule 3 — the figure and its unit always share one line.
+    white-space: nowrap;
+  }
+
+  &__figure {
+    min-width: 0;
+  }
+
+  &__unit {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--ui-tint-label);
+  }
+
+  &__sublabel {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--ui-tint-label);
+  }
+
+  // Ratio tiles only. `auto` here — and nowhere else in the card — seats the
+  // bar on the tile's floor while the text above keeps its natural rhythm.
+  &__progress {
+    margin-top: auto;
+    padding-top: 4px;
+    color: var(--tile-ink);
+  }
+
+  // ----- Variant 2 of 2: a cell inside MetricStrip -------------------------
+  // The panel supplies the border, the radius and the shadow, so the tile
+  // drops all three and keeps only the tint — and moves its rail from the top
+  // edge to the left edge, which is what makes a divided report strip read
+  // differently from a row of standalone tiles.
+  &--strip {
+    border: 0;
+    border-left: 3px solid var(--tile-ink);
+    border-radius: 0;
+    box-shadow: none;
+    padding-left: 13px; // 13 + the 3px rail = the card variant's 16px
+
+    &::before {
+      display: none;
+    }
+  }
+
+  // ----- The seven identities ---------------------------------------------
+  // Each sets ONLY the ink/bg pair from `_ui.scss`: same border recipe, same
+  // shadow, same type. Nothing else changes between tints, so the row stays
+  // one row.
+  &--accent {
+    --tile-ink: var(--ui-tint-accent-ink);
+    --tile-bg: var(--ui-tint-accent-bg);
+  }
+  &--indigo {
+    --tile-ink: var(--ui-tint-indigo-ink);
+    --tile-bg: var(--ui-tint-indigo-bg);
+  }
+  &--violet {
+    --tile-ink: var(--ui-tint-violet-ink);
+    --tile-bg: var(--ui-tint-violet-bg);
+  }
+  &--teal {
+    --tile-ink: var(--ui-tint-teal-ink);
+    --tile-bg: var(--ui-tint-teal-bg);
+  }
+  &--green {
+    --tile-ink: var(--ui-tint-green-ink);
+    --tile-bg: var(--ui-tint-green-bg);
+  }
+  &--amber {
+    --tile-ink: var(--ui-tint-amber-ink);
+    --tile-bg: var(--ui-tint-amber-bg);
+  }
+}
+
+// ============================================================================
+// The row that holds loose StatCards. The Dashboard uses it for the four
+// figures its hero does not carry; MetricStrip is the sibling rule for a
+// panel of divided cells. One grid vocabulary, count-aware, so no page ever
+// strands a tile on a row of its own.
+//
+// COUNT-AWARE. `data-cells` is stamped by the page, because six tiles and
+// four tiles divide differently: 6 rides 3 → 6 → 2 → 1, while 4 rides 2 → 4
+// → 1 and would strand its last tile on a 3-column row. Three across by
+// default — each tile keeps ~170px before a label starts breaking and the
+// figure crowds its unit — and six is asked for explicitly once the content
+// column can actually pay for it (the shell costs ~284px of viewport: sidebar
+// plus page gutters).
+//
+// Column counts are fixed rather than `auto-fit` on purpose: auto-fit wanders
+// through odd-column states and leaves one tile orphaned on a row of its own.
+// Every count offered here divides evenly at every breakpoint.
+// ============================================================================
+.ui-stat-card-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 420px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  // Four tiles (the Dashboard's supporting figures, once the hero took two).
+  // Two across by default so each keeps ~278px — four-across at 572px would
+  // squeeze them back to 136px, which is the crowding the hero exists to fix.
+  &[data-cells='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    @media (min-width: 1400px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    @media (max-width: 460px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+@media (max-width: 700px) {
+  // Strip cells keep their own padding — the panel sizes them.
+  .ui-stat-card:not(.ui-stat-card--strip) {
+    padding: 14px;
+  }
+
+  .ui-stat-card__value {
+    font-size: 25px;
+  }
+
+  .ui-stat-card:not(.ui-stat-card--strip) .ui-stat-card__head {
+    min-height: 0;
+  }
+}

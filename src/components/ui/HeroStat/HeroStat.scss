@@ -1,0 +1,211 @@
+@use '../../../styles/variables' as *;
+
+// ============================================================================
+// HeroStat — the screen's anchor: one figure at display scale, one beside it.
+//
+// WHY A SECOND SIZE EXISTS. Six KPI tiles of equal weight give the eye
+// nowhere to land — everything is 28px, so nothing is the point. This is the
+// same StatCard vocabulary (label · value · unit · sublabel · one bar) at a
+// larger scale, which is what makes the page a hierarchy instead of a row of
+// boxes without introducing a second visual language.
+//
+// COLOURS — tokens only, none invented here:
+//   --ui-tint-<tint>-bg/-ink   the `card` wash, rail, bar and icon (>= 4.85:1)
+//   --ui-panel / --ui-border   the `report` frame
+//   --ui-accent                the `report` bar and icon
+//   --ui-ink                   BOTH figures (identical on every hero)
+//   --ui-tint-label            label + sublabel (4.84–5.06:1 on these washes)
+//
+// RULES CARRIED OVER FROM StatCard.scss — same three defects, same guards:
+//   1. `overflow-wrap: normal` — labels break at spaces only.
+//   2. Text flows from the top; no `margin-top: auto`, so no hollow middle.
+//   3. `white-space: nowrap` + a separate `unit` span — the figure never
+//      stacks onto two lines.
+// ============================================================================
+.ui-hero {
+  --tile-ink: var(--ui-tint-accent-ink);
+  --tile-bg: var(--ui-tint-accent-bg);
+  // Resolved against the tile's own ink, so one declaration serves all seven
+  // tints AND the accent-only report frame.
+  --hero-line: color-mix(in srgb, var(--tile-ink) 20%, transparent);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: center;
+  gap: $space-6;
+  min-width: 0;
+  padding: $space-6 $space-7 $space-5;
+  background: var(--tile-bg);
+  border: 1px solid color-mix(in srgb, var(--tile-ink) 22%, var(--ui-panel));
+  border-radius: var(--ui-radius-card);
+  box-shadow: $shadow-xs;
+  font-family: var(--ui-font);
+
+  // 4px, against a tile's 3px: the same rail, scaled to the anchor's stature.
+  &::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    left: -1px;
+    height: 4px;
+    border-radius: var(--ui-radius-card) var(--ui-radius-card) 0 0;
+    background: var(--tile-ink);
+  }
+
+  // ----- The two zones ------------------------------------------------------
+  &__zone {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1-5;
+    min-width: 0;
+
+    &--support {
+      padding-left: $space-6;
+      border-left: 1px solid var(--hero-line);
+    }
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ui-tint-label);
+    // Spaces only. See rule 1 above.
+    overflow-wrap: normal;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: var(--tile-ink);
+  }
+
+  &__value {
+    display: flex;
+    align-items: baseline;
+    gap: $space-2;
+    margin: 0;
+    color: var(--ui-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__figure {
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+  }
+
+  // The scale step that carries the whole hierarchy: ~2× the tiles' 28px.
+  &__zone--lead &__figure {
+    font-size: clamp(44px, 7vw, 58px);
+  }
+
+  &__zone--support &__figure {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  &__unit {
+    flex-shrink: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ui-tint-label);
+  }
+
+  &__zone--lead &__unit {
+    font-size: 20px;
+  }
+
+  &__sub {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--ui-tint-label);
+  }
+
+  // The bar seats on the bottom of its zone; `currentColor` picks up the
+  // tile's ink, so the fill is always the hero's own identity.
+  &__bar {
+    margin-top: $space-1;
+    color: var(--tile-ink);
+  }
+
+  // ----- Tints: same seven as StatCard, same pairing -----------------------
+  &--accent {
+    --tile-ink: var(--ui-tint-accent-ink);
+    --tile-bg: var(--ui-tint-accent-bg);
+  }
+  &--indigo {
+    --tile-ink: var(--ui-tint-indigo-ink);
+    --tile-bg: var(--ui-tint-indigo-bg);
+  }
+  &--violet {
+    --tile-ink: var(--ui-tint-violet-ink);
+    --tile-bg: var(--ui-tint-violet-bg);
+  }
+  &--teal {
+    --tile-ink: var(--ui-tint-teal-ink);
+    --tile-bg: var(--ui-tint-teal-bg);
+  }
+  &--green {
+    --tile-ink: var(--ui-tint-green-ink);
+    --tile-bg: var(--ui-tint-green-bg);
+  }
+  &--amber {
+    --tile-ink: var(--ui-tint-amber-ink);
+    --tile-bg: var(--ui-tint-amber-bg);
+  }
+  &--neutral {
+    --tile-ink: var(--ui-tint-neutral-ink);
+    --tile-bg: var(--ui-tint-neutral-bg);
+  }
+
+  // ----- Variant 2 of 2: the report frame (Analytics) -----------------------
+  // No wash, no rail — a white surface held by a hairline, identity from the
+  // accent. It mirrors `PageHeader variant="report"`, so the whole top of the
+  // Analytics screen is one framing and the Dashboard's is another.
+  &--report {
+    --tile-ink: var(--ui-accent);
+    --hero-line: var(--ui-border-soft);
+
+    background: var(--ui-panel);
+    border-color: var(--ui-border);
+
+    &::before {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 860px) {
+  .ui-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-5;
+    padding: $space-5 $space-5 $space-4;
+
+    &__zone--support {
+      padding-top: $space-5;
+      padding-left: 0;
+      border-top: 1px solid var(--hero-line);
+      border-left: 0;
+    }
+  }
+}
+
+@media (max-width: 460px) {
+  .ui-hero__zone--lead .ui-hero__figure {
+    font-size: 40px;
+  }
+
+  .ui-hero__zone--support .ui-hero__figure {
+    font-size: 26px;
+  }
+}

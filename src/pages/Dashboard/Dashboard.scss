@@ -2,50 +2,20 @@
 @use '../../styles/mixins' as *;
 
 // ============================================================================
-// Dashboard — the client home.  Hero stats → breakdown → highlight strip.
-// Every surface is a token-driven soft tint; nothing here is analytical.
+// Dashboard — the client home.  Anchor → supporting tiles → breakdown →
+// highlight strip.  Every surface is a token-driven soft tint; nothing here
+// is analytical.
 // ============================================================================
 .dashboard {
   @include stack($space-6);
 }
 
-.dash-head {
-  &__eyebrow {
-    margin: 0;
-    font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ui-accent);
-  }
-
-  &__title {
-    margin: 0;
-    font-size: 30px;
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    color: var(--ui-ink);
-  }
-
-  &__sub {
-    margin: 0;
-    max-width: 62ch;
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--ui-muted);
-  }
-}
-
-// ----- Hero row: six tiles -----
-// auto-fit rather than a fixed column count, so 4 (older build) and 6 (now)
-// tiles both fill the row and then wrap cleanly as the viewport narrows. The
-// 140px floor is the narrowest a tile may get before it claims its own track.
-.dash-hero {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: $space-4;
-}
+// ----- The anchor, then its four supporting tiles -----
+// The top block is `HeroStat` (components/ui/HeroStat/HeroStat.scss): one
+// figure at display scale plus the feed's single true X / Y beside it. The
+// four tiles below are laid out by `.ui-stat-card-row` with
+// `data-cells="4"` (components/ui/StatCard/StatCard.scss) — the ONE grid
+// rule shared with Analytics, so the two pages never drift.
 
 // ----- Two-up rows (breakdown, highlight strip) -----
 .dash-row {
@@ -126,6 +96,27 @@
     grid-template-columns: minmax(110px, 148px) 1fr auto;
     align-items: center;
     gap: 12px;
+    margin: 0 -8px;
+    padding: 4px 8px;
+    border-radius: var(--ui-radius-field);
+    transition: background $transition-fast;
+
+    // Hover is a whole-row affordance: the label, the fill and the value
+    // light together, so the pointer always knows which bar it is over.
+    // Purely additive — no figure changes on hover.
+    &:hover,
+    &:focus-within {
+      background: var(--ui-quiet);
+
+      .dash-bars__fill {
+        filter: saturate(1.35) brightness(1.06);
+      }
+
+      .dash-bars__label,
+      .dash-bars__value {
+        color: var(--ui-ink);
+      }
+    }
 
     &--company {
       grid-template-columns: auto minmax(80px, 150px) 1fr auto;
@@ -171,7 +162,31 @@
     height: 100%;
     border-radius: 999px;
     background: var(--ui-accent);
-    transition: width $transition-base;
+    transition: width $transition-base, filter $transition-fast;
+
+    // Five fills, one per meaning. The band ramp (teal → accent → indigo →
+    // green) steps with the package scale; violet marks the head-count chart.
+    // All five clear 3:1 against the --ui-track trough, which is all a bar
+    // fill needs — the number beside it carries the exact value.
+    &--teal {
+      background: var(--ui-tint-teal-ink);
+    }
+
+    &--accent {
+      background: var(--ui-accent);
+    }
+
+    &--indigo {
+      background: var(--ui-tint-indigo-ink);
+    }
+
+    &--green {
+      background: var(--ui-tint-green-ink);
+    }
+
+    &--violet {
+      background: var(--ui-tint-violet-ink);
+    }
   }
 
   &__value {

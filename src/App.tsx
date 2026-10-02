@@ -3,6 +3,7 @@ import { ToastProvider } from './components/common/Toast/Toast';
 import { AdminShell } from './components/layout/AdminShell/AdminShell';
 import { MainLayout } from './components/layout/MainLayout/MainLayout';
 import { Admin } from './pages/Admin/Admin';
+import { Analytics } from './pages/Analytics/Analytics';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { EmailNotices } from './pages/EmailNotices/EmailNotices';
 import { JobDetails } from './pages/JobDetails/JobDetails';
@@ -19,6 +20,8 @@ import { SupersetNotices } from './pages/SupersetNotices/SupersetNotices';
  *
  *   client shell (MainLayout — left rail, student-facing)
  *     /                 -> Dashboard (client home)
+ *     /analytics        -> Placement analytics (tabbed: branches / companies /
+ *                          distribution / timeline)
  *     /jobs             -> Active Job Listing
  *     /placements       -> Company-wise placement summary
  *     /email-notices    -> Notices parsed from the placement emails
@@ -39,6 +42,7 @@ export default function App() {
           </Route>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/jobs/:jobId" element={<JobDetails />} />
             <Route path="/placements" element={<Placements />} />

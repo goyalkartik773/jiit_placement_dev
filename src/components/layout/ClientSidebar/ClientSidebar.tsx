@@ -14,6 +14,7 @@ interface NavItem {
 /** Client navigation, in product order. Admin lives in its own shell. */
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: 'home', end: true },
+  { to: '/analytics', label: 'Analytics', icon: 'chart', end: true },
   { to: '/jobs', label: 'Active Job Listing', icon: 'briefcase' },
   { to: '/placements', label: 'Company-Wise Placement', icon: 'building' },
   { to: '/email-notices', label: 'Email Notices', icon: 'inbox' },

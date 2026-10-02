@@ -1,0 +1,60 @@
+@use '../../../styles/variables' as *;
+
+// ============================================================================
+// MetricStrip — the Analytics hero: one panel, N cells, 1px dividers.
+//
+// THE DIVIDER TRICK. The grid gap is 1px and the PANEL paints it; every cell
+// paints its own opaque tint fill on top. The hairline therefore appears
+// exactly where two cells (or two rows) meet and nowhere else — one rule that
+// stays correct at 6 / 3 / 2 / 1 columns, with no `nth-child` border list to
+// keep in sync with the breakpoints.
+//
+// COLOURS — tokens only: `--ui-border` (outer outline), `--ui-border-soft`
+// (the divider showing through the gap), `--ui-radius-card`, `$shadow-xs`.
+// The cells bring their own `--ui-tint-*-bg` fills.
+//
+// The column count intentionally mirrors `.ui-stat-card-row` — the Dashboard
+// and this strip are in step at every width, only their framing differs.
+//
+// COUNT-AWARE, BECAUSE STRIPS COME IN TWO SIZES. Six cells can ride 3 / 6 /
+// 2 / 1; four cells can only ride 2 / 4 / 1 — a shared 3-column default would
+// strand the fourth cell on a row of its own, which is the orphan auto-fit
+// used to produce. The count is stamped on the root by MetricStrip.tsx, so
+// the layout decision stays next to the component instead of at the call
+// site.
+// ============================================================================
+.ui-metric-strip {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--ui-border-soft);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  overflow: hidden;
+  box-shadow: $shadow-xs;
+
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 420px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  // Four cells: 2 across, 4 when the content column can pay, 1 when it can't.
+  &[data-cells='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    @media (min-width: 1400px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    @media (max-width: 460px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

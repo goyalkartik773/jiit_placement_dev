@@ -1,0 +1,108 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// Page top block — eyebrow · title · summary. See `PageHeader.tsx`.
+//
+// COLOURS: `--ui-accent` (eyebrow, summary bar and lead figures),
+// `--ui-accent-soft` (the 'card' summary surface), `--ui-border` (the
+// 'report' rule) and `--ui-ink` — all from `styles/_ui.scss`. Type scale:
+// `$fs-2xs` / `$fw-bold` / `$tracking-caps` / `$lh-tight` / `$space-*` from
+// `styles/_variables.scss`.
+//
+// TWO FRAMINGS, ONE BLOCK. The title is FIXED at 26px / 800 /
+// `var(--ui-font)` — the same numbers the `.page-head__title` overrides use on
+// Jobs, Placements, Admin and both notice screens, so this header joins that
+// family rather than inventing a third heading style. Only the summary
+// framing moves between pages, and it moves through a prop, never a fork:
+//
+//   variant 'card'   — the bordered accent card, reading as the page's
+//                      thesis. Dashboard.
+//   variant 'report' — a plain meta line, then the header closes on a
+//                      hairline like a report masthead. Analytics.
+.page-header {
+  @include stack($space-2);
+
+  &__eyebrow {
+    margin: 0;
+    font-size: $fs-2xs;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: var(--ui-accent);
+  }
+
+  &__title {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: $lh-tight;
+    letter-spacing: -0.015em;
+    color: var(--ui-ink);
+  }
+
+  // The standing summary: a stated line with an accent bar and a soft
+  // surface, not a muted caption. `strong` is the lead figure — sized here
+  // so callers pass plain semantics and still get identical emphasis.
+  &__summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0;
+    max-width: 68ch;
+    padding: $space-3 $space-4;
+    border-left: 3px solid var(--ui-accent);
+    border-radius: 0 var(--ui-radius-field) var(--ui-radius-field) 0;
+    background: var(--ui-accent-soft);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ui-muted);
+
+    @include down('md') {
+      padding: $space-2-5 $space-3;
+      font-size: 14.5px;
+    }
+  }
+
+  &__summary strong {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ui-accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ----- variant: 'report' (Analytics) -------------------------------------
+  // The whole header closes on a hairline, the way a report sheet's masthead
+  // does. Dashboard headers stop after the summary instead.
+  &--report {
+    padding-bottom: $space-4;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  // No box, no left bar — the meta line sits straight on the page and the
+  // figures drop from the card's 21px lead to the line's own scale, so the
+  // row reads as one sentence instead of a miniature stat card.
+  &__summary--line {
+    max-width: 96ch;
+    padding: 0;
+    border-left: 0;
+    background: transparent;
+    font-size: 14.5px;
+    color: var(--ui-muted);
+
+    strong {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.005em;
+      color: var(--ui-accent);
+    }
+  }
+}
+
+@include down('sm') {
+  .page-header__title {
+    font-size: 23px;
+  }
+}

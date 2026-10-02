@@ -6,20 +6,37 @@ import { Icon } from '../../components/common/Icon/Icon';
 import { ListSkeleton } from '../../components/common/ListSkeleton/ListSkeleton';
 import { Avatar } from '../../components/ui/Avatar/Avatar';
 import { Card } from '../../components/ui/Card/Card';
+import { PageHeader, SESSION_EYEBROW } from '../../components/ui/PageHeader/PageHeader';
+import { HeroStat } from '../../components/ui/HeroStat/HeroStat';
 import { Pill } from '../../components/ui/Pill/Pill';
-import { StatTile } from '../../components/ui/StatTile/StatTile';
+import { StatCard } from '../../components/ui/StatCard/StatCard';
 import { disclosedPackage, usePlacementSummary } from '../../hooks/usePlacementSummary';
-import { formatDate, formatLpa } from '../../utils/format';
+import { formatDate, formatLpa, lpaFigure } from '../../utils/format';
 import type { CompanyRow } from '../../types/dashboard.types';
 import './Dashboard.scss';
 
+/** Tint of a bar fill — one per package band, so the bands stay tellable apart. */
+type BarTone = 'teal' | 'accent' | 'indigo' | 'green' | 'violet';
+
 /** One horizontal bar: label · track · value. */
-function BarRow({ label, value, pct, prefix }: { label: string; value: string; pct: number; prefix?: ReactNode }) {
+function BarRow({
+  label,
+  value,
+  pct,
+  prefix,
+  tone = 'accent',
+}: {
+  label: string;
+  value: string;
+  pct: number;
+  prefix?: ReactNode;
+  tone?: BarTone;
+}) {
   return (
     <li className="dash-bars__row">
       <span className="dash-bars__label">{label}</span>
       <span className="dash-bars__track" aria-hidden="true">
-        <span className="dash-bars__fill" style={{ width: `${Math.max(pct, 2)}%` }} />
+        <span className={`dash-bars__fill dash-bars__fill--${tone}`} style={{ width: `${Math.max(pct, 2)}%` }} />
       </span>
       <span className="dash-bars__value">
         {prefix}
@@ -77,10 +94,9 @@ export function Dashboard() {
   if (summary.studentsPlaced === 0) {
     return (
       <div className="page dashboard">
-        <header className="dash-head">
-          <p className="dash-head__eyebrow">Placement cell</p>
-          <h1 className="dash-head__title">Dashboard</h1>
-        </header>
+        {/* Same `PageHeader` as the populated view — the empty state used to
+            hand-roll a second header block whose CSS no longer exists. */}
+        <PageHeader eyebrow={SESSION_EYEBROW} title="Dashboard" />
         <EmptyState
           title="No placements recorded yet"
           description="The dashboard lights up as soon as the first offer is matched to a student."
@@ -92,64 +108,98 @@ export function Dashboard() {
   const maxBand = Math.max(1, ...summary.bands.map((band) => band.students));
   const maxCompany = Math.max(1, ...summary.topCompanies.map((row) => row.placedstudents || 0));
   const totalRead = summary.companiesRead;
+  const highestLpa = lpaFigure(summary.highestPackage);
+  const averageLpa = lpaFigure(summary.averagePackage);
 
   return (
     <div className="page dashboard">
-      <header className="dash-head">
-        <p className="dash-head__eyebrow">Placement cell · session 2026–27</p>
-        <h1 className="dash-head__title">Dashboard</h1>
-        <p className="dash-head__sub">
-          {summary.studentsPlaced.toLocaleString()} students have accepted offers from{' '}
-          {summary.companiesPlacing.toLocaleString()} companies so far.
-        </p>
-      </header>
+      {/* The one sentence that answers "how are we doing" — promoted from a
+          muted sub-line to a stated summary. Same two figures, same feed;
+          nothing here is computed or rounded differently. Rendered by the
+          shared `PageHeader`, so Analytics prints an identical block. */}
+      <PageHeader
+        eyebrow={SESSION_EYEBROW}
+        title="Dashboard"
+        summary={
+          <>
+            <strong>{summary.studentsPlaced.toLocaleString()}</strong>
+            <span>students have accepted offers from</span>
+            <strong>{summary.companiesPlacing.toLocaleString()}</strong>
+            <span>companies so far.</span>
+          </>
+        }
+      />
 
       {/* ---------------------------------------------------------------- */}
-      {/* Hero row — six statistics (the two coverage tiles are additive;   */}
-      {/* the original four are untouched)                                  */}
+      {/* THE ANCHOR. Six tiles of equal weight gave the eye nowhere to      */}
+      {/* land, so the headline figure is promoted to display scale and the  */}
+      {/* one true X / Y on this feed stands beside it behind a hairline.    */}
+      {/* Same StatCard vocabulary at a larger size — nothing is derived:    */}
+      {/* 420, 46 and 91 are the exact figures the old tiles printed.        */}
       {/* ---------------------------------------------------------------- */}
-      <section className="dash-hero" aria-label="Placement highlights">
-        <StatTile
-          label="Students placed"
-          value={summary.studentsPlaced.toLocaleString()}
-          hint={`counted across ${totalRead.toLocaleString()} companies`}
-          icon="users"
-          tone="accent"
-        />
-        <StatTile
-          label="Companies that placed"
-          value={summary.companiesPlacing.toLocaleString()}
-          hint={`of ${summary.companiesTotal.toLocaleString()} companies on file`}
-          icon="building"
-          tone="neutral"
-        />
-        <StatTile
+      <HeroStat
+        tint="accent"
+        lead={{
+          label: 'Students placed',
+          value: summary.studentsPlaced.toLocaleString(),
+          sublabel: `counted across ${totalRead.toLocaleString()} companies`,
+          icon: 'users',
+        }}
+        support={{
+          label: 'Companies that placed',
+          value: summary.companiesPlacing.toLocaleString(),
+          sublabel: `of ${summary.companiesTotal.toLocaleString()} companies on file`,
+          icon: 'building',
+          progress: {
+            current: summary.companiesPlacing,
+            total: Math.max(summary.companiesTotal, summary.companiesPlacing),
+          },
+        }}
+      />
+
+      {/* ---------------------------------------------------------------- */}
+      {/* The four supporting figures, still the loose tinted tiles that     */}
+      {/* are this page's identity. Four, not six — the hero carries the     */}
+      {/* other two, so the grid is stamped with its count and never strands */}
+      {/* a tile on a row of its own.                                        */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="ui-stat-card-row" data-cells={4} aria-label="Placement highlights">
+        {/* None of these four is an X / Y: this feed states no denominator
+            for a stream, a campus or a package — see
+            components/ui/StatCard/metricKind.ts for the rule. */}
+        <StatCard
           label="Streams covered"
           value={summary.streamsCovered.toLocaleString()}
-          hint="distinct branches with at least one offer"
+          sublabel="distinct branches with at least one offer"
           icon="layers"
-          tone="neutral"
+          tint="violet"
         />
-        <StatTile
+        {/* No "campuses total" exists in this feed, so the count stays a
+            plain value — a bar would need a denominator nothing states. */}
+        <StatCard
           label="Campuses"
           value={summary.campusesCovered.toLocaleString()}
-          hint="distinct campuses with at least one offer"
+          sublabel="distinct campuses with at least one offer"
           icon="pin"
-          tone="neutral"
+          tint="teal"
         />
-        <StatTile
+        <StatCard
           label="Highest package"
-          value={formatLpa(summary.highestPackage) ?? '—'}
-          hint="best disclosed offer among placed students"
+          /* `lpaFigure` splits the number off `formatLpa` so "LPA" can print
+             as its own muted span and "56 LPA" can never wrap mid-figure. */
+          value={highestLpa ?? '—'}
+          unit={highestLpa ? 'LPA' : undefined}
+          sublabel="best disclosed offer among placed students"
           icon="award"
-          tone="green"
+          tint="green"
         />
-        <StatTile
+        <StatCard
           label="Average package"
-          value={formatLpa(summary.averagePackage) ?? '—'}
-          hint="disclosed packages, weighted by students placed"
+          value={averageLpa ?? '—'}
+          unit={averageLpa ? 'LPA' : undefined}
+          sublabel="disclosed packages, weighted by students placed"
           icon="rupee"
-          tone="amber"
+          tint="amber"
         />
       </section>
 
@@ -161,12 +211,17 @@ export function Dashboard() {
           <h2 className="dash-panel__title">Placements by package band</h2>
           <p className="dash-panel__sub">Students placed, grouped by the disclosed package of their company.</p>
           <ul className="dash-bars">
-            {summary.bands.map((band) => (
+            {summary.bands.map((band, index) => (
               <BarRow
                 key={band.label}
                 label={band.label}
                 value={band.students.toLocaleString()}
                 pct={Math.round((band.students / maxBand) * 100)}
+                /* Ascending ramp: the four bands step teal → accent → indigo →
+                   green as the package rises, so a colour alone locates a bar
+                   on the scale. Green is the same green as the "Highest
+                   package" tile — the top band and the record are the idea. */
+                tone={(['teal', 'accent', 'indigo', 'green'] as const)[index] ?? 'accent'}
               />
             ))}
           </ul>
@@ -190,8 +245,10 @@ export function Dashboard() {
                   {row.company}
                 </Link>
                 <span className="dash-bars__track" aria-hidden="true">
+                  {/* Violet, not accent: this chart counts heads while the band
+                      chart measures money, so the two never read as one scale. */}
                   <span
-                    className="dash-bars__fill"
+                    className="dash-bars__fill dash-bars__fill--violet"
                     style={{ width: `${Math.max(Math.round(((row.placedstudents || 0) / maxCompany) * 100), 2)}%` }}
                   />
                 </span>

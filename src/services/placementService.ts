@@ -3,8 +3,10 @@ import type { ApiEnvelope } from '../types/job.types';
 import type {
   BranchStat,
   BranchStatBand,
+  BranchStatFineBand,
   BranchStatsData,
   BranchStatsSummary,
+  BranchTimelineDayPoint,
   BranchTimelinePoint,
   BranchTimelineSeriesPoint,
   CompanyRow,
@@ -126,6 +128,21 @@ function toBands(value: unknown): BranchStatBand[] {
     }));
 }
 
+/**
+ * The 15 fixed CTC bands (`fine_bands` in the SQL). Same defensive shape as
+ * `toBands`, but the count is named `offers` — this axis counts offers, not
+ * distinct students, so the two must not be confused.
+ */
+function toFineBands(value: unknown): BranchStatFineBand[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((band) => band && typeof band === 'object')
+    .map((band) => ({
+      band: typeof band.band === 'string' && band.band.trim() ? band.band.trim() : 'Unknown band',
+      offers: toFiniteNumber(band.offers, 0),
+    }));
+}
+
 function toSummary(value: unknown): BranchStatsSummary {
   const data = (value ?? {}) as Partial<BranchStatsSummary>;
   return {
@@ -139,6 +156,7 @@ function toSummary(value: unknown): BranchStatsSummary {
     medianpackage: toNullableNumber(data.medianpackage),
     highestpackage: toNullableNumber(data.highestpackage),
     distribution: toBands(data.distribution),
+    finedistribution: toFineBands(data.finedistribution),
   };
 }
 
@@ -149,6 +167,25 @@ function toBranchStat(value: unknown): BranchStat | null {
     : '';
   if (!branch) return null;
   return { ...toSummary(value), branch };
+}
+
+/**
+ * Package and cumulative fields are OPTIONAL on the wire (the endpoint only
+ * reports them where it can), so each is copied only when genuinely present.
+ * Copying `undefined` would be indistinguishable from "not reported" — but
+ * `null` IS reported here, and it means "no disclosed package", so `null` is
+ * passed through rather than dropped.
+ */
+/**
+ * Copy an optional `number | null` field only when it is genuinely present.
+ * `null` IS reported here and means "no disclosed package", so it is preserved;
+ * a missing key stays missing so the UI can tell "not reported" from "zero".
+ */
+function copyNullable(target: object, source: object, key: string): void {
+  if (!(key in source)) return;
+  const raw = (source as Record<string, unknown>)[key];
+  if (raw === undefined) return;
+  (target as Record<string, unknown>)[key] = toNullableNumber(raw);
 }
 
 function toTimelinePoint(value: unknown): BranchTimelinePoint | null {
@@ -166,6 +203,28 @@ function toTimelinePoint(value: unknown): BranchTimelinePoint | null {
   if (data.companies !== null && data.companies !== undefined) {
     point.companies = toFiniteNumber(data.companies, 0);
   }
+
+  // Per-bucket package figures.
+  if (data.studentswithpackage !== undefined && data.studentswithpackage !== null) {
+    point.studentswithpackage = toFiniteNumber(data.studentswithpackage, 0);
+  }
+  copyNullable(point, data, 'averagepackage');
+  copyNullable(point, data, 'medianpackage');
+
+  // Cumulative twins. `cumstudents` and `cumstudentswithpackage` are counts and
+  // can legitimately be 0, so they are presence-checked, not value-checked.
+  if (data.cumoffers !== undefined && data.cumoffers !== null) {
+    point.cumoffers = toFiniteNumber(data.cumoffers, 0);
+  }
+  if (data.cumstudents !== undefined && data.cumstudents !== null) {
+    point.cumstudents = toFiniteNumber(data.cumstudents, 0);
+  }
+  if (data.cumstudentswithpackage !== undefined && data.cumstudentswithpackage !== null) {
+    point.cumstudentswithpackage = toFiniteNumber(data.cumstudentswithpackage, 0);
+  }
+  copyNullable(point, data, 'cumaveragepackage');
+  copyNullable(point, data, 'cummedianpackage');
+
   return point;
 }
 
@@ -176,6 +235,35 @@ function toSeriesPoint(value: unknown): BranchTimelineSeriesPoint | null {
   const branch = typeof raw.branch === 'string' ? raw.branch.trim() : '';
   if (!branch) return null;
   return { ...point, branch };
+}
+
+/**
+ * Daily bucket (ISO `YYYY-MM-DD`). Identical field set to the monthly point —
+ * only the key differs — so it reuses `toTimelinePoint` and re-keys the result
+ * rather than duplicating the optional-field handling.
+ */
+function toDailyPoint(value: unknown): BranchTimelineDayPoint | null {
+  const point = toTimelinePoint(value);
+  if (!point) return null;
+  const raw = (value ?? {}) as { day?: unknown };
+  const day = typeof raw.day === 'string' ? raw.day.trim() : '';
+  if (!day) return null;
+
+  // Built field by field: the two shapes differ by their key (`day` vs
+  // `month`), and spreading `point` would carry `month` along with it.
+  const daily: BranchTimelineDayPoint = { day, offers: point.offers, students: point.students };
+  if (point.companies !== undefined) daily.companies = point.companies;
+  if (point.studentswithpackage !== undefined) daily.studentswithpackage = point.studentswithpackage;
+  // `null` is a reported "not disclosed" and is preserved; `undefined` means
+  // the endpoint did not report it at all and stays absent.
+  if (point.averagepackage !== undefined) daily.averagepackage = point.averagepackage;
+  if (point.medianpackage !== undefined) daily.medianpackage = point.medianpackage;
+  if (point.cumoffers !== undefined) daily.cumoffers = point.cumoffers;
+  if (point.cumstudents !== undefined) daily.cumstudents = point.cumstudents;
+  if (point.cumstudentswithpackage !== undefined) daily.cumstudentswithpackage = point.cumstudentswithpackage;
+  if (point.cumaveragepackage !== undefined) daily.cumaveragepackage = point.cumaveragepackage;
+  if (point.cummedianpackage !== undefined) daily.cummedianpackage = point.cummedianpackage;
+  return daily;
 }
 
 /**
@@ -199,6 +287,10 @@ export async function fetchBranchStats(signal?: AbortSignal): Promise<BranchStat
     .map(toSeriesPoint)
     .filter((row): row is BranchTimelineSeriesPoint => row !== null);
 
+  const daily = (Array.isArray(data?.daily) ? data.daily : [])
+    .map(toDailyPoint)
+    .filter((row): row is BranchTimelineDayPoint => row !== null);
+
   return {
     batch: typeof data?.batch === 'string' && data.batch.trim() ? data.batch.trim() : '',
     graduatingbatch: toFiniteNumber(data?.graduatingbatch, 0),
@@ -208,5 +300,6 @@ export async function fetchBranchStats(signal?: AbortSignal): Promise<BranchStat
     totals: toSummary(data?.totals),
     timeline,
     branchtimeline,
+    daily,
   };
 }

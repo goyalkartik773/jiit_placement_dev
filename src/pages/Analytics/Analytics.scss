@@ -1,0 +1,555 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+// ============================================================================
+// Analytics — the read-only reporting screen.
+// Palette: tokens only (`styles/_ui.scss`). The six stat tints already exist,
+// so the strip reuses them verbatim; charts add no new colour either.
+// ============================================================================
+.analytics-page {
+  @include stack($space-6);
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--ui-font);
+    color: var(--ui-ink);
+  }
+}
+
+// ----- Hero metric panel ----------------------------------------------------
+// Laid out by `MetricStrip` (components/ui/MetricStrip) — ONE panel divided
+// into cells by 1px hairlines. Nothing is redefined here on purpose: the
+// Dashboard's loose tiles and this panel are two framings of the same
+// StatCard, so both take their column counts from the components.
+
+// ----- Neutral scope banner ------------------------------------------------
+.analytics-banner {
+  padding: 14px 16px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-tint-neutral-bg);
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ui-muted);
+  }
+
+  strong {
+    color: var(--ui-ink);
+    font-weight: 700;
+  }
+}
+
+// ----- Tab panel -----------------------------------------------------------
+.analytics-panel {
+  outline: none;
+}
+
+.analytics-tab {
+  @include stack($space-5);
+}
+
+// ----- Controls (chips + segmented toggles) --------------------------------
+.analytics-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-5;
+  padding: 14px 16px;
+  border: 1px solid var(--ui-border-soft);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-panel);
+}
+
+.analytics-controls__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.analytics-controls__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ui-tint-label);
+}
+
+.analytics-controls__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.analytics-controls__seg {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-track);
+}
+
+// Selectable branch chip — carries the branch's own badge colours when on.
+.analytics-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-panel);
+  color: var(--ui-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background $transition-fast, color $transition-fast, border-color $transition-fast;
+
+  &:hover {
+    color: var(--ui-ink);
+    border-color: var(--ui-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+  }
+
+  &.is-active {
+    background: var(--chip-bg, var(--ui-accent-soft));
+    border-color: var(--chip-ink, var(--ui-accent));
+    color: var(--chip-ink, var(--ui-accent));
+  }
+
+  &--clear {
+    border-style: dashed;
+    color: var(--ui-muted);
+  }
+}
+
+.analytics-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.analytics-seg {
+  padding: 5px 13px;
+  border: 0;
+  border-radius: var(--ui-radius-pill);
+  background: transparent;
+  color: var(--ui-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background $transition-fast, color $transition-fast;
+
+  &:hover {
+    color: var(--ui-ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+  }
+
+  &.is-active {
+    background: var(--ui-panel);
+    color: var(--ui-accent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+  }
+}
+
+.analytics-select {
+  min-width: 170px;
+  padding: 7px 30px 7px 11px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-field);
+  background: var(--ui-panel);
+  color: var(--ui-ink);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--ui-muted);
+    cursor: not-allowed;
+    background: var(--ui-track);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 1px;
+  }
+}
+
+// ----- Chart card ----------------------------------------------------------
+.analytics-chart {
+  padding: $space-5;
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $space-3;
+    margin-bottom: $space-4;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ui-ink);
+  }
+
+  &__sub {
+    margin: 4px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ui-muted);
+  }
+
+  &__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ui-accent);
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Horizontal scroll keeps the axis text at a readable size on narrow screens
+  // rather than scaling a viewBox down to 8px labels.
+  &__scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    border-radius: var(--ui-radius-nested);
+
+    &:focus-visible {
+      outline: 2px solid var(--ui-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  &__svg {
+    display: block;
+  }
+
+  &__grid {
+    stroke: var(--ui-border-soft);
+    stroke-width: 1;
+  }
+
+  &__baseline {
+    stroke: var(--ui-border);
+    stroke-width: 1;
+  }
+
+  &__axis {
+    font-family: var(--ui-font);
+    font-size: 11px;
+    fill: var(--ui-muted);
+
+    &--x {
+      font-size: 10.5px;
+    }
+  }
+
+  &__axis-unit {
+    font-family: var(--ui-font);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    fill: var(--ui-tint-label);
+  }
+
+  &__hit {
+    fill: transparent;
+
+    &:hover {
+      fill: rgb(0 0 0 / 3%);
+    }
+  }
+
+  &__bar--students {
+    fill: var(--ui-tint-teal-ink);
+  }
+
+  &__bar--offers {
+    fill: var(--ui-accent);
+  }
+
+  &__line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    &--avg {
+      stroke: var(--ui-tint-amber-ink);
+    }
+
+    &--median {
+      stroke: var(--ui-tint-violet-ink);
+      stroke-dasharray: 6 3;
+    }
+  }
+
+  &__multiples {
+    display: grid;
+    gap: $space-5;
+  }
+}
+
+.analytics-multiple {
+  &__title {
+    margin: 0 0 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ui-ink);
+  }
+}
+
+// ----- Legend --------------------------------------------------------------
+.analytics-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: $space-4 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analytics-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ui-muted);
+}
+
+.analytics-legend__swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+
+  &--bar {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+}
+
+// ----- Summary tiles under a chart -----------------------------------------
+// Rendered as a `MetricStrip` (components/ui/MetricStrip) — one panel with
+// 1px dividers, the same composition as the Analytics hero. This block used
+// to be a private 4-up grid that drifted from everything around it.
+
+// ----- Company roll-up facts ----------------------------------------------
+// Rendered as a `MetricStrip` (components/ui/MetricStrip) — this block used
+// to carry a private value/label style that drifted from the rest of the
+// system.
+.analytics-companies {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__row {
+    display: grid;
+    grid-template-columns: 22px auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: var(--ui-radius-field);
+
+    &:hover {
+      background: var(--ui-track);
+    }
+  }
+
+  &__rank {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--ui-tint-label);
+  }
+
+  &__name {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ui-ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__pkg {
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-ink);
+  }
+}
+
+// ----- Branch cards --------------------------------------------------------
+.analytics-branch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: $space-4;
+}
+
+.branch-card {
+  padding: $space-5;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-3;
+  }
+
+  &__chip {
+    padding: 4px 10px;
+    border-radius: var(--ui-radius-pill);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  &__rate {
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-ink);
+  }
+
+  // Host wrapper for the shared `ProgressBar`: the branch's own badge colour
+  // arrives as `color` and the bar (track, fill and cap) inherits it.
+  &__bar {
+    display: block;
+    margin-top: 12px;
+  }
+
+  &__placed {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    color: var(--ui-muted);
+  }
+
+  &__figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: $space-4 0 0;
+    padding-top: $space-4;
+    border-top: 1px solid var(--ui-border-soft);
+  }
+
+  &__figure {
+    dt {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ui-tint-label);
+    }
+
+    dd {
+      margin: 3px 0 0;
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--ui-ink);
+    }
+  }
+
+  &__visual {
+    margin-top: $space-4;
+    padding-top: $space-3;
+    border-top: 1px solid var(--ui-border-soft);
+  }
+
+  &__visual-note {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--ui-muted);
+  }
+
+  // Host wrapper for the shared `ProgressBar` above: accent supplies the
+  // track/fill colour, the note below overrides it back to muted.
+  &__overall {
+    display: grid;
+    gap: 10px;
+    max-width: 520px;
+    color: var(--ui-accent);
+  }
+
+  &__overall-note {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ui-muted);
+  }
+}
+
+// ----- Shared notes --------------------------------------------------------
+.analytics-empty-note,
+.analytics-footnote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ui-muted);
+}
+
+.analytics-footnote {
+  max-width: 88ch;
+  font-size: 12.5px;
+}
+
+@include down('md') {
+  .analytics-controls {
+    gap: $space-4;
+  }
+
+  .branch-card__figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@include down('sm') {
+  .analytics-companies__row {
+    grid-template-columns: 20px auto minmax(0, 1fr);
+  }
+
+  .analytics-companies__pkg {
+    display: none;
+  }
+}

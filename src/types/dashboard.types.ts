@@ -277,6 +277,19 @@ export interface BranchStatBand {
   students: number;
 }
 
+/**
+ * One bucket of the Analytics distribution. Counted in OFFERS (the tab's
+ * y-axis is offers, not heads), fifteen FIXED edges — 0-3 / 3-4 / 4-5 / 5-6 /
+ * 6-8 / 8-10 / 10-12 / 12-15 / 15-20 / 20-25 / 25-30 / 30-40 / 40-50 / 50+
+ * LPA, then the honest "Not disclosed" tail so the columns still sum to
+ * `totaloffers`. Edges live in `fine_bands` in
+ * `JIITPlacement/SQL/migration_branch_stats.sql` and are not configurable.
+ */
+export interface BranchStatFineBand {
+  band: string;
+  offers: number;
+}
+
 /** Shared shape of a branch row and of the all-branches `totals` row. */
 export interface BranchStatsSummary {
   /** Hardcoded head-count denominator the placement rate is divided by. */
@@ -294,6 +307,9 @@ export interface BranchStatsSummary {
   medianpackage: number | null;
   highestpackage: number | null;
   distribution: BranchStatBand[];
+  /** The fifteen fine CTC buckets above (Analytics). Additive: older payloads
+   *  without it must still render — guard with `?? []`. */
+  finedistribution?: BranchStatFineBand[];
 }
 
 export interface BranchStat extends BranchStatsSummary {
@@ -308,6 +324,52 @@ export interface BranchTimelinePoint {
   students: number;
   /** Overall timeline only; the per-branch series omits it. */
   companies?: number;
+  /** Package overlay for this bucket ONLY — one figure per head per bucket,
+   *  so a later better offer never leaks backwards into an earlier month.
+   *  0 when nobody in the bucket disclosed a CTC; then the rates are null. */
+  studentswithpackage?: number;
+  /** LPA. Null when no offer in the bucket disclosed a CTC (render "—"). */
+  averagepackage?: number | null;
+  medianpackage?: number | null;
+  /**
+   * CUMULATIVE twin of the three above: every figure landed by the END of this
+   * bucket, folded to one per head, then averaged / medianed over that pool.
+   * Supplied by SQL rather than derived here on purpose — a cumulative median
+   * cannot be recovered from per-month medians, and a cumulative average from
+   * per-month averages would be wrong whenever the bucket sizes differ.
+   */
+  cumstudentswithpackage?: number;
+  cumaveragepackage?: number | null;
+  cummedianpackage?: number | null;
+  /** Running total of offers up to and including this bucket (exact — every
+   *  offer falls in exactly one bucket, so a plain prefix sum is correct). */
+  cumoffers?: number;
+  /** DISTINCT students up to and including this bucket. Also computed in SQL:
+   *  prefix-summing the per-bucket `students` would double-count anyone who
+   *  appears in two months (360 against a 345-student cohort). */
+  cumstudents?: number;
+}
+
+/**
+ * One day bucket (ISO YYYY-MM-DD) of the timeline's Day granularity. Same
+ * counters and the same package overlay as {@link BranchTimelinePoint}; the
+ * name only differs because the key is `day`.
+ */
+export interface BranchTimelineDayPoint {
+  day: string;
+  offers: number;
+  students: number;
+  companies?: number;
+  studentswithpackage?: number;
+  averagepackage?: number | null;
+  medianpackage?: number | null;
+  /** See {@link BranchTimelinePoint.cumaveragepackage}. */
+  cumstudentswithpackage?: number;
+  cumaveragepackage?: number | null;
+  cummedianpackage?: number | null;
+  /** See {@link BranchTimelinePoint.cumoffers} / {@link BranchTimelinePoint.cumstudents}. */
+  cumoffers?: number;
+  cumstudents?: number;
 }
 
 /** The same bucket tagged with its branch (one row per branch per month). */
@@ -325,5 +387,7 @@ export interface BranchStatsData {
   branches: BranchStat[];
   totals: BranchStatsSummary;
   timeline: BranchTimelinePoint[];
+  /** Same counters at Day granularity (Analytics timeline's Month/Day switch). */
+  daily?: BranchTimelineDayPoint[];
   branchtimeline: BranchTimelineSeriesPoint[];
 }

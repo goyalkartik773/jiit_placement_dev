@@ -1,0 +1,45 @@
+// The one progress visual — track · fill · cap. See `ProgressBar.tsx`.
+//
+// COLOURS: none. Every surface below reads `currentColor`, so the host's own
+// accent drives all three parts; the only token consumed here is
+// `--ui-radius-pill` (styles/_ui.scss).
+.ui-progress-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  // 10px box for an 8px track: the cap is 10px and must not be clipped.
+  height: 10px;
+  font-family: var(--ui-font);
+
+  &__track {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 8px;
+    border-radius: var(--ui-radius-pill);
+    background: color-mix(in srgb, currentColor 16%, transparent);
+    overflow: hidden;
+  }
+
+  &__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    border-radius: var(--ui-radius-pill);
+    background: currentColor;
+  }
+
+  // The cap marks where the fill ends. Its ring is the track's own colour,
+  // so it reads as a dot seated on the bar on any tint or white surface.
+  &__cap {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+    transform: translate(-50%, -50%);
+  }
+}

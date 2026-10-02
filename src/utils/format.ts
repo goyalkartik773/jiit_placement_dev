@@ -89,10 +89,20 @@ export function formatINR(value: number | null | undefined): string | null {
 
 /** "10 LPA" derived from INR (backend: 8 LPA = 800000). Null when unknown. */
 export function formatLpa(value: number | null | undefined): string | null {
+  const figure = lpaFigure(value);
+  return figure === null ? null : `${figure} LPA`;
+}
+
+/**
+ * The bare figure behind `formatLpa` — "11.67", no unit. Lets a stat tile
+ * print the unit as its own smaller, muted span so the big number can never
+ * wrap onto a second line. Same rounding as `formatLpa`, so the two never
+ * disagree.
+ */
+export function lpaFigure(value: number | null | undefined): string | null {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return null;
   const lpa = value / 100_000;
-  const rounded = Math.round(lpa * 100) / 100;
-  return `${rounded} LPA`;
+  return String(Math.round(lpa * 100) / 100);
 }
 
 /** Human file size: 75.7 KB */

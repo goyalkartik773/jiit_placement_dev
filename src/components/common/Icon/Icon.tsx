@@ -38,7 +38,8 @@ export type IconName =
   | 'bell'
   | 'menu'
   | 'award'
-  | 'flag';
+  | 'flag'
+  | 'chart';
 
 const paths: Record<IconName, JSX.Element> = {
   search: (
@@ -141,6 +142,16 @@ const paths: Record<IconName, JSX.Element> = {
     <>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6" />
+    </>
+  ),
+  // Bar chart: three bars on a baseline + axis. Strokes only, same 2px
+  // round-join system as every other icon in this file.
+  chart: (
+    <>
+      <path d="M3 21h18" />
+      <path d="M7 21V13" />
+      <path d="M12 21V7" />
+      <path d="M17 21V11" />
     </>
   ),
   layers: (
