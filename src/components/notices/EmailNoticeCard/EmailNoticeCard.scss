@@ -86,60 +86,15 @@
     }
   }
 
-  // ----- row 2: the bold title (a real button: it discloses the detail) -----
+  // ----- row 2: the bold title (content — the disclosure is in the footer) --
   &__subject {
     margin: 0;
-    font-size: inherit;
-    font-weight: inherit;
-  }
-
-  &__toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: $space-3;
-    width: 100%;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-
-    &:focus-visible {
-      @include focus-ring(1px);
-    }
-  }
-
-  &__toggle-text {
-    flex: 1;
-    min-width: 0;
     font-size: 17px;
     font-weight: 800;
     line-height: $lh-snug;
     letter-spacing: -0.005em;
     color: var(--ui-ink);
     overflow-wrap: anywhere;
-    transition: color $transition-fast;
-
-    .email-notice__toggle:hover & {
-      color: var(--ui-accent);
-    }
-  }
-
-  &__chevron {
-    display: flex;
-    flex-shrink: 0;
-    margin-top: 3px;
-    color: var(--ui-faint);
-    transition: transform $transition-fast, color $transition-fast;
-
-    .email-notice__toggle:hover & {
-      color: var(--ui-accent);
-    }
-  }
-
-  .email-notice__toggle[aria-expanded='true'] .email-notice__chevron {
-    transform: rotate(180deg);
   }
 
   // ----- row 3: company/source line + one-line preview -----
@@ -254,20 +209,50 @@
     }
   }
 
-  // Visible affordance of the subject button (aria-expanded lives there).
-  // Accent while closed = the invitation; quiet once the panel is open.
+  // The disclosure control. Accent while closed = the invitation; muted once
+  // the panel is open (4.94:1, where the old `--ui-faint` managed 2.4:1).
+  // A real button: the footer's type is inherited, then the size is set back,
+  // with a negative margin so padding enlarges the hit area without nudging
+  // the row it sits in.
   &__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     flex-shrink: 0;
+    padding: 4px 6px;
+    margin: -4px -6px;
+    border: 0;
+    background: transparent;
+    font: inherit;
     font-size: 11.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--ui-accent);
+    cursor: pointer;
     transition: color $transition-fast;
 
-    &.is-open {
-      color: var(--ui-faint);
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
     }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+
+    &.is-open {
+      color: var(--ui-muted);
+    }
+  }
+
+  &__hint-icon {
+    flex-shrink: 0;
+    transition: transform $transition-fast;
+  }
+
+  &__hint.is-open .email-notice__hint-icon {
+    transform: rotate(180deg);
   }
 
   // ----- expanded detail panel (EmailNoticeDetail) -----
@@ -313,7 +298,7 @@
   @include down('sm') {
     padding: $space-4;
 
-    &__toggle-text {
+    &__subject {
       font-size: 16px;
     }
 

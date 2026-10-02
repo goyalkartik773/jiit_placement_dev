@@ -72,11 +72,13 @@ type DetailStatus = 'idle' | 'loading' | 'ready' | 'error';
  * One parsed placement email.
  *
  * Order is fixed by the revamp: category icon tile + label, the subject as a
- * bold title (which now doubles as the "Read more" disclosure, same pattern
- * as the Superset notice), the company / one-line preview, then the footer
- * with the sender avatar and a muted timestamp. The detail payload (full
- * body, students, funnel evidence, attachments) is fetched lazily on the
- * FIRST expand and kept, so Hide/Show never re-hits the API.
+ * bold title, the company / one-line preview, then the footer with the sender
+ * avatar, a muted timestamp and the "Read more" control. That button is the
+ * disclosure — it carries `aria-expanded` and says what pressing it does,
+ * where a title-turned-toggle only announced itself through a hover state.
+ * The detail payload (full body, students, funnel evidence, attachments) is
+ * fetched lazily on the FIRST expand and kept, so Hide/Show never re-hits
+ * the API.
  */
 export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
   const [open, setOpen] = useState(false);
@@ -160,21 +162,9 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
         ) : null}
       </div>
 
-      {/* ----- bold title, doubles as the disclosure control ----- */}
-      <h3 className="email-notice__subject">
-        <button
-          type="button"
-          className="email-notice__toggle"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={handleToggle}
-        >
-          <span className="email-notice__toggle-text">{notice.subject}</span>
-          <span className="email-notice__chevron" aria-hidden="true">
-            <Icon name="chevron-down" size={17} />
-          </span>
-        </button>
-      </h3>
+      {/* ----- bold title. Content, not a control: the disclosure lives in
+              the footer, where "Read more" says what pressing it does. ----- */}
+      <h3 className="email-notice__subject">{notice.subject}</h3>
 
       {/* ----- company/source line + one-line preview ----- */}
       <p className="email-notice__source">
@@ -226,11 +216,18 @@ export function EmailNoticeCard({ notice }: EmailNoticeCardProps) {
           </a>
         ) : null}
 
-        {/* The subject button owns the disclosure state for assistive tech;
-            this is its visible affordance only. */}
-        <span className={`email-notice__hint${open ? ' is-open' : ''}`} aria-hidden="true">
+        {/* This button owns the disclosure: it carries `aria-expanded` and
+            `aria-controls`, so the control states plainly what it does. */}
+        <button
+          type="button"
+          className={`email-notice__hint${open ? ' is-open' : ''}`}
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={handleToggle}
+        >
           {open ? 'Hide' : 'Read more'}
-        </span>
+          <Icon name="chevron-down" size={14} className="email-notice__hint-icon" />
+        </button>
       </div>
 
       {/* ----- expanded detail: fetched once, then cached in state ----- */}
