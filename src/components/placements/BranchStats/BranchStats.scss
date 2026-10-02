@@ -85,7 +85,9 @@
     > svg {
       flex-shrink: 0;
       margin-top: 2px;
-      color: var(--ui-faint);
+      // --ui-muted (4.93:1), not --ui-faint (2.58:1): this icon sits beside
+      // the caption it qualifies, so it is a 3:1 non-text target.
+      color: var(--ui-muted);
     }
   }
 

@@ -32,7 +32,9 @@
     align-items: center;
     gap: $space-3;
     width: 100%;
-    padding: $space-4 $space-5;
+    // 12/16, not 16/20: ninety-two of these stack down the page, so four
+    // pixels off the header is 368px of scroll the reader never does.
+    padding: $space-3 $space-4;
     border: 0;
     border-radius: var(--ui-radius-card);
     background: transparent;
@@ -86,7 +88,7 @@
   }
 
   &__meta-dot {
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   &__last {
@@ -115,13 +117,13 @@
     font-family: var(--ui-font);
     font-size: 12px;
     font-weight: 600;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   &__chevron {
     display: flex;
     flex-shrink: 0;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     transition: transform $transition-fast;
   }
 
@@ -177,7 +179,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   &__note {
@@ -317,7 +319,7 @@
     > * + *::before {
       content: '·';
       margin-right: $space-2;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
   }
 
@@ -364,7 +366,7 @@
     white-space: nowrap;
 
     svg {
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
   }
 
@@ -392,7 +394,7 @@
     font-family: var(--ui-font);
     font-size: 12px;
     font-weight: 500;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   @include down('sm') {

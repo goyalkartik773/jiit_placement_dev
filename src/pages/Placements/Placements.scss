@@ -346,7 +346,10 @@
 
   // ----- Result list -----
   &__list {
-    @include stack($space-4);
+    // 10px, not 16px: the cards already carry a 1px border and a hover
+    // shadow, so a wide gutter between them just separates what is already
+    // separated. Saves 546px of scroll across the 92-company list.
+    @include stack($space-2-5);
     transition: opacity $transition-base;
 
     &.is-refreshing {
