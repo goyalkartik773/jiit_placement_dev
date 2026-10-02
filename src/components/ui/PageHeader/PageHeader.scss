@@ -92,6 +92,31 @@
     color: var(--ui-accent);
   }
 
+  // The product signature line. It hangs off the same left edge as the
+  // title and the summary's accent bar, so it reads as the header's closing
+  // sentence rather than as a stray caption. `--ui-muted` measures 4.94:1 on
+  // the page and `--ui-accent` 4.62:1, so both clear AA at 13px.
+  &__tagline {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: $space-1 0 0;
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+    line-height: $lh-snug;
+    color: var(--ui-muted);
+
+    strong {
+      color: var(--ui-accent);
+      font-weight: $fw-bold;
+    }
+  }
+
+  &__tagline-icon {
+    flex-shrink: 0;
+    color: var(--ui-accent);
+  }
+
   // ----- variant: 'report' (Analytics) -------------------------------------
   // The whole header closes on a hairline, the way a report sheet's masthead
   // does. Dashboard headers stop after the summary instead.

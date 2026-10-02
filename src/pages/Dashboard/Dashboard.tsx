@@ -176,6 +176,14 @@ export function Dashboard() {
             <span>companies so far.</span>
           </>
         }
+        tagline={
+          <>
+            <Icon name="eye" size={16} className="page-header__tagline-icon" />
+            <span>
+              JIIT Placements, <strong>Unfiltered.</strong> See What They Don&rsquo;t Want You Seeing.
+            </span>
+          </>
+        }
       />
 
       {/* ---------------------------------------------------------------- */}
