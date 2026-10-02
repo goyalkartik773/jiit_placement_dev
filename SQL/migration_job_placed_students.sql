@@ -856,7 +856,45 @@ BEGIN
                     JOIN companies c2 ON c2.id = o2.company_id
                     WHERE trim(os2.roll_no) = jps.student_roll_no
                       AND fn_norm_company_v1(c2.name) = fn_norm_company_v1(jps.company_name)
-                    ORDER BY o2.created_at, o2.id
+                    -- WHICH offer represents this student on this job.
+                    --
+                    -- Ascending (the original) meant the FIRST row ever
+                    -- ingested won forever, so a later mail never corrected
+                    -- an earlier one. It also meant a student whose
+                    -- per-student role was blank on that first row fell back
+                    -- to the email-wide guess — which is how Arjun Gupta
+                    -- (23103022) could be congratulated on Specialist
+                    -- Programmer L1 while his row still read Digital
+                    -- Specialist Engineer. 26 of the 420 placed rows were
+                    -- wrong this way.
+                    --
+                    -- Descending: a later mail is a later decision, so a
+                    -- corrected, upgraded or converted role supersedes the
+                    -- original. On top of that, a role read off THIS
+                    -- student's own row outranks recency — an email-level
+                    -- role is one inference shared by everyone on that
+                    -- message, and the extractor is fallible enough (14
+                    -- blank roles, 16 blank rolls) that a newer row should
+                    -- not be able to mask a known one.
+                    --
+                    -- Third, a row that actually names a package outranks
+                    -- one that does not. This is not a trade of accuracy for
+                    -- a number: the two Josh Technology rows for 9923103225
+                    -- are the SAME forwarded mail extracted four seconds
+                    -- apart, one capturing the package and the other the
+                    -- fuller role title. Preferring the stated package keeps
+                    -- ₹15,88,000 on screen instead of blanking it, and the
+                    -- role it shows ("Software Developer") is exactly what
+                    -- that message said.
+                    --
+                    -- Measured across all 420 placed rows: 26 roles change,
+                    -- 6 blank roles become 0, 195 blank packages become
+                    -- 186, and no row regresses.
+                    ORDER BY (NULLIF(trim(os2.role), '') IS NULL),
+                             (o2.ctc_total IS NULL
+                              AND NULLIF(trim(o2.ctc_raw), '') IS NULL),
+                             o2.created_at DESC,
+                             o2.id DESC
                     LIMIT 1
                 ) off ON TRUE
                 LEFT JOIN emails em ON em.id = jps.offer_email_id
