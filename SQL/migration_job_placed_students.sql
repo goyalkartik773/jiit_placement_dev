@@ -7,6 +7,7 @@
 --   * fn_api_select_placed_students_v1(_jobid)     : students of one job
 --   * fn_api_select_company_placements_v1(...)     : company-wise rollup
 --   * fn_api_select_email_notices_v1(...)          : Gmail notices feed
+--   * fn_api_select_email_notice_detail_v1(...)    : one email, full detail
 --   * fn_branch_from_roll_v1 / fn_batch_year_from_roll_v1 (section 1b)
 --     -> READ-SIDE only: roll number -> branch + admission year. Additive,
 --        no column, no write-path change. Mirrors the Python reader
@@ -1186,5 +1187,145 @@ BEGIN
         'PageSize', _pagesize,
         'TotalPages', CEIL(_total::numeric / _pagesize),
         'Facets', COALESCE(_facets, '[]'::json))::text;
+END;
+$function$ LANGUAGE plpgsql;
+
+-- 6b. Email notice detail - the "Read more" panel for ONE email.
+--     Additive companion to fn_api_select_email_notices_v1 (the feed only
+--     ships a 300-char snippet so the list stays light): full body, the
+--     parsed shortlist student rows, funnel counts WITH their evidence
+--     sentence, attachments and the event extras the feed has no room for.
+--     Miss-shape for an unknown / non-canonical id: {"found": false}.
+CREATE OR REPLACE FUNCTION fn_api_select_email_notice_detail_v1(
+    _emailid text) RETURNS text AS $function$
+DECLARE
+    _e record;
+    _body text;
+    _bodylength integer;
+    _students json;
+    _rounds json;
+    _attachments json;
+BEGIN
+    SELECT e.id,
+           e.gmail_message_id AS gmailmessageid,
+           e.subject,
+           LEFT(COALESCE(e.snippet, e.body_clean, e.body_text, ''), 300) AS snippet,
+           e.sender,
+           e.sender_email AS senderemail,
+           e.recipient,
+           e.cc,
+           e.received_at AS receivedat,
+           COALESCE(e.classification, 'UNKNOWN') AS classification,
+           e.classification_confidence AS confidence,
+           e.classification_method AS method,
+           e.has_attachments AS hasattachments,
+           e.revision_of IS NOT NULL AS isrevision,
+           CASE COALESCE(e.classification, 'UNKNOWN')
+               WHEN 'SHORTLIST' THEN 'Shortlist'
+               WHEN 'SELECTION_PROCESS_NOTICE' THEN 'Selection process'
+               WHEN 'HACKATHON' THEN 'Hackathon'
+               WHEN 'EVENT' THEN 'Event'
+               WHEN 'REGISTRATION' THEN 'Registration'
+               WHEN 'WEBINAR' THEN 'Webinar'
+               WHEN 'WORKSHOP' THEN 'Workshop'
+               WHEN 'INTERNSHIP_OPPORTUNITY' THEN 'Internship'
+               WHEN 'JOB_OPPORTUNITY' THEN 'Job opportunity'
+               WHEN 'GENERAL_PLACEMENT_NOTICE' THEN 'Placement notice'
+               ELSE 'Unclassified'
+           END AS classificationlabel,
+           co.name AS company,
+           CASE
+               WHEN COALESCE(e.classification, 'UNKNOWN') = 'SHORTLIST' AND se.stage IS NOT NULL
+                   THEN INITCAP(LOWER(REPLACE(se.stage, '_', ' ')))
+               ELSE NULLIF(op.event_name, '')
+           END AS headline,
+           COALESCE(se.deadline, op.deadline) AS deadline,
+           NULLIF(op.registration_link, '') AS link,
+           se.stage AS stage,
+           se.stage_raw AS stageraw,
+           COALESCE(se.interview_dates, '[]'::json) AS interviewdates,
+           NULLIF(se.evidence, '') AS evidence,
+           NULLIF(op.career_note, '') AS careernote,
+           COALESCE(op.stages, '[]'::json) AS opstages,
+           COALESCE(op.eligibility, '[]'::json) AS eligibility,
+           se.id AS eventid,
+           COALESCE(e.body_clean, e.body_text, '') AS rawbody
+    INTO _e
+    FROM emails e
+    LEFT JOIN shortlist_events se ON se.email_id = e.id
+    LEFT JOIN opportunities op ON op.email_id = e.id
+    LEFT JOIN companies co ON co.id = COALESCE(se.company_id, op.company_id)
+    WHERE e.id = _emailid
+      AND e.is_canonical = TRUE
+      AND e.dedup_of IS NULL;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('found', FALSE)::text;
+    END IF;
+
+    -- Body ships whole but capped (live max: 139,129 chars); the untouched
+    -- length travels along so the UI can disclose the truncation honestly.
+    _body := LEFT(_e.rawbody, 60000);
+    _bodylength := LENGTH(_e.rawbody);
+
+    SELECT COALESCE(json_agg(json_build_object(
+               'rollno', ss.roll_no, 'name', ss.name, 'branch', ss.branch,
+               'program', ss.program, 'college', ss.college,
+               'status', ss.status_raw)
+               ORDER BY ss.roll_no NULLS LAST, ss.name), '[]'::json)
+    INTO _students
+    FROM shortlist_students ss
+    WHERE ss.shortlist_event_id = _e.eventid;
+
+    SELECT COALESCE(json_agg(json_build_object(
+               'round', fc.round_name, 'count', fc.count,
+               'evidence', fc.evidence)
+               ORDER BY fc.round_order), '[]'::json)
+    INTO _rounds
+    FROM funnel_counts fc
+    WHERE fc.email_id = _e.id;
+
+    SELECT COALESCE(json_agg(json_build_object(
+               'filename', a.filename, 'mimetype', a.mime_type,
+               'filesize', a.file_size)
+               ORDER BY a.file_size DESC NULLS LAST, a.filename), '[]'::json)
+    INTO _attachments
+    FROM email_attachments a
+    WHERE a.email_id = _e.id;
+
+    RETURN json_build_object(
+        'found', TRUE,
+        'id', _e.id,
+        'gmailmessageid', _e.gmailmessageid,
+        'subject', _e.subject,
+        'snippet', _e.snippet,
+        'sender', _e.sender,
+        'senderemail', _e.senderemail,
+        'recipient', _e.recipient,
+        'cc', _e.cc,
+        'receivedat', _e.receivedat,
+        'classification', _e.classification,
+        'classificationlabel', _e.classificationlabel,
+        'confidence', _e.confidence,
+        'method', _e.method,
+        'hasattachments', _e.hasattachments,
+        'isrevision', _e.isrevision,
+        'company', _e.company,
+        'headline', _e.headline,
+        'deadline', _e.deadline,
+        'link', _e.link,
+        'stage', _e.stage,
+        'stageraw', _e.stageraw,
+        'interviewdates', _e.interviewdates,
+        'evidence', _e.evidence,
+        'careernote', _e.careernote,
+        'stages', _e.opstages,
+        'eligibility', _e.eligibility,
+        'body', _body,
+        'bodylength', _bodylength,
+        'studentcount', json_array_length(_students),
+        'students', _students,
+        'rounds', _rounds,
+        'attachments', _attachments)::text;
 END;
 $function$ LANGUAGE plpgsql;

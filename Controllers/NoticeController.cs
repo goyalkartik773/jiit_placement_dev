@@ -102,5 +102,53 @@ namespace JIITPlacement.Controllers
                 return StatusCode(500, response);
             }
         }
+
+        /// <summary>
+        /// GET /api/notices/email/{id} - full detail for ONE email notice:
+        /// the complete body, the parsed shortlist students, funnel counts
+        /// with their evidence sentence, attachments and event extras.
+        /// The list endpoint only ships a 300-char snippet; this is the
+        /// "Read more" payload. Returns Data = {"found": false} for an
+        /// unknown id.
+        /// </summary>
+        [HttpGet("notices/email/{id}")]
+        public ActionResult GetEmailNoticeDetail(string id)
+        {
+            Common.ReturnResponse response = new Common.ReturnResponse();
+            try
+            {
+                id = (id ?? string.Empty).Trim();
+                if (id.Length == 0)
+                {
+                    response.status = false;
+                    response.Message = "Email id is required";
+                    return BadRequest(response);
+                }
+
+                DataTable dt = _dataEntity.ExecuteDataTableFN(
+                    "fn_api_select_email_notice_detail_v1", id);
+
+                if (dt.Rows.Count > 0)
+                {
+                    string json = dt.Rows[0][0].ToString();
+                    var result = Common.ParseJson(json);
+                    response.status = true;
+                    response.Message = "Email notice detail fetched successfully";
+                    response.Data = result;
+                    return Ok(response);
+                }
+
+                response.status = true;
+                response.Message = "No email notice found";
+                response.Data = null;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.status = false;
+                response.Message = "Error: " + ex.Message;
+                return StatusCode(500, response);
+            }
+        }
     }
 }
