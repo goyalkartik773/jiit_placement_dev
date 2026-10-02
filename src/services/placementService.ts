@@ -267,11 +267,34 @@ function toDailyPoint(value: unknown): BranchTimelineDayPoint | null {
 }
 
 /**
+ * Cache for the branch-wise block — the entire Analytics page hangs off this
+ * one payload, and re-entering the route used to re-download it AND re-run
+ * every normaliser before a single figure could be printed. Same 60-second
+ * window as the company feed: come back inside a minute and the page is
+ * already painted with data rather than a skeleton.
+ */
+let branchStatsCache: { value: BranchStatsData; at: number } | null = null;
+const BRANCH_STATS_TTL_MS = 60_000;
+
+/**
  * Fetches the branch-wise statistics block for the graduating batch.
  * Normalises every field defensively: the section must render honest zeroes
  * and em-dashes rather than "undefined" if the payload is ever incomplete.
  */
 export async function fetchBranchStats(signal?: AbortSignal): Promise<BranchStatsData> {
+  if (branchStatsCache && Date.now() - branchStatsCache.at < BRANCH_STATS_TTL_MS) {
+    return branchStatsCache.value;
+  }
+
+  const value = await requestBranchStats(signal);
+  // Only a COMPLETED read is kept. An abort throws before this line, so the
+  // cache stays empty and the next mount tries again instead of serving a
+  // half-cancelled payload.
+  branchStatsCache = { value, at: Date.now() };
+  return value;
+}
+
+async function requestBranchStats(signal?: AbortSignal): Promise<BranchStatsData> {
   const envelope = await getJson<ApiEnvelope<BranchStatsData>>('/api/placements/branch-stats', { signal });
   const data = envelope.Data;
 

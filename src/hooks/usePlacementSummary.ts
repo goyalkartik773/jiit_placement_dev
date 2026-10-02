@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, isAbortError } from '../services/apiClient';
+import { ApiError } from '../services/apiClient';
 import { fetchCompanyPlacements } from '../services/placementService';
 import type { CompanyRow } from '../types/dashboard.types';
 
@@ -200,41 +200,114 @@ export interface UsePlacementSummaryState {
   error: ApiError | Error | null;
 }
 
+// --------------------------------------------------------------------------- #
+// The shared read
+// --------------------------------------------------------------------------- #
+
+/**
+ * How long a computed summary is served without going back to the API.
+ *
+ * The company feed is by a distance the most expensive read the client makes,
+ * and the Dashboard and Analytics both ask for exactly the same rows. Sixty
+ * seconds is long enough that moving between routes never re-pays it, and
+ * short enough that a placement officer re-syncing the source sees their work
+ * inside a minute. `reload()` ignores this window.
+ */
+const CACHE_TTL_MS = 60_000;
+
+let cachedSummary: { value: PlacementSummary; at: number } | null = null;
+
+/** The in-flight load, shared by every caller waiting on the same rows. */
+let inflight: Promise<PlacementSummary> | null = null;
+
+function freshSummary(): PlacementSummary | null {
+  if (!cachedSummary) return null;
+  if (Date.now() - cachedSummary.at >= CACHE_TTL_MS) {
+    cachedSummary = null;
+    return null;
+  }
+  return cachedSummary.value;
+}
+
+/**
+ * Read every page of the company feed.
+ *
+ * Page 1 has to land first — it is the only thing that says how many pages
+ * exist — and that used to gate a strictly serial `for` loop, so a five-page
+ * feed cost five round trips one after the other. Every page after the first
+ * is independent, so they now fan out together: the whole read is two round
+ * trips regardless of corpus size.
+ *
+ * Deliberately takes no `AbortSignal`. The result is cached and shared, so
+ * the first component to unmount must not be able to cancel a fetch that the
+ * next one is still waiting on; the work finishes and warms the cache.
+ */
+async function readSummaryPages(): Promise<PlacementSummary> {
+  const first = await fetchCompanyPlacements({ page: 1, pageSize: PAGE_SIZE });
+  const pages = Math.max(1, Math.min(Math.ceil(first.totalCount / PAGE_SIZE), MAX_PAGES));
+  if (pages === 1) return summarize(first.items, first.totalCount);
+
+  const rest = await Promise.all(
+    Array.from({ length: pages - 1 }, (_unused, index) =>
+      fetchCompanyPlacements({ page: index + 2, pageSize: PAGE_SIZE }),
+    ),
+  );
+
+  // TotalCount can move between pages, so a company may legitimately appear
+  // twice — `summarize` folds duplicates down to one row per company.
+  return summarize(first.items.concat(...rest.map((page) => page.items)), first.totalCount);
+}
+
+function loadSummary(): Promise<PlacementSummary> {
+  const hit = freshSummary();
+  if (hit) return Promise.resolve(hit);
+
+  if (!inflight) {
+    inflight = readSummaryPages()
+      .then((summary) => {
+        cachedSummary = { value: summary, at: Date.now() };
+        return summary;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+  }
+  return inflight;
+}
+
 export function usePlacementSummary(): UsePlacementSummaryState & { reload: () => void } {
-  const [state, setState] = useState<UsePlacementSummaryState>({
-    summary: null,
-    loading: true,
-    error: null,
+  // Seed from a warm cache so a second visit renders the figures on its very
+  // first paint instead of flashing a loading state and correcting it.
+  const [state, setState] = useState<UsePlacementSummaryState>(() => {
+    const hit = freshSummary();
+    return { summary: hit, loading: hit === null, error: null };
   });
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let live = true;
     setState((prev) => ({ summary: prev.summary, loading: prev.summary === null, error: null }));
 
-    (async () => {
-      try {
-        const first = await fetchCompanyPlacements({ page: 1, pageSize: PAGE_SIZE }, controller.signal);
-        const pages = Math.max(1, Math.min(Math.ceil(first.totalCount / PAGE_SIZE), MAX_PAGES));
-        let rows = first.items;
+    loadSummary().then(
+      (summary) => {
+        if (live) setState({ summary, loading: false, error: null });
+      },
+      (error: unknown) => {
+        if (live) setState((prev) => ({ summary: prev.summary, loading: false, error: error as Error }));
+      },
+    );
 
-        for (let page = 2; page <= pages; page += 1) {
-          const next = await fetchCompanyPlacements({ page, pageSize: PAGE_SIZE }, controller.signal);
-          if (next.items.length === 0) break;
-          rows = rows.concat(next.items);
-        }
-
-        if (controller.signal.aborted) return;
-        setState({ summary: summarize(rows, first.totalCount), loading: false, error: null });
-      } catch (error) {
-        if (controller.signal.aborted || isAbortError(error)) return;
-        setState((prev) => ({ summary: prev.summary, loading: false, error: error as Error }));
-      }
-    })();
-
-    return () => controller.abort();
+    // A cache-backed read is shared, so nothing here can be cancelled — only
+    // whether this particular subscriber still wants the answer.
+    return () => {
+      live = false;
+    };
   }, [retryToken]);
 
-  const reload = useCallback(() => setRetryToken((token) => token + 1), []);
+  const reload = useCallback(() => {
+    cachedSummary = null;
+    setRetryToken((token) => token + 1);
+  }, []);
+
   return { ...state, reload };
 }

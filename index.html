@@ -8,10 +8,34 @@
     <title>JIIT Placement · Jobs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      The font stylesheet is loaded WITHOUT blocking render.
+
+      A plain `rel="stylesheet"` in <head> makes the browser wait for
+      fonts.googleapis.com before it paints anything — and on a connection
+      that stalls or is proxied, that wait is indistinguishable from "the
+      page never opens". Flipping `media` from `print` to `all` once the
+      file has arrived lets the app paint immediately in the system font
+      from `--ui-font`'s fallback chain, then upgrade when the webfont
+      lands (`display=swap` keeps text visible either way).
+    -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all';this.onload=null"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
