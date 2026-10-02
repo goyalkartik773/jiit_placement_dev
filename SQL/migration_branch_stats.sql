@@ -43,6 +43,28 @@
 -- 2026-09-30, the backfill timestamp), so the timeline is bucketed by
 -- `emails.received_at` - the moment the offer mail actually landed.
 -- ----------------------------------------------------------------------------
+-- ANALYTICS EXTENSION (product owner approved; ADDITIVE ONLY).
+-- Nothing that existed before changed shape, name or meaning, so older
+-- clients keep working:
+--
+--   * branches[].finedistribution + totals.finedistribution
+--       15 FIXED buckets (0-3 ... 50+ LPA, then "Not disclosed"), counted in
+--       OFFERS - the distribution chart's y-axis is offers, not heads.  The
+--       older `distribution` (4 official JIIT bands, counted in students) is
+--       untouched and still fed to the Dashboard.
+--   * timeline[].studentswithpackage / averagepackage / medianpackage
+--       package stats over that month's OWN offers, one figure per head per
+--       month (never a cross-month leak of a later better offer).
+--   * timeline[].cumstudentswithpackage / cumaveragepackage / cummedianpackage
+--       and the same three on daily[] - the CUMULATIVE twin, rebuilt from the
+--       raw per-student pool at each cutoff rather than derived from the
+--       per-bucket numbers (an average of monthly averages, and especially of
+--       monthly MEDIANS, would both be wrong).
+--   * daily[] - same counters bucketed by day (54 buckets), for the timeline
+--       chart's Month/Day switch.
+-- Band edges are plain rupee thresholds in `fine_bands`; they are FIXED, not
+-- configurable - see the approved data contract in the header above.
+-- ----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION fn_api_select_branch_stats_v1() RETURNS text AS $function$
 DECLARE
@@ -67,6 +89,28 @@ BEGIN
                (2, '6.00 - 12.99 L'),
                (3, '13.00 L and above'),
                (4, 'Not disclosed')
+    ),
+    -- Fine-grained buckets for the Analytics distribution chart.  FIXED
+    -- edges, approved as-is: 0-3, 3-4, 4-5, 5-6, 6-8, 8-10, 10-12, 12-15,
+    -- 15-20, 20-25, 25-30, 30-40, 40-50, 50+ (LPA), then the honest
+    -- "Not disclosed" tail so the columns still sum to `totaloffers`.
+    -- `lo`/`hi` are RUPEES and exclusive at the top; NULL means no edge.
+    fine_bands(ord, band, lo, hi) AS (
+        VALUES (1,  '0 - 3 L',    0::numeric,   300000::numeric),
+               (2,  '3 - 4 L',         300000,        400000),
+               (3,  '4 - 5 L',         400000,        500000),
+               (4,  '5 - 6 L',         500000,        600000),
+               (5,  '6 - 8 L',         600000,        800000),
+               (6,  '8 - 10 L',        800000,      1000000),
+               (7,  '10 - 12 L',      1000000,      1200000),
+               (8,  '12 - 15 L',      1200000,      1500000),
+               (9,  '15 - 20 L',      1500000,      2000000),
+               (10, '20 - 25 L',      2000000,      2500000),
+               (11, '25 - 30 L',      2500000,      3000000),
+               (12, '30 - 40 L',      3000000,      4000000),
+               (13, '40 - 50 L',      4000000,      5000000),
+               (14, '50+ L',          5000000, 999999999999),
+               (15, 'Not disclosed',  NULL,          NULL)
     ),
 
     -- One row per placed (student, company) pair straight out of the sync table.
@@ -123,6 +167,35 @@ BEGIN
         LEFT JOIN best b ON b.roll = rb.roll
     ),
 
+    -- ---- fine-grained offer bands (ANALYTICS EXTENSION) -------------------
+    -- ONE row per offer (the `focus` key), with that offer's OWN figure - an
+    -- e-mail may carry several roles, so MAX folds them.  Deliberately NOT
+    -- the per-student max: this chart counts offers, not heads.
+    offer_rows AS (
+        SELECT rb.branch,
+               f.roll,
+               f.company_name,
+               f.offer_email_id,
+               MAX(o.ctc_total) FILTER (WHERE o.ctc_total > 0) AS ctc
+        FROM focus f
+        JOIN roll_branch rb ON rb.roll = f.roll
+        LEFT JOIN offers o  ON o.email_id = f.offer_email_id
+        GROUP BY rb.branch, f.roll, f.company_name, f.offer_email_id
+    ),
+    -- `fine_bands` is the single source of truth for the edges.  Band 15 has
+    -- no edges, so it can only be reached by COALESCE below - which is exactly
+    -- the "no figure was ever disclosed" answer.
+    fine_offer AS (
+        SELECT r.branch,
+               r.roll,
+               COALESCE(fb.ord, 15) AS fbno
+        FROM offer_rows r
+        LEFT JOIN fine_bands fb
+          ON r.ctc IS NOT NULL
+         AND r.ctc >= fb.lo
+         AND (fb.hi IS NULL OR r.ctc < fb.hi)
+    ),
+
     -- ---- per-branch aggregates -------------------------------------------
     branch_counts AS (
         SELECT f.branch,
@@ -177,6 +250,26 @@ BEGIN
                    GROUP BY s.bno) n ON n.bno = b.ord
     ),
 
+    -- ---- fine-grained distribution (ANALYTICS EXTENSION, counted in OFFERS)
+    -- Spine is denominators x fine_bands so an empty branch still returns all
+    -- fifteen columns at 0 rather than a short array (chart axis stability).
+    fine_dist_branch AS (
+        SELECT d.branch, fb.band, fb.ord, COALESCE(n.offers, 0) AS offers
+        FROM denominators d
+        CROSS JOIN fine_bands fb
+        LEFT JOIN (SELECT x.branch, x.fbno, COUNT(*) AS offers
+                   FROM fine_offer x
+                   GROUP BY x.branch, x.fbno) n
+               ON n.branch = d.branch AND n.fbno = fb.ord
+    ),
+    fine_dist_total AS (
+        SELECT fb.band, fb.ord, COALESCE(n.offers, 0) AS offers
+        FROM fine_bands fb
+        LEFT JOIN (SELECT x.fbno, COUNT(*) AS offers
+                   FROM fine_offer x
+                   GROUP BY x.fbno) n ON n.fbno = fb.ord
+    ),
+
     -- ---- timeline (months are ISO YYYY-MM, sorted lexicographically) -------
     timeline AS (
         SELECT to_char(date_trunc('month', e.received_at), 'YYYY-MM') AS month,
@@ -195,6 +288,120 @@ BEGIN
         FROM focus f
         JOIN emails e ON e.id = f.offer_email_id
         GROUP BY 1, 2
+    ),
+
+    -- ---- timeline package overlays (ANALYTICS EXTENSION) ------------------
+    -- One figure per head PER BUCKET: a student who appears twice in a month
+    -- contributes their best offer of that month once.  The bucket is chosen
+    -- from the SAME received_at that buckets the bar, so a later, better offer
+    -- can never leak backwards into an earlier month's line.
+    timeline_pkg AS (
+        SELECT to_char(date_trunc('month', e.received_at), 'YYYY-MM') AS month,
+               f.roll,
+               MAX(o.ctc_total) FILTER (WHERE o.ctc_total > 0) AS ctc
+        FROM focus f
+        JOIN emails e ON e.id = f.offer_email_id
+        LEFT JOIN offers o ON o.email_id = f.offer_email_id
+        GROUP BY 1, f.roll
+    ),
+    timeline_stats AS (
+        SELECT t.month,
+               COUNT(t.ctc)                                    AS studentswithpackage,
+               ROUND(AVG(t.ctc) / 100000, 2)                   AS averagepackage,
+               ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY t.ctc::double precision))::numeric
+                     / 100000, 2)                              AS medianpackage
+        FROM timeline_pkg t
+        GROUP BY 1
+    ),
+    -- Same three numbers bucketed by day - feeds the Month/Day switch.
+    daily AS (
+        SELECT to_char(date_trunc('day', e.received_at), 'YYYY-MM-DD') AS day,
+               COUNT(*)               AS offers,
+               COUNT(DISTINCT f.roll) AS students,
+               COUNT(DISTINCT f.company_name) AS companies
+        FROM focus f
+        JOIN emails e ON e.id = f.offer_email_id
+        GROUP BY 1
+    ),
+    daily_pkg AS (
+        SELECT to_char(date_trunc('day', e.received_at), 'YYYY-MM-DD') AS day,
+               f.roll,
+               MAX(o.ctc_total) FILTER (WHERE o.ctc_total > 0) AS ctc
+        FROM focus f
+        JOIN emails e ON e.id = f.offer_email_id
+        LEFT JOIN offers o ON o.email_id = f.offer_email_id
+        GROUP BY 1, f.roll
+    ),
+    daily_stats AS (
+        SELECT d.day,
+               COUNT(d.ctc)                       AS studentswithpackage,
+               ROUND(AVG(d.ctc) / 100000, 2)      AS averagepackage,
+               ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY d.ctc::double precision))::numeric
+                     / 100000, 2)                 AS medianpackage
+        FROM daily_pkg d
+        GROUP BY 1
+    ),
+    -- ---- CUMULATIVE overlays (ANALYTICS EXTENSION) ------------------------
+    -- For cutoff `c` the pool is every figure that had already landed by the
+    -- END of `c`, folded to ONE per head (their best so far), then averaged
+    -- and medianed over that pool.  Rebuilt from the raw per-student figures
+    -- on purpose: an average of per-bucket averages and - worse - an average
+    -- of per-bucket MEDIANS would both be wrong, so the cumulative line never
+    -- derives from the individual line.
+    cum_month AS (
+        SELECT c.month AS cutoff, p.roll, MAX(p.ctc) AS ctc
+        FROM (SELECT DISTINCT month FROM timeline) c
+        JOIN timeline_pkg p ON p.month <= c.month
+        GROUP BY 1, 2
+    ),
+    cum_month_stats AS (
+        SELECT m.cutoff                                AS month,
+               COUNT(m.ctc)                            AS studentswithpackage,
+               ROUND(AVG(m.ctc) / 100000, 2)           AS averagepackage,
+               ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY m.ctc::double precision))::numeric
+                     / 100000, 2)                      AS medianpackage
+        FROM cum_month m
+        GROUP BY 1
+    ),
+    cum_day AS (
+        SELECT c.day AS cutoff, p.roll, MAX(p.ctc) AS ctc
+        FROM (SELECT DISTINCT day FROM daily) c
+        JOIN daily_pkg p ON p.day <= c.day
+        GROUP BY 1, 2
+    ),
+    cum_day_stats AS (
+        SELECT d.cutoff                          AS day,
+               COUNT(d.ctc)                      AS studentswithpackage,
+               ROUND(AVG(d.ctc) / 100000, 2)     AS averagepackage,
+               ROUND((percentile_cont(0.5) WITHIN GROUP (ORDER BY d.ctc::double precision))::numeric
+                     / 100000, 2)                AS medianpackage
+        FROM cum_day d
+        GROUP BY 1
+    ),
+    -- Cumulative COUNTERS.  `cumoffers` is a plain running sum (every offer
+    -- lands in exactly one bucket), but `cumstudents` has to be a genuine
+    -- COUNT(DISTINCT roll): a running sum of the per-month unique counts would
+    -- count a student once per month they appear in - 360 here, against a
+    -- cohort of 345 - so it would overstate the bar every single month.
+    cum_counts_month AS (
+        SELECT c.cutoff,
+               COUNT(*)               AS offers,
+               COUNT(DISTINCT f.roll) AS students
+        FROM (SELECT DISTINCT month AS cutoff FROM timeline) c
+        CROSS JOIN focus f
+        JOIN emails e ON e.id = f.offer_email_id
+        WHERE to_char(date_trunc('month', e.received_at), 'YYYY-MM') <= c.cutoff
+        GROUP BY 1
+    ),
+    cum_counts_day AS (
+        SELECT c.cutoff,
+               COUNT(*)               AS offers,
+               COUNT(DISTINCT f.roll) AS students
+        FROM (SELECT DISTINCT day AS cutoff FROM daily) c
+        CROSS JOIN focus f
+        JOIN emails e ON e.id = f.offer_email_id
+        WHERE to_char(date_trunc('day', e.received_at), 'YYYY-MM-DD') <= c.cutoff
+        GROUP BY 1
     ),
 
     -- ---- final per-branch rows --------------------------------------------
@@ -248,6 +455,12 @@ BEGIN
                                       'band', d.band, 'students', d.students)
                                       ORDER BY d.ord), '[]'::json)
                            FROM dist_branch d WHERE d.branch = br.branch
+                       ),
+                       'finedistribution', (
+                           SELECT COALESCE(json_agg(json_build_object(
+                                      'band', d.band, 'offers', d.offers)
+                                      ORDER BY d.ord), '[]'::json)
+                           FROM fine_dist_branch d WHERE d.branch = br.branch
                        )) ORDER BY br.ord), '[]'::json)
             FROM branch_rows br
         ),
@@ -269,15 +482,49 @@ BEGIN
                            SELECT COALESCE(json_agg(json_build_object(
                                       'band', d.band, 'students', d.students)
                                       ORDER BY d.ord), '[]'::json)
-                           FROM dist_total d)
+                           FROM dist_total d),
+                       'finedistribution', (
+                           SELECT COALESCE(json_agg(json_build_object(
+                                      'band', d.band, 'offers', d.offers)
+                                      ORDER BY d.ord), '[]'::json)
+                           FROM fine_dist_total d)
             ) FROM totals t
         ),
         'timeline', (
             SELECT COALESCE(json_agg(json_build_object(
                        'month', tl.month, 'offers', tl.offers,
-                       'students', tl.students, 'companies', tl.companies)
+                       'students', tl.students, 'companies', tl.companies,
+                       'cumoffers', COALESCE(cm.offers, 0),
+                       'cumstudents', COALESCE(cm.students, 0),
+                       'studentswithpackage', COALESCE(ts.studentswithpackage, 0),
+                       'averagepackage', ts.averagepackage,
+                       'medianpackage', ts.medianpackage,
+                       'cumstudentswithpackage', COALESCE(cs.studentswithpackage, 0),
+                       'cumaveragepackage', cs.averagepackage,
+                       'cummedianpackage', cs.medianpackage)
                        ORDER BY tl.month), '[]'::json)
             FROM timeline tl
+            LEFT JOIN timeline_stats ts ON ts.month = tl.month
+            LEFT JOIN cum_month_stats cs ON cs.month = tl.month
+            LEFT JOIN cum_counts_month cm ON cm.cutoff = tl.month
+        ),
+        'daily', (
+            SELECT COALESCE(json_agg(json_build_object(
+                       'day', d.day, 'offers', d.offers,
+                       'students', d.students, 'companies', d.companies,
+                       'cumoffers', COALESCE(cm.offers, 0),
+                       'cumstudents', COALESCE(cm.students, 0),
+                       'studentswithpackage', COALESCE(ds.studentswithpackage, 0),
+                       'averagepackage', ds.averagepackage,
+                       'medianpackage', ds.medianpackage,
+                       'cumstudentswithpackage', COALESCE(cds.studentswithpackage, 0),
+                       'cumaveragepackage', cds.averagepackage,
+                       'cummedianpackage', cds.medianpackage)
+                       ORDER BY d.day), '[]'::json)
+            FROM daily d
+            LEFT JOIN daily_stats ds ON ds.day = d.day
+            LEFT JOIN cum_day_stats cds ON cds.day = d.day
+            LEFT JOIN cum_counts_day cm ON cm.cutoff = d.day
         ),
         'branchtimeline', (
             SELECT COALESCE(json_agg(json_build_object(
