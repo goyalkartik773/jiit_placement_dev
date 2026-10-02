@@ -89,59 +89,16 @@
     border-radius: var(--ui-radius-pill);
   }
 
-  // ----- title as the anchor -----
+  // ----- title as the anchor (content — the disclosure is the footer's
+  // "Read more" button, so the title never reads as a link) -----
   &__heading {
     margin: 0;
-    font-size: inherit;
-    font-weight: inherit;
-  }
-
-  &__toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: $space-3;
-    width: 100%;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-
-    &:focus-visible {
-      @include focus-ring(1px);
-    }
-  }
-
-  &__title {
-    flex: 1;
-    min-width: 0;
     font-size: 19px;
     font-weight: 800;
     line-height: $lh-snug;
     letter-spacing: -0.01em;
     color: var(--ui-ink);
     overflow-wrap: anywhere;
-    transition: color $transition-fast;
-
-    &:hover {
-      color: var(--ui-accent);
-    }
-  }
-
-  &__chevron {
-    display: flex;
-    flex-shrink: 0;
-    margin-top: 3px;
-    color: var(--ui-faint);
-    transition: transform $transition-fast, color $transition-fast;
-
-    .superset-notice__toggle:hover & {
-      color: var(--ui-accent);
-    }
-  }
-
-  &__toggle[aria-expanded='true'] &__chevron {
-    transform: rotate(180deg);
   }
 
   // ----- one muted meta line: Posted ... · Updated ... -----
@@ -161,14 +118,35 @@
     color: #c9ced8;
   }
 
+  // The disclosure control — same shape as the email notice's "Read more",
+  // so both notice screens open the same way. Padding sits against a
+  // matching negative margin: the hit area grows, the meta line does not move.
   &__hint {
-    margin-left: auto;
-    flex-shrink: 0;
+    margin: -3px -6px -3px auto;
+    padding: 3px 6px;
+    border: 0;
+    background: transparent;
+    font: inherit;
     font-size: 11.5px;
     font-weight: 700;
     letter-spacing: 0.02em;
     text-transform: uppercase;
     color: var(--ui-accent);
+    cursor: pointer;
+    transition: color $transition-fast;
+
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    &:focus-visible {
+      @include focus-ring(1px);
+    }
+
+    &.is-open {
+      color: var(--ui-muted);
+    }
   }
 
   // ----- inline body -----
@@ -194,7 +172,7 @@
   @include down('sm') {
     padding: $space-4;
 
-    &__title {
+    &__heading {
       font-size: 17px;
     }
 

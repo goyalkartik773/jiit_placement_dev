@@ -1,5 +1,4 @@
 import { useId, useMemo, useState } from 'react';
-import { Icon } from '../../common/Icon/Icon';
 import { Prose } from '../../common/Prose/Prose';
 import { Avatar } from '../../ui/Avatar/Avatar';
 import type { SupersetNotice } from '../../../types/dashboard.types';
@@ -54,21 +53,9 @@ export function SupersetNoticeCard({ notice }: SupersetNoticeCardProps) {
         ) : null}
       </header>
 
-      {/* ----- title: the anchor, doubles as the disclosure control ----- */}
-      <h3 className="superset-notice__heading">
-        <button
-          type="button"
-          className="superset-notice__toggle"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className="superset-notice__title">{notice.title}</span>
-          <span className="superset-notice__chevron" aria-hidden="true">
-            <Icon name="chevron-down" size={17} />
-          </span>
-        </button>
-      </h3>
+      {/* ----- title. Content, not a control: the disclosure is the
+              "Read more" button in the meta line below. ----- */}
+      <h3 className="superset-notice__heading">{notice.title}</h3>
 
       {/* ----- one muted meta line: Posted ... · Updated ... ----- */}
       <p className="superset-notice__meta">
@@ -86,7 +73,15 @@ export function SupersetNoticeCard({ notice }: SupersetNoticeCardProps) {
             </span>
           </>
         ) : null}
-        <span className="superset-notice__hint">{open ? 'Hide' : 'Read more'}</span>
+        <button
+          type="button"
+          className={`superset-notice__hint${open ? ' is-open' : ''}`}
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? 'Hide' : 'Read more'}
+        </button>
       </p>
 
       <div className="superset-notice__body" id={panelId} hidden={!open}>
