@@ -393,7 +393,14 @@ BEGIN
         WHERE to_char(date_trunc('month', e.received_at), 'YYYY-MM') <= c.cutoff
         GROUP BY 1
     ),
-    cum_counts_day AS (
+    -- Materialised so this runs ONCE. Left to the planner it gets inlined
+    -- into `daily LEFT JOIN ... ON cm.cutoff = d.day`, where the text
+    -- comparison `to_char(...) <= c.cutoff` cannot be estimated and reads as
+    -- 1 row — so it joins as a NESTED LOOP, re-running the whole aggregate
+    -- for every one of the 54 day rows. Measured: 588,593 index scans on
+    -- `emails`, 1,765,779 buffer hits, 4.4s of a 4.6s request. Materialising
+    -- pins the answer to one evaluation and does not alter a single value.
+    cum_counts_day AS MATERIALIZED (
         SELECT c.cutoff,
                COUNT(*)               AS offers,
                COUNT(DISTINCT f.roll) AS students
