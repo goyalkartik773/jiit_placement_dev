@@ -19,32 +19,72 @@
     min-height: 100vh;
   }
 
-  // ----- Slim top bar: hamburger (drawer) + section name -----
+  // ----- Bar: drawer trigger + product mark, BELOW the drawer breakpoint -----
+  // Hidden ≥640px on purpose. The rail carries the identity there and every
+  // page prints its own <h1>, so a desktop bar had nothing left to say except
+  // repeat it. Below 640px the rail is a closed drawer, so the bar takes over
+  // the two things it hides: the menu button and the mark.
   &__bar {
     position: sticky;
     top: 0;
     z-index: 30;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 12px;
-    min-height: 56px;
-    padding: 0 $space-5;
+    min-height: 54px;
+    padding: 0 $space-4;
     background: color-mix(in srgb, var(--ui-panel) 92%, transparent);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--ui-border);
     font-family: var(--ui-font);
 
     @include down('md') {
-      padding: 0 $space-4;
+      display: flex;
     }
   }
 
-  &__menu {
-    display: none;
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
+
+  // Monogram tile — the mark the drawer used to carry off-screen with it.
+  &__mark {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--ui-accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  &__brand-name {
+    min-width: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ui-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // The bar only renders below the drawer breakpoint, so the button needs no
+  // visibility rule of its own — it inherits the bar's.
+  &__menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
     border: 1px solid var(--ui-border);
     border-radius: 10px;
@@ -60,20 +100,6 @@
       outline: 2px solid var(--ui-accent);
       outline-offset: 2px;
     }
-
-    @include down('md') {
-      display: inline-flex;
-    }
-  }
-
-  &__title {
-    min-width: 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ui-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   // ----- Scrim behind the open drawer -----

@@ -4,9 +4,14 @@
 // ============================================================================
 // Client navigation rail.
 //
-//   ≥1024px  full rail with labels
+//   ≥1024px  full rail with labelled groups
 //   768–1023 icon-only (labels collapse to a title tooltip)
-//   <768px   fixed off-canvas drawer, opened by the hamburger in the top bar
+//   <768px   fixed off-canvas drawer, opened by the hamburger in the bar
+//
+// Three labelled groups — Overview / Opportunities / Alerts — so six links
+// read as three decisions rather than a flat list. The labels are structural,
+// not decorative: each one owns the nested list beneath it (aria-labelledby),
+// and they drop out with the item labels on the icon rail.
 //
 // Active item = soft accent background + accent text + 3px accent bar on its
 // left edge.  Nothing else in the item changes.
@@ -17,11 +22,11 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  width: 236px;
+  gap: 20px;
+  width: 244px;
   height: 100vh;
   flex-shrink: 0;
-  padding: 22px 16px;
+  padding: 20px 16px;
   background: var(--ui-panel);
   border-right: 1px solid var(--ui-border);
   font-family: var(--ui-font);
@@ -36,12 +41,21 @@
     padding: 0 4px;
   }
 
+  // Monogram tile rather than a bare dot: a 12px circle says nothing about
+  // the product, and this is the only mark in the student-facing shell.
   &__mark {
-    width: 12px;
-    height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
-    border-radius: 50%;
+    border-radius: 8px;
     background: var(--ui-accent);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 800;
+    line-height: 1;
   }
 
   &__brand-text {
@@ -52,8 +66,8 @@
   }
 
   &__brand-name {
-    font-size: 15px;
-    font-weight: 800;
+    font-size: 14.5px;
+    font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--ui-ink);
     white-space: nowrap;
@@ -62,7 +76,7 @@
   &__brand-sub {
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     white-space: nowrap;
   }
 
@@ -82,26 +96,52 @@
     }
   }
 
-  // ----- Items -----
+  // ----- Groups -----
+  &__groups {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  // --ui-muted (4.86:1 on white), not --ui-faint: at 10.5px this is a real
+  // label carrying the group's meaning, and #9aa1b0 only reaches 2.58:1.
+  &__group-label {
+    margin: 0 0 3px;
+    padding: 0 11px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: $tracking-caps;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+  }
+
   &__list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
+  // ----- Items: Linear-density rows, not card-sized ones -----
   &__item {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 11px; // icon + label: comfortably inside the 8–10px minimum
-    min-height: 42px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    gap: 10px; // icon + label: comfortably inside the 8px minimum
+    min-height: 34px;
+    padding: 7px 11px;
+    border-radius: 8px;
     color: var(--ui-muted);
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     text-decoration: none;
     transition: background $transition-fast, color $transition-fast;
@@ -133,10 +173,11 @@
   // The fill runs edge-to-edge inside the rail (negative margin) so the item
   // reads as "selected" from the icon-only rail too, and the label steps to
   // 700 — weight, not a new colour, is what makes it unmistakable.
+  // `NavLink` writes aria-current="page", so this is never colour alone.
   &__item.is-active {
     margin: 0 -6px;
-    padding-left: 18px; // 12px + 6px of negative margin: text never moves
-    padding-right: 18px;
+    padding-left: 17px; // 11px + 6px of negative margin: text never moves
+    padding-right: 17px;
     background: var(--ui-accent-soft);
     color: var(--ui-accent);
     font-weight: 700;
@@ -145,9 +186,9 @@
       content: '';
       position: absolute;
       left: 0;
-      top: 6px;
-      bottom: 6px;
-      width: 4px;
+      top: 5px;
+      bottom: 5px;
+      width: 3px;
       border-radius: 0 3px 3px 0;
       background: var(--ui-accent);
     }
@@ -168,13 +209,13 @@
     font-size: 11.5px;
     font-weight: 600;
     line-height: 1.4;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
   }
 
   // ----- Icon-only rail on small screens -----
   @include down('lg') {
     width: 76px;
-    padding: 22px 12px;
+    padding: 20px 12px;
     align-items: stretch;
 
     &__brand {
@@ -183,13 +224,22 @@
     }
 
     &__brand-text,
+    &__group-label,
     &__foot {
       display: none;
     }
 
+    &__groups {
+      gap: 10px; // groups still separate — two pairs of icons, not four
+    }
+
+    &__group {
+      gap: 2px;
+    }
+
     &__item {
       justify-content: center;
-      padding: 10px;
+      padding: 9px;
       gap: 0;
     }
 
@@ -205,7 +255,7 @@
     left: 0;
     width: min(300px, 84vw);
     height: 100dvh;
-    padding: 20px 16px;
+    padding: 18px 16px;
     transform: translateX(-100%);
     // Hidden drawers must leave the tab order — visibility does that while
     // the transform still animates (it is transitioned alongside it).
@@ -231,10 +281,14 @@
       display: inline-flex;
     }
 
+    &__group-label {
+      display: block;
+    }
+
     &__item {
       justify-content: flex-start;
-      padding: 11px 12px;
-      gap: 11px;
+      padding: 9px 11px;
+      gap: 10px;
     }
 
     &__label {

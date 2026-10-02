@@ -1,21 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Icon } from '../../common/Icon/Icon';
 import { Footer } from '../Footer/Footer';
 import { ClientSidebar } from '../ClientSidebar/ClientSidebar';
 import './MainLayout.scss';
-
-/** Section name for the slim top bar — derived from the current route. */
-function contextLabel(pathname: string): string {
-  if (pathname === '/') return 'Dashboard';
-  if (pathname === '/analytics') return 'Analytics';
-  if (pathname.startsWith('/jobs/')) return 'Job Details';
-  if (pathname.startsWith('/jobs')) return 'Active Job Listing';
-  if (pathname === '/placements') return 'Company-Wise Placement';
-  if (pathname === '/email-notices') return 'Email Notices';
-  if (pathname === '/superset-notices') return 'Superset Notices';
-  return 'Page Not Found';
-}
 
 /**
  * Client shell: left navigation rail + content column to its right.
@@ -25,10 +13,18 @@ function contextLabel(pathname: string): string {
  * separate shell (`AdminShell`) with its own chrome.
  *
  * The rail is a full sidebar ≥860px, icon-only below that, and an off-canvas
- * drawer below 640px opened by the hamburger in the top bar.
+ * drawer below 640px opened by the hamburger in the bar.
+ *
+ * There is deliberately NO section title in the bar any more. Every route
+ * already states where you are — `PageHeader` / `page-head` print the `<h1>`
+ * and its eyebrow, `JobHeader` carries its own "All Jobs" breadcrumb over a
+ * company `<h1>`, and `NotFoundState` says "Page not found" — so the bar was
+ * printing "Company-Wise Placement" directly above a heading that read
+ * "Company-wise placement". Below 640px the rail is gone entirely, so the bar
+ * reappears there carrying the menu button and the product mark instead: the
+ * one thing the hidden drawer would otherwise take with it.
  */
 export function MainLayout() {
-  const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
@@ -54,7 +50,13 @@ export function MainLayout() {
           >
             <Icon name="menu" size={20} />
           </button>
-          <span className="client-shell__title">{contextLabel(pathname)}</span>
+
+          <span className="client-shell__brand">
+            <span className="client-shell__mark" aria-hidden="true">
+              J
+            </span>
+            <span className="client-shell__brand-name">JIIT Placement</span>
+          </span>
         </div>
 
         <main id="main-content" className="app-main">
