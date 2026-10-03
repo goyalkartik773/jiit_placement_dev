@@ -7,3 +7,32 @@
   padding: 0;
   list-style: none;
 }
+
+// The shared empty state is sized for a page-level void — 48px of padding, a
+// 58px icon, a dashed border on a 20px radius. Inside a ~330px sidebar panel
+// that becomes a second border competing with the panel's own, and the box
+// ends up taller than four document rows would be. Dialed back to its
+// context: less padding, a smaller icon, a hairline matching the panel it
+// sits in, and a radius from the jobs scale rather than the 20px page one.
+.doc-empty {
+  padding: $space-5 $space-4;
+  background: $surface-subtle;
+  border: 1px solid $border;
+  border-radius: $radius-compact;
+
+  .state-shell__icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .state-shell__title {
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+  }
+
+  .state-shell__description {
+    max-width: none;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+}

@@ -16,8 +16,8 @@ import './JobDetails.scss';
 /**
  * Job details page (container).
  *
- * Spec layout: breadcrumb bar + hero, a 4-tile metric bento, then an 8/4
- * split — main column (description / qualifications / process) beside a
+ * Spec layout: breadcrumb bar + hero, one editorial metric strip, then a
+ * 70/30 split — main column (description / qualifications / process) beside a
  * sidebar (documents / overview) that stacks below the main column under
  * 1080px. Every value comes from GET /api/jobs/{id}.
  */

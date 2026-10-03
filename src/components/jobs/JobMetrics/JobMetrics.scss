@@ -1,11 +1,29 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
-// Spec bento: 1 column → 2 (≥640) → 4 (≥1080)
+// ============================================================================
+// Editorial metrics strip (spec): one surface carrying four figures —
+// uppercase label → headline → quiet qualifier — divided by hairlines
+// instead of four bordered cards.
+//
+// The dividers are a 1px grid GAP showing this container's own background, so
+// the pattern needs no nth-child rules and stays correct as the column count
+// changes (1 → 2 → 4): a border-based version had to be re-derived at every
+// breakpoint because `.metrics__cell + .metrics__cell` out-specifies
+// anything declared inside an `@include up()` block.
+//
+// Four bordered, shadowed tiles at 169px each were a bento row standing
+// taller than the toolbar on the list page; this lands at ~86px carrying the
+// same four subjects.
+// ============================================================================
 .metrics {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: $space-4;
+  gap: 1px;
+  background: $border; // the hairline colour, showing through the 1px gaps
+  border: 1px solid $border;
+  border-radius: $radius-compact;
+  overflow: hidden; // keeps the corner cells on the radius
 
   @include up('md') {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13,5 +31,93 @@
 
   @include up('xl') {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  &__cell {
+    @include stack($space-1);
+    min-width: 0;
+    padding: $space-3-5 $space-4;
+    background: $surface;
+  }
+
+  // Label: the caption that used to sit in a bordered head beside an icon
+  &__label {
+    font-size: 10.5px;
+    font-weight: $fw-bold;
+    text-transform: uppercase;
+    letter-spacing: $tracking-caps;
+    color: $text-muted;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // Figure: tabular numerals so dates and money align down the strip
+  &__value {
+    font-family: $font-headline;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: $tracking-tight;
+    line-height: $lh-tight;
+    color: $ink;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+
+    // Prose-length values (the hiring category is a sentence) step down
+    // instead of wrapping the cell to three lines
+    &--sm {
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 1.35;
+    }
+
+    &--empty {
+      font-size: $fs-md;
+      font-weight: $fw-medium;
+      font-style: italic;
+      letter-spacing: 0;
+      color: $text-muted;
+    }
+
+    &--rose {
+      color: $rose-strong;
+    }
+
+    // Strictness coding (utils/tiers.ts): relaxed green, moderate amber,
+    // strict red — the same three words in the qualifier line below.
+    &--relaxed {
+      color: $success;
+    }
+    &--moderate {
+      color: $warning;
+    }
+    &--strict {
+      color: $rose-strong;
+    }
+
+    // Fixed package tier coding (utils/tiers.ts)
+    &--entry {
+      color: $tier-entry-fg;
+    }
+    &--standard {
+      color: $tier-standard-fg;
+    }
+    &--advanced {
+      color: $tier-advanced-fg;
+    }
+    &--high {
+      color: $tier-high-fg;
+    }
+    &--premium {
+      color: $tier-premium-fg;
+    }
+  }
+
+  &__sub {
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: $text-soft;
+    overflow-wrap: anywhere;
   }
 }

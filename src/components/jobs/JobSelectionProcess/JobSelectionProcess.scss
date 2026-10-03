@@ -1,48 +1,67 @@
 @use '../../../styles/variables' as *;
 @use '../../../styles/mixins' as *;
 
+// ============================================================================
+// Selection process timeline (spec): numbered markers on a plain rail, one
+// flat row per stage.
+//
+// It used to nest a bordered, tinted, hoverable CARD inside the panel's own
+// card — box within a box — and print the sequence twice: once in the marker
+// and again as "Stage 1:" prefixing the title. The marker now carries a
+// zero-padded number (01 → 02 → 03) and the title is the bare stage name.
+// The rail was a green → blue → grey gradient used as decoration; a single
+// hairline does the same job of saying "these are ordered", without a colour
+// ramp that means nothing.
+// ============================================================================
 .pipeline {
   position: relative;
-  @include stack($space-5); // spec space-y-5
   margin: 0;
   padding: 0;
   list-style: none;
 
-  // Gradient rail joining the markers (spec emerald → blue → slate)
+  // Hairline joining the marker centres. top/bottom = step padding (12px)
+  // + half a 30px marker, so the rail starts and ends on a centre rather
+  // than hanging past the first and last step.
   &::before {
     content: '';
     position: absolute;
-    top: 14px; // first marker center (28px circle)
-    bottom: 14px;
-    left: 13px; // rail 2px under a 28px marker → center at 14
-    width: 2px;
-    background: linear-gradient(to bottom, $success, $primary, $border-strong);
+    top: 27px;
+    bottom: 27px;
+    left: 15px;
+    width: 1px;
+    background: $border;
   }
 
   &__step {
     position: relative;
     display: flex;
+    align-items: center;
     gap: $space-4;
-    padding-left: 44px; // 28px marker + 16px gap
+    padding: $space-3 0;
+
+    // Hairline between stages: the row separator that replaces the old card
+    & + & {
+      border-top: 1px solid $surface-muted;
+    }
   }
 
   // Numbered circle — tone follows the stage's real status
   &__marker {
     @include flex-center;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 28px;
-    height: 28px;
-    border: 2px solid $surface;
+    position: relative; // makes z-index meaningful against the rail
+    z-index: 1;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: 1px solid transparent;
     border-radius: 50%;
     background: $primary;
     color: $surface;
     font-family: $font-mono;
-    font-size: $fs-2xs;
+    font-size: 11px;
     font-weight: $fw-bold;
-    box-shadow: $shadow-sm;
-    z-index: 1;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
 
     &--success {
       background: $success-strong;
@@ -67,31 +86,20 @@
     }
   }
 
-  &__card {
-    flex: 1;
-    min-width: 0;
-    padding: $space-4;
-    background: $surface-subtle;
-    border: 1px solid $border;
-    border-radius: $radius-md;
-    transition: border-color $transition-fast;
-
-    &:hover {
-      border-color: $border-strong;
-    }
-  }
-
-  &__head {
+  // Name and status share one line, wrapping only when the name needs the room
+  &__body {
     display: flex;
+    flex: 1;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: $space-2 $space-3;
+    min-width: 0;
   }
 
   &__name {
-    font-size: $fs-sm;
-    font-weight: $fw-bold;
+    font-size: 13.5px;
+    font-weight: 600;
     color: $ink;
     overflow-wrap: anywhere;
   }
@@ -104,7 +112,7 @@
     }
 
     svg {
-      transition: transform $transition-base;
+      transition: transform $transition-fast; // 140ms — spec micro-interaction 120-180ms
     }
   }
 }

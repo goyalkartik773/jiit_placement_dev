@@ -52,7 +52,7 @@
     }
 
     svg {
-      transition: transform $transition-base;
+      transition: transform $transition-fast; // 140ms — spec micro-interaction 120-180ms
     }
   }
 

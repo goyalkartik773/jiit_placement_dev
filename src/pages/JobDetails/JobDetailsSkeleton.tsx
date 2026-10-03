@@ -1,6 +1,6 @@
 import { Skeleton } from '../../components/common/Skeleton/Skeleton';
 
-/** Loading placeholder mirroring the details layout (bar + hero + bento + split). */
+/** Loading placeholder mirroring the details layout (bar + hero + metric strip + 70/30 split). */
 export function JobDetailsSkeleton() {
   return (
     <div className="detail-skeleton" role="status" aria-label="Loading job details">
@@ -25,7 +25,7 @@ export function JobDetailsSkeleton() {
         <Skeleton width="xl" height="sm" />
       </div>
 
-      {/* Bento metrics */}
+      {/* Editorial metric strip: four hairline-separated cells */}
       <div className="detail-skeleton__metrics">
         {[0, 1, 2, 3].map((index) => (
           <div className="detail-skeleton__metric" key={index}>

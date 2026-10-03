@@ -9,12 +9,23 @@ interface StateShellProps {
   action?: ReactNode;
   tone?: 'neutral' | 'danger';
   role?: 'status' | 'alert';
+  /** Scoped override when the shell sits somewhere it must not dominate (a sidebar card). */
+  className?: string;
 }
 
 /** Shared visual shell for empty / error / not-found states. */
-export function StateShell({ icon, title, description, action, tone = 'neutral', role = 'status' }: StateShellProps) {
+export function StateShell({
+  icon,
+  title,
+  description,
+  action,
+  tone = 'neutral',
+  role = 'status',
+  className,
+}: StateShellProps) {
+  const classes = ['state-shell', `state-shell--${tone}`, className].filter(Boolean).join(' ');
   return (
-    <div className={`state-shell state-shell--${tone}`} role={role}>
+    <div className={classes} role={role}>
       <span className="state-shell__icon">
         <Icon name={icon} size={26} />
       </span>

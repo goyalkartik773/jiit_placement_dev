@@ -10,7 +10,7 @@
   padding: $space-3;
   background: $surface-subtle;
   border: 1px solid $border;
-  border-radius: $radius-md;
+  border-radius: $radius-compact; // was $radius-md (12px) — jobs sit on 6-9px
   transition: border-color $transition-fast, box-shadow $transition-fast;
 
   &:hover {
@@ -35,7 +35,7 @@
     height: 44px;
     background: $file-generic-bg;
     color: $file-generic-fg;
-    border-radius: $radius-md;
+    border-radius: $radius-tab; // 8px — a tile, not a card (was 12)
 
     &--pdf {
       background: $file-pdf-bg;

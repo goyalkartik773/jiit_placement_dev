@@ -5,7 +5,7 @@
   @include stack($space-6);
 }
 
-// ----- Spec split: main (8/12) + sidebar (4/12), stacked below 1080px -----
+// ----- Spec split: main (70%) + sidebar (30%), stacked below 1080px -----
 .detail-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -22,17 +22,13 @@
   }
 
   @include up('xl') {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: $space-7; // spec gap-8
+    // 70/30 rather than 8/4 of a twelve-column grid (66.7/33.3). The main
+    // column carries a job description that runs past 4,000px and gains ~27px
+    // of measure here; the sidebar holds a document list and a definition
+    // table, both of which were comfortable at 356px and are at 330px.
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: $space-7;
     align-items: start;
-
-    &__main {
-      grid-column: span 8;
-    }
-
-    &__side {
-      grid-column: span 4;
-    }
   }
 }
 
@@ -49,14 +45,14 @@
 
   &__hero {
     @include stack($space-4);
-    padding: $space-6;
+    padding: $space-5;
     background: $surface;
     border: 1px solid $border;
-    border-radius: $radius-lg;
+    border-radius: $radius-compact;
     box-shadow: $shadow-sm;
 
     @include up('md') {
-      padding: $space-7;
+      padding: $space-6;
     }
   }
 
@@ -72,10 +68,16 @@
     min-width: 0;
   }
 
+  // Mirrors the editorial strip: ONE surface with hairline-separated cells
+  // (a 1px grid gap showing this background), not four bordered tiles.
   &__metrics {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: $space-4;
+    gap: 1px;
+    background: $border;
+    border: 1px solid $border;
+    border-radius: $radius-compact;
+    overflow: hidden;
 
     @include up('md') {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -87,11 +89,9 @@
   }
 
   &__metric {
-    @include stack($space-3);
-    padding: $space-5;
+    @include stack($space-2);
+    padding: $space-3-5 $space-4;
     background: $surface;
-    border: 1px solid $border;
-    border-radius: $radius-lg;
   }
 
   &__columns {
@@ -100,7 +100,7 @@
     gap: $space-6;
 
     @include up('xl') {
-      grid-template-columns: repeat(12, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
       gap: $space-7;
     }
   }
@@ -110,17 +110,7 @@
     padding: $space-6;
     background: $surface;
     border: 1px solid $border;
-    border-radius: $radius-lg;
+    border-radius: $radius-compact;
     box-shadow: $shadow-sm;
-
-    @include up('xl') {
-      &:first-child {
-        grid-column: span 8;
-      }
-
-      &:last-child {
-        grid-column: span 4;
-      }
-    }
   }
 }

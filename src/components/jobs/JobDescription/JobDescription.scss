@@ -41,6 +41,7 @@
     color: $ink;
     line-height: $lh-snug;
     letter-spacing: $tracking-tight;
+    text-wrap: pretty; // no heading stranded alone on the last line
 
     + * {
       margin-top: $space-2;
@@ -145,7 +146,7 @@
     padding: 1px $space-1;
     background: $highlight;
     color: $ink;
-    border-radius: $radius-xs;
+    border-radius: $radius-sm; // jobs scale is 6-10px; this was 4
     font-weight: $fw-semibold;
   }
 
@@ -153,14 +154,14 @@
     max-width: 100%;
     height: auto;
     border: 1px solid $border;
-    border-radius: $radius-md;
+    border-radius: $radius-compact; // was $radius-md (12px) — outside the scale
   }
 
   blockquote {
     padding: $space-3 $space-4;
     border-left: 3px solid $primary;
     background: $primary-soft;
-    border-radius: 0 $radius-md $radius-md 0;
+    border-radius: 0 $radius-compact $radius-compact 0;
     color: $text-secondary;
     font-style: normal;
   }
@@ -171,7 +172,7 @@
     width: 100%;
     border: 1px solid $border;
     border-collapse: collapse;
-    border-radius: $radius-md;
+    border-radius: $radius-compact;
     font-size: $fs-sm;
     overflow-x: auto;
   }
@@ -228,13 +229,13 @@
   code {
     padding: 1px 5px;
     background: $surface-muted;
-    border-radius: $radius-xs;
+    border-radius: $radius-sm;
   }
 
   pre {
     padding: $space-3 $space-4;
     background: $surface-muted;
-    border-radius: $radius-md;
+    border-radius: $radius-compact;
     overflow-x: auto;
 
     code {

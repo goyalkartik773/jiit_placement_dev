@@ -45,19 +45,23 @@ export function JobSelectionProcess({ job }: JobSelectionProcessProps) {
           <ol className="pipeline">
             {visibleStages.map((stage) => {
               const tone = statusTone(stage.status);
+              // Zero-padded so the rail reads 01 → 02 → 03, which is what
+              // makes a vertical list look like a sequence rather than a set
+              // of unrelated bullets. Non-numeric sequences fall back to a
+              // dash instead of rendering "00".
+              const seq = Number.parseInt(stage.sequence, 10);
+              const stepNumber = Number.isFinite(seq) && seq > 0 ? String(seq).padStart(2, '0') : '—';
               return (
                 <li className="pipeline__step" key={stage.id}>
                   <span className={`pipeline__marker pipeline__marker--${tone}`} aria-hidden="true">
-                    {stage.sequence}
+                    {stepNumber}
                   </span>
-                  <div className="pipeline__card">
-                    <div className="pipeline__head">
-                      <h3 className="pipeline__name" title={`Stage ${stage.sequence}: ${stage.stagename}`}>
-                        Stage {stage.sequence}: {stage.stagename}
-                      </h3>
-                      <Badge tone={tone}>{stage.status || 'Unknown'}</Badge>
-                    </div>
-                  </div>
+                  <span className="pipeline__body">
+                    <span className="pipeline__name" title={stage.stagename}>
+                      {stage.stagename}
+                    </span>
+                    <Badge tone={tone}>{stage.status || 'Unknown'}</Badge>
+                  </span>
                 </li>
               );
             })}

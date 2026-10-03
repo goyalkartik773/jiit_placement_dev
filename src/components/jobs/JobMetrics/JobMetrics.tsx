@@ -1,7 +1,6 @@
 import type { JobDetail } from '../../../types/job.types';
 import { formatDate, formatINR, formatLpa, formatRelative, isPast } from '../../../utils/format';
 import { getCriteriaTone, getPackageTier, type CriteriaTone } from '../../../utils/tiers';
-import { MetricCard } from '../MetricCard/MetricCard';
 import './JobMetrics.scss';
 
 interface JobMetricsProps {
@@ -11,24 +10,21 @@ interface JobMetricsProps {
 /** Strictness ladder for picking the strictest criterion on the job. */
 const TONE_RANK: Record<CriteriaTone, number> = { unknown: 0, relaxed: 1, moderate: 2, strict: 3 };
 
-const CRITERIA_BADGE_TONE: Record<CriteriaTone, 'rose' | 'emerald' | 'amber' | 'mono'> = {
-  strict: 'rose',
-  moderate: 'amber',
-  relaxed: 'emerald',
-  unknown: 'mono',
-};
-
-const CRITERIA_ICON_TONE: Record<CriteriaTone, 'rose' | 'emerald' | 'amber' | 'secondary'> = {
-  strict: 'rose',
-  moderate: 'amber',
-  relaxed: 'emerald',
-  unknown: 'secondary',
-};
-
 /**
- * Bento row of four metric tiles (spec): Registration Closes, Package Pool,
- * Hiring Category, Selection Rules. Tier + strictness color coding is
- * preserved; 0/null values fall back to "Not disclosed".
+ * Editorial metrics strip (spec): four figures on ONE surface — uppercase
+ * label, headline figure, quiet qualifier — divided by hairlines instead of
+ * four boxed tiles.
+ *
+ * The tiles it replaces were 169px of card chrome (border, shadow, icon badge,
+ * status pill, dashed footer row) wrapped around a single number each: at
+ * 1133px wide the bento row stood taller than the toolbar on the list page.
+ * All four subjects survive, at roughly half the height, with the state words
+ * (CLOSED/OPEN, tier, strictness) folded into the qualifier line instead of
+ * riding in a separate pill.
+ *
+ * Pure API data from GET /api/jobs/{id}. 0/null falls back to "Not disclosed";
+ * tier and strictness keep the fixed colour coding in utils/tiers.ts, and no
+ * state is signalled by colour alone — the word is always on the line too.
  */
 export function JobMetrics({ job }: JobMetricsProps) {
   const tier = getPackageTier(job.package);
@@ -39,94 +35,88 @@ export function JobMetrics({ job }: JobMetricsProps) {
 
   const marks = Array.isArray(job.eligiblitymarks) ? job.eligiblitymarks.filter(Boolean) : [];
   const criteriaText = marks.map((mark) => mark.criteria).join(' · ');
+  const criteriaHints = marks
+    .map((mark) => getCriteriaTone(mark.criteria).hint)
+    .filter(Boolean)
+    .join(' · ');
 
   let strictest: CriteriaTone | null = null;
   for (const mark of marks) {
     const tone = getCriteriaTone(mark.criteria).tone;
     if (strictest === null || TONE_RANK[tone] > TONE_RANK[strictest]) strictest = tone;
   }
-
-  const deadlineValueClass = [
-    'metric-card__value',
-    job.deadline ? (deadlinePassed ? 'metric-card__value--rose' : null) : 'metric-card__value--empty',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const packageValueClass = [
-    'metric-card__value',
-    lpa ? `metric-card__value--${tier.key}` : 'metric-card__value--empty',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  // "unknown" is a non-numeric criterion — there is no strictness word for it,
+  // so the figure stays blank and the raw criteria carry the sub line.
+  const strictWord = strictest && strictest !== 'unknown' ? strictest.toUpperCase() : null;
 
   return (
     <div className="metrics" aria-label="Key job metrics">
       {/* Registration closes */}
-      <MetricCard
-        icon="calendar"
-        label="Registration Closes"
-        iconTone={job.deadline ? (deadlinePassed ? 'rose' : 'emerald') : 'secondary'}
-        badge={
-          job.deadline
-            ? { text: deadlinePassed ? 'CLOSED' : 'OPEN', tone: deadlinePassed ? 'rose' : 'emerald' }
-            : { text: 'UNKNOWN', tone: 'mono' }
-        }
-        accent={deadlinePassed ? 'rose' : 'default'}
-        footer={{ label: 'Posted', value: postedAt ? formatDate(postedAt) : '—' }}
-      >
-        <span className={deadlineValueClass} title={job.deadline ? formatDate(job.deadline) : undefined}>
+      <div className="metrics__cell">
+        <span className="metrics__label">Registration closes</span>
+        <span
+          className={[
+            'metrics__value',
+            job.deadline ? (deadlinePassed ? 'metrics__value--rose' : null) : 'metrics__value--empty',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          title={job.deadline ? formatDate(job.deadline) : undefined}
+        >
           {job.deadline ? formatDate(job.deadline) : 'Not disclosed'}
         </span>
-        {deadlineRel ? <span className="metric-card__sub">{deadlineRel}</span> : null}
-      </MetricCard>
+        <span className="metrics__sub">
+          {job.deadline
+            ? `${deadlinePassed ? 'CLOSED' : 'OPEN'}${deadlineRel ? ` · ${deadlineRel}` : ''}`
+            : `Posted ${postedAt ? formatDate(postedAt) : '—'}`}
+        </span>
+      </div>
 
       {/* Package pool */}
-      <MetricCard
-        icon="rupee"
-        label="Package Pool"
-        iconTone={tier.key}
-        badge={lpa ? { text: tier.label, tone: tier.key } : { text: '—', tone: 'mono' }}
-        accent="blue"
-        footer={{ label: 'Annual CTC', value: formatINR(job.package) ?? '—' }}
-      >
-        <span className={packageValueClass} title={lpa ? `₹${lpa} per annum · ${tier.range}` : undefined}>
+      <div className="metrics__cell">
+        <span className="metrics__label">Package pool</span>
+        <span
+          className={['metrics__value', lpa ? `metrics__value--${tier.key}` : 'metrics__value--empty']
+            .filter(Boolean)
+            .join(' ')}
+          title={lpa ? `₹${lpa} per annum · ${tier.range}` : undefined}
+        >
           {lpa ? `₹${lpa}` : 'Not disclosed'}
         </span>
-        <span className="metric-card__sub metric-card__sub--mono">{tier.range}</span>
-      </MetricCard>
+        <span className="metrics__sub">{lpa ? `${formatINR(job.package)} · ${tier.label}` : '—'}</span>
+      </div>
 
       {/* Hiring category */}
-      <MetricCard
-        icon="folder"
-        label="Hiring Category"
-        iconTone="ink"
-        badge={job.placementcategorycode ? { text: `CODE ${job.placementcategorycode}`, tone: 'mono' } : undefined}
-        footer={{ label: 'Type', value: job.placementtype || '—' }}
-      >
-        <span className="metric-card__value metric-card__value--sm" title={job.placementcategory || undefined}>
+      <div className="metrics__cell">
+        <span className="metrics__label">Hiring category</span>
+        <span className="metrics__value metrics__value--sm" title={job.placementcategory || undefined}>
           {job.placementcategory || 'Not disclosed'}
         </span>
-      </MetricCard>
+        <span className="metrics__sub">
+          {[job.placementcategorycode ? `Code ${job.placementcategorycode}` : '—', job.placementtype || '—'].join(
+            ' · ',
+          )}
+        </span>
+      </div>
 
       {/* Selection rules */}
-      <MetricCard
-        icon="checklist"
-        label="Selection Rules"
-        iconTone={strictest ? CRITERIA_ICON_TONE[strictest] : 'secondary'}
-        badge={strictest ? { text: strictest.toUpperCase(), tone: CRITERIA_BADGE_TONE[strictest] } : undefined}
-        footer={{
-          label: 'Min Criteria',
-          value: criteriaText ? <span title={criteriaText}>{criteriaText}</span> : '—',
-        }}
-      >
+      <div className="metrics__cell">
+        <span className="metrics__label">Selection rules</span>
         <span
-          className={['metric-card__value', marks.length ? null : 'metric-card__value--empty'].filter(Boolean).join(' ')}
+          className={[
+            'metrics__value',
+            strictWord ? `metrics__value--${strictest}` : 'metrics__value--empty',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           title={criteriaText || undefined}
         >
-          {marks.length || '—'}
+          {strictWord ?? '—'}
         </span>
-      </MetricCard>
+        <span className="metrics__sub" title={criteriaText || undefined}>
+          {criteriaHints || criteriaText || 'Not disclosed'}
+        </span>
+      </div>
     </div>
   );
 }

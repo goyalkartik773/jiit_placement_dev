@@ -24,9 +24,17 @@
     letter-spacing: $tracking-caps;
     text-decoration: none;
 
+    @include down('sm') {
+      // 18px of uppercase text is a fine link where a cursor lands and a
+      // poor one where a thumb does. Same 40px floor the jobs toolbar
+      // steps up to at this width; padding rather than min-height so the
+      // whole inline-flex box — icon included — is the target.
+      padding: 11px 0;
+    }
+
     svg {
       color: $text-muted;
-      transition: transform $transition-base;
+      transition: transform $transition-fast; // 140ms — spec micro-interaction 120-180ms
     }
 
     &:hover {
@@ -60,54 +68,34 @@
     font-weight: $fw-regular;
   }
 
-  // ----- Hero surface with ambient blobs -----
+  // ----- Hero surface -----
+  // One surface, one hairline, 9px like every other panel on the page
+  // (it was the last 16px radius left in the jobs screens). The two blurred
+  // gradient orbs that sat behind it — a 384px and a 320px blue blur — were
+  // pure ornament laid over text a student reads to decide whether to apply;
+  // `overflow: hidden` existed only to clip them, and it was clipping focus
+  // rings on the aside's button while it was about it. Padding steps down a
+  // notch too, because at 40px the surface spent more room on margin than the
+  // row above it did on content.
   &__hero {
     position: relative;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: $space-6;
-    padding: $space-6;
+    gap: $space-5;
+    padding: $space-5;
     background: $surface;
     border: 1px solid rgba($border, 0.9); // spec border-slate-200/90
-    border-radius: $radius-lg;
+    border-radius: $radius-compact;
     box-shadow: $shadow-sm;
 
     @include up('md') {
-      padding: $space-7;
+      padding: $space-6;
     }
 
     @include up('xl') {
       flex-direction: row;
       gap: $space-7;
-      padding: $space-8;
-    }
-
-    // Decorative gradient orbs (spec -z-0 blurred circles)
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      pointer-events: none;
-    }
-
-    &::before {
-      top: -96px; // spec -top-24
-      right: -96px; // spec -right-24
-      width: 384px; // spec w-96
-      height: 384px; // spec h-96
-      background: linear-gradient(to bottom right, rgba($primary-soft-hover, 0.6), rgba($primary-soft, 0.4), transparent);
-      filter: blur(64px); // spec blur-3xl
-    }
-
-    &::after {
-      bottom: -80px; // spec -bottom-20
-      left: -80px; // spec -left-20
-      width: 320px; // spec w-80
-      height: 320px; // spec h-80
-      background: rgba($primary-soft, 0.5); // spec bg-blue-50/50
-      filter: blur(48px); // spec blur-2xl
+      padding: $space-7;
     }
   }
 
@@ -209,13 +197,13 @@
   }
 
   &__company {
-    font-size: $fs-2xl;
-    font-weight: $fw-bold;
+    font-size: 26px;
+    font-weight: 650; // spec page title 28-32px / 650 (was 36 / 700)
     line-height: $lh-tight;
     color: $primary; // blue company accent — static, no hover shift
 
     @include up('md') {
-      font-size: $fs-3xl; // spec lg:text-4xl
+      font-size: 32px;
     }
   }
 
@@ -271,12 +259,12 @@
   }
 
   &__profile {
-    font-size: $fs-xl;
-    font-weight: $fw-bold;
+    font-size: $fs-lg;
+    font-weight: 650;
     line-height: $lh-tight;
 
     @include up('md') {
-      font-size: $fs-2xl; // spec lg:text-3xl
+      font-size: $fs-xl;
     }
   }
 
@@ -314,7 +302,7 @@
     padding: $space-3-5 $space-4; // spec p-3.5
     background: $surface-subtle;
     border: 1px solid $border;
-    border-radius: $radius-md;
+    border-radius: $radius-compact; // was $radius-md — jobs sit on 6-9px
 
     &--passed {
       background: $rose-soft;
