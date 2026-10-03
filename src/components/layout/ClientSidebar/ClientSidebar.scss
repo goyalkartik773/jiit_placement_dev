@@ -41,23 +41,8 @@
     padding: 0 4px;
   }
 
-  // Monogram tile rather than a bare dot: a 12px circle says nothing about
-  // the product, and this is the only mark in the student-facing shell.
-  &__mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
-    border-radius: 8px;
-    background: var(--ui-accent);
-    color: #fff;
-    font-size: 13.5px;
-    font-weight: 800;
-    line-height: 1;
-  }
-
+  // The mark itself lives in the shared BrandMark component; only the
+  // block around it is scoped here.
   &__brand-text {
     display: flex;
     flex-direction: column;

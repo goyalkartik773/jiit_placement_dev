@@ -50,22 +50,8 @@
     min-width: 0;
   }
 
-  // Monogram tile — the mark the drawer used to carry off-screen with it.
-  &__mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    border-radius: 7px;
-    background: var(--ui-accent);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-  }
-
+  // The mark itself lives in the shared BrandMark component; only the block
+  // around it is scoped here.
   &__brand-name {
     min-width: 0;
     font-size: 14.5px;

@@ -1,0 +1,44 @@
+// ============================================================================
+// Product mark (the "JP" monogram).
+//
+// A filled tile carrying a stroked glyph — the tile is the colour, the glyph
+// is the identity. Size and radius step together so the corner stays at
+// ~25% of the edge at every size (40/10, 30/8, 24/7), which is what keeps
+// the small mark reading as the same object as the large one.
+//
+// The glyph is inset to 85% of the tile so the monogram's own internal
+// margin (its strokes stop ~3.2 units short of the viewBox edge) plus the
+// tile's padding lands at roughly 16% of the edge on every side.
+// ============================================================================
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--ui-accent);
+  color: #fff;
+  line-height: 1;
+
+  &--lg {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  &--md {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  &--sm {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+
+  &__glyph {
+    width: 85%;
+    height: 85%;
+  }
+}

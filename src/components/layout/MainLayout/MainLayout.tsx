@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import { BrandMark } from '../../common/BrandMark/BrandMark';
 import { Icon } from '../../common/Icon/Icon';
 import { Footer } from '../Footer/Footer';
 import { ClientSidebar } from '../ClientSidebar/ClientSidebar';
@@ -52,9 +53,7 @@ export function MainLayout() {
           </button>
 
           <span className="client-shell__brand">
-            <span className="client-shell__mark" aria-hidden="true">
-              J
-            </span>
+            <BrandMark size="md" />
             <span className="client-shell__brand-name">JIIT Placement</span>
           </span>
         </div>

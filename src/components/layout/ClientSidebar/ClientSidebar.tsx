@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { BrandMark } from '../../common/BrandMark/BrandMark';
 import { Icon, type IconName } from '../../common/Icon/Icon';
 import './ClientSidebar.scss';
 
@@ -88,9 +89,7 @@ export function ClientSidebar({ open, onClose }: ClientSidebarProps) {
       aria-label="Primary"
     >
       <div className="client-nav__brand">
-        <span className="client-nav__mark" aria-hidden="true">
-          J
-        </span>
+        <BrandMark />
         <span className="client-nav__brand-text">
           <span className="client-nav__brand-name">JIIT Placement</span>
           <span className="client-nav__brand-sub">Beyond the Official</span>
