@@ -63,9 +63,16 @@ export interface PlacementSummary {
    * slices always add back up to `studentsPlaced`.
    */
   branchTotals: BranchTotal[];
-  /** Top companies by students placed (highest first). */
-  topCompanies: CompanyRow[];
-  /** Companies with the highest disclosed package (placed someone, package known). */
+  /**
+   * Every company that placed someone AND discloses a package, ordered by
+   * that package — highest first. This is the ranking behind the Dashboard's
+   * "Top 5 companies" and Analytics' "Top companies", and it deliberately
+   * ignores headcount: a firm hiring fifty students at a modest package must
+   * not out-rank one paying double for two.
+   *
+   * Uncapped on purpose. The two screens take 5 and 10 rows, so a shared
+   * `slice(0, 6)` would starve the wider one — callers cut what they show.
+   */
   topOffers: CompanyRow[];
   /** Companies with the most recent `lastplacedat`. */
   recentCompanies: CompanyRow[];
@@ -163,7 +170,6 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
     }
   }
 
-  const byPlaced = [...unique].sort((a, b) => (b.placedstudents || 0) - (a.placedstudents || 0));
   // Ranked by the package itself, never by headcount: a company that placed
   // many students at a low package must not read as a "top offer".
   const byPackage = unique
@@ -187,8 +193,7 @@ export function summarize(rows: CompanyRow[], companiesTotal: number): Placement
     branchTotals: [...branchMap.entries()]
       .map(([branch, students]) => ({ branch, students }))
       .sort((a, b) => b.students - a.students || a.branch.localeCompare(b.branch)),
-    topCompanies: byPlaced.slice(0, 6),
-    topOffers: byPackage.slice(0, 6),
+    topOffers: byPackage,
     recentCompanies: byRecent.slice(0, 6),
   };
 }

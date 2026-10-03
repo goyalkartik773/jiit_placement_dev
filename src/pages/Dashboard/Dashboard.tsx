@@ -146,8 +146,13 @@ export function Dashboard() {
   const maxBand = Math.max(1, ...summary.bands.map((band) => band.students));
   // Ranked list shows five, so the bars are scaled to the five a reader can
   // actually see — a sixth company outside the panel would only flatten them.
-  const topFive = summary.topCompanies.slice(0, 5);
-  const maxCompany = Math.max(1, ...topFive.map((row) => row.placedstudents || 0));
+  //
+  // RANKED BY PACKAGE, NOT HEADCOUNT. `topOffers` already carries that order,
+  // so the bar scale and the printed figure have to be packages too: a list
+  // sorted by money but measured in heads would render bars that descend for
+  // no visible reason.
+  const topFive = summary.topOffers.slice(0, 5);
+  const maxCompany = Math.max(1, ...topFive.map((row) => disclosedPackage(row)));
   const totalRead = summary.companiesRead;
   const highestLpa = lpaFigure(summary.highestPackage);
   const averageLpa = lpaFigure(summary.averagePackage);
@@ -331,15 +336,16 @@ export function Dashboard() {
       ) : null}
 
       {/* ---------------------------------------------------------------- */}
-      {/* Breakdown — top companies (heads) beside the branch split. Both    */}
-      {/* count students, so neither sits next to the package bands below,   */}
-      {/* which measure money: the page never puts two different units in    */}
-      {/* one row.                                                            */}
+      {/* Breakdown — best-paying companies beside the branch split. The      */}
+      {/* left panel now measures money while the right still measures heads,  */}
+      {/* so the two DO share a row: each carries its own title, its own unit  */}
+      {/* and its own printed figure, and neither sits on the other's axis.    */}
+      {/* The package bands keep the full-width money treatment below.         */}
       {/* ---------------------------------------------------------------- */}
       <section className="dash-row" aria-label="Placement breakdown">
-        <Card as="section" className="dash-panel" ariaLabel="Top 5 companies by students placed">
+        <Card as="section" className="dash-panel" ariaLabel="Top 5 companies by package offered">
           <h2 className="dash-panel__title">Top 5 companies</h2>
-          <p className="dash-panel__sub">Ranked by students placed — the same rows the Company-Wise screen lists.</p>
+          <p className="dash-panel__sub">Ranked by the highest package offered — the same rows the Company-Wise screen lists.</p>
           <ol className="dash-bars">
             {topFive.map((row, index) => (
               <li className="dash-bars__row dash-bars__row--ranked" key={row.company}>
@@ -361,10 +367,10 @@ export function Dashboard() {
                       rather than as a shared axis. */}
                   <span
                     className="dash-bars__fill dash-bars__fill--green"
-                    style={{ width: `${Math.max(Math.round(((row.placedstudents || 0) / maxCompany) * 100), 2)}%` }}
+                    style={{ width: `${Math.max(Math.round((disclosedPackage(row) / maxCompany) * 100), 2)}%` }}
                   />
                 </span>
-                <span className="dash-bars__value">{(row.placedstudents || 0).toLocaleString()}</span>
+                <span className="dash-bars__value">{formatLpa(disclosedPackage(row)) ?? '—'}</span>
               </li>
             ))}
           </ol>
@@ -459,7 +465,9 @@ export function Dashboard() {
             <p className="dash-highlight__empty">No disclosed packages yet.</p>
           ) : (
             <ul className="dash-highlight__list">
-              {summary.topOffers.map((row) => (
+              {/* `topOffers` is the full ranked list now, so the strip takes
+                  the six it has always shown. */}
+              {summary.topOffers.slice(0, 6).map((row) => (
                 <CompanyLine
                   key={row.company}
                   row={row}

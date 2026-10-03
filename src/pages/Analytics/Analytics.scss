@@ -546,10 +546,13 @@
 
 @include down('sm') {
   .analytics-companies__row {
-    grid-template-columns: 20px auto minmax(0, 1fr);
+    // Four visible children: rank, avatar, name, package. The headcount pill
+    // is dropped rather than the package — the package is the sort key, and a
+    // ranked list that hides what it ranked by stops reading as a ranking.
+    grid-template-columns: 20px auto minmax(0, 1fr) auto;
   }
 
-  .analytics-companies__pkg {
+  .analytics-companies__count {
     display: none;
   }
 }

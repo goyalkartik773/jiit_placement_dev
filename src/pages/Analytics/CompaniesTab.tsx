@@ -29,7 +29,9 @@ interface CompaniesTabProps {
 }
 
 export function CompaniesTab({ summary, batchCompanies, batchOffers }: CompaniesTabProps) {
-  const top = summary?.topCompanies.slice(0, 10) ?? [];
+  // Ranked by package, not headcount — the Dashboard's Top 5 reads the same
+  // list, so the two screens can never disagree about who is "top".
+  const top = summary?.topOffers.slice(0, 10) ?? [];
   // `count(null)` renders "0", which would assert "no companies" while the
   // feed is still in flight. Hold the dash until the hook resolves.
   const pending = summary === null;
@@ -79,11 +81,11 @@ export function CompaniesTab({ summary, batchCompanies, batchOffers }: Companies
         ]}
       />
 
-      <Card as="section" className="analytics-chart" ariaLabel="Top companies by students placed">
+      <Card as="section" className="analytics-chart" ariaLabel="Top companies by package offered">
         <header className="analytics-chart__head">
           <div>
             <h2 className="analytics-chart__title">Top companies</h2>
-            <p className="analytics-chart__sub">Ranked by students placed across all batches.</p>
+            <p className="analytics-chart__sub">Ranked by the highest package offered across all batches.</p>
           </div>
           <Link className="analytics-chart__more" to="/placements">
             Open Company-Wise Placement
@@ -108,8 +110,11 @@ export function CompaniesTab({ summary, batchCompanies, batchOffers }: Companies
                   </span>
                   <Avatar name={company.company} size={32} radius={9} />
                   <span className="analytics-companies__name">{company.company || 'Unnamed company'}</span>
-                  <Pill>{count(company.placedstudents)} placed</Pill>
+                  {/* Package first: it is the sort key, so it sits against the
+                      name and survives to the narrow breakpoint, where the
+                      headcount pill (pure context) is what gets dropped. */}
                   <span className="analytics-companies__pkg">{rupees > 0 ? formatLpa(rupees) : '—'}</span>
+                  <Pill className="analytics-companies__count">{count(company.placedstudents)} placed</Pill>
                 </li>
               );
             })}
