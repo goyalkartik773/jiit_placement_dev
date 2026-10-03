@@ -93,7 +93,7 @@ export function ClientSidebar({ open, onClose }: ClientSidebarProps) {
         </span>
         <span className="client-nav__brand-text">
           <span className="client-nav__brand-name">JIIT Placement</span>
-          <span className="client-nav__brand-sub">Student dashboard</span>
+          <span className="client-nav__brand-sub">Beyond the Official</span>
         </span>
         <button type="button" className="client-nav__close" onClick={onClose} aria-label="Close navigation">
           <Icon name="x" size={18} />
