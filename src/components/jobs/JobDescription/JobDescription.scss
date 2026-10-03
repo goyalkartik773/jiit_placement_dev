@@ -12,12 +12,22 @@
   line-height: $lh-relaxed;
   overflow-wrap: anywhere;
 
-  > * + * {
-    margin-top: $space-4; // paragraph rhythm
+  // Reset the browser's own paragraph/list margins ONCE, here, at zero
+  // specificity beyond this class. They used to be written as
+  // `p { margin: 0 }` and `ul, ol { margin: 0 }`, which score (0,1,1) —
+  // one point ABOVE the sibling rule below (0,1,0). Specificity outranks
+  // source order, so those two resets won every cascade and the rhythm
+  // rule never applied: all 37 blocks in the Infosys description rendered
+  // with exactly 0px between them, a 2317px wall of unseparated text.
+  :where(p, ul, ol, pre, blockquote) {
+    margin-top: 0;
+    margin-bottom: 0;
   }
 
-  p {
-    margin: 0;
+  // Equal specificity to the reset above, so it must follow it — source
+  // order is what lets this win for every child except the first.
+  > * + * {
+    margin-top: $space-4; // paragraph rhythm
   }
 
   // ----- Headings (Plus Jakarta via the global rules) -----
@@ -62,9 +72,11 @@
   // ----- Lists: fixed marker column + hanging indent -----
   // Wrapped items line up under their own text, never under the marker, and
   // the marker lives in an absolutely positioned column so it cannot clip.
+  // Margin is deliberately NOT reset here: at (0,1,1) a `margin: 0` beats
+  // the sibling rhythm above and fuses the list to the paragraph before it.
+  // The :where() reset owns vertical margin instead.
   ul,
   ol {
-    margin: 0;
     padding: 0;
     list-style: none;
     display: flex;
