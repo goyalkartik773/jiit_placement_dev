@@ -386,6 +386,20 @@
   }
 
   // ----- shared section chrome --------------------------------------------
+  //
+  // A hairline opens every content block. This pane has no cards inside it —
+  // it is one continuous column of prose — so without a rule the eye has no
+  // way to tell where the attachments stop and the body starts, and air alone
+  // does not separate blocks that far apart. The three classes listed are
+  // exactly the blocks that render; `__head` is deliberately not one, since
+  // the action bar already closes with its own border directly above it.
+  &__attachments,
+  &__body,
+  &__section {
+    padding-top: $space-4;
+    border-top: 1px solid var(--ews-line);
+  }
+
   &__section {
     display: flex;
     flex-direction: column;
@@ -400,25 +414,32 @@
     gap: 6px 10px;
   }
 
+  // Was 11.5 / 800 / uppercase / muted — a micro-label, which made the pane
+  // read as instrumentation rather than as a document. The reference sets a
+  // block title at heading weight and keeps the qualifier beneath it in the
+  // smaller muted voice, so the two swap roles: the title is ink at 14.5/700
+  // sentence case, and `__meta` below stays the 12px muted subtitle it has
+  // always been. Nothing else changes — the icon keeps its slot, the pills
+  // and counts still sit in the same head.
   &__section-title {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     margin: 0;
-    font-size: 11.5px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ews-muted);
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ews-ink);
 
     svg {
       flex-shrink: 0;
+      color: var(--ews-muted);
     }
   }
 
   &__meta {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 12.5px;
+    font-weight: 500;
     color: var(--ews-muted);
     font-variant-numeric: tabular-nums;
   }

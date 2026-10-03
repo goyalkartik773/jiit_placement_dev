@@ -100,3 +100,45 @@ export function stripEmphasis(text: string): string {
   if (!text || !text.includes('*')) return text;
   return text.replace(EMPHASIS, '$1');
 }
+
+/**
+ * Cut the part of a reply that belongs to somebody else.
+ *
+ * A list row has exactly one line to say what a notice is about, and a
+ * snippet opening "On Sat, Oct 3, 2026 at 7:55 AM Vinod Kumar <…> wrote: > >
+ * *Dear Student,*" spends the whole of it on mail-client quoting machinery:
+ * the reader learns nothing, and the row looks like it is leaking internals.
+ *
+ * So the text is cut at the first quote header a mail client inserts, any
+ * leading ">" markers on what survives are dropped, and whitespace is
+ * collapsed to what a single-line teaser can actually show. Nothing else is
+ * touched — this is display-side tidying of text the API already owns, not a
+ * rewrite of what the email said.
+ *
+ * An empty result is meaningful and should be rendered as absence: the
+ * notice had no content of its own inside the snippet.
+ */
+const QUOTE_HEADERS: RegExp[] = [
+  // "On Sat, Oct 3, 2026 at 7:55 AM Name <addr> wrote:" — the Gmail reply
+  // header. Bounded because the address and time vary; `wrote:` is the anchor.
+  /(?:^|\s)On\s.{0,160}?\s(?:wrote|writes):/i,
+  /(?:^|\s)-{4,}\s*Original Message\s*-{4,}/i,
+  /(?:^|\s)Begin forwarded message/i,
+  /(?:^|\s)_{5,}/,
+];
+
+export function stripQuotedHistory(text: string): string {
+  if (!text) return text;
+
+  let cut = -1;
+  for (const header of QUOTE_HEADERS) {
+    const at = text.search(header);
+    if (at >= 0 && (cut < 0 || at < cut)) cut = at;
+  }
+
+  const head = cut >= 0 ? text.slice(0, cut) : text;
+  return head
+    .replace(/^(?:\s*>+\s*)+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

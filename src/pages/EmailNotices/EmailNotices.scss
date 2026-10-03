@@ -90,16 +90,33 @@
     letter-spacing: -0.02em;
   }
 
-  // ----- the exclusion note, one line instead of a bordered callout --------
+  // ----- the exclusion note, as a strip instead of a floating line --------
+  //
+  // The dashboard's standing sentence and this one are the same idea — a rule
+  // the reader should hit before the content — so they get the same shape:
+  // an accent wash, a 11px radius, an icon on the left and the sentence at a
+  // size that reads as body copy rather than as fine print. The wash is the
+  // page's OWN accent at 7%, not `--ui-accent-soft`, because this workspace
+  // declares its palette locally (see the header) and the two must not drift.
   &__intro {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 2px 9px;
+    min-height: 44px;
     margin: 0;
-    font-size: 12.5px;
-    line-height: $lh-normal;
-    color: var(--ews-muted);
+    padding: 9px $space-4;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ews-ink);
+    background: color-mix(in srgb, var(--ews-accent) 7%, var(--ews-panel));
+    border: 1px solid color-mix(in srgb, var(--ews-accent) 16%, transparent);
+    border-radius: 11px;
+  }
+
+  &__intro-icon {
+    flex-shrink: 0;
+    color: var(--ews-accent);
   }
 
   &__intro-link {

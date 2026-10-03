@@ -4,6 +4,7 @@ import type { IconBadgeTone } from '../../ui/IconBadge/IconBadge';
 import { IconBadge } from '../../ui/IconBadge/IconBadge';
 import type { EmailNotice } from '../../../types/dashboard.types';
 import { deadlineInfo, formatRelative } from '../../../utils/format';
+import { stripEmphasis, stripQuotedHistory } from '../../../utils/highlight';
 import './NoticeRow.scss';
 
 /**
@@ -80,7 +81,12 @@ export function NoticeRow({ notice, selected, marks, onSelect }: NoticeRowProps)
   const when = formatRelative(notice.receivedat);
   const headline = (notice.headline ?? '').trim();
   const snippet = (notice.snippet ?? '').trim();
-  const lead = headline || snippet;
+  // The teaser is one line, so it gets the same tidying the reading pane
+  // already gives the body: emphasis markers are unwrapped, and a snippet
+  // that is mostly somebody quoted at length is cut back to whatever this
+  // notice actually said. It renders as nothing when nothing is left, which
+  // is the honest reading of a reply with no words of its own.
+  const lead = stripQuotedHistory(stripEmphasis(headline || snippet));
 
   return (
     <li className="nrow-item">
@@ -109,10 +115,16 @@ export function NoticeRow({ notice, selected, marks, onSelect }: NoticeRowProps)
             {notice.subject}
           </span>
 
-          <span className="nrow__line">
-            {notice.company ? <span className="nrow__company">{notice.company}</span> : null}
-            {lead ? <span className="nrow__snippet">{lead}</span> : null}
-          </span>
+          {/* Rendered only when there is something to say. A snippet that is
+              entirely quoted history collapses to nothing, and an empty
+              flex row would still swallow its parent's gap — a phantom
+              6px of nothing between the subject and the row edge. */}
+          {notice.company || lead ? (
+            <span className="nrow__line">
+              {notice.company ? <span className="nrow__company">{notice.company}</span> : null}
+              {lead ? <span className="nrow__snippet">{lead}</span> : null}
+            </span>
+          ) : null}
         </span>
 
         <span className="nrow__flags" aria-hidden="true">

@@ -227,12 +227,19 @@ export function EmailNotices() {
         </div>
       </section>
 
+      {/* The reference's one standing strip: an icon and a sentence, not a
+          line of small grey text floating above the workspace. It states an
+          exclusion rule, which is precisely what a reader needs to see BEFORE
+          they start hunting for the notices it describes. */}
       <p className="email-notices-page__intro">
-        Congratulation and final-offer emails are excluded - that data lives in{' '}
-        <Link className="email-notices-page__intro-link" to="/placements">
-          Company-Wise Placement
-        </Link>
-        .
+        <Icon name="info" size={16} className="email-notices-page__intro-icon" />
+        <span>
+          Congratulation and final-offer emails are excluded - that data lives in{' '}
+          <Link className="email-notices-page__intro-link" to="/placements">
+            Company-Wise Placement
+          </Link>
+          .
+        </span>
       </p>
 
       {error && data ? (
