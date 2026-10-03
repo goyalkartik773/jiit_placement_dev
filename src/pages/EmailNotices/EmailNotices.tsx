@@ -247,7 +247,11 @@ export function EmailNotices() {
       <div
         className="ews"
         data-pane={selectedId ? 'detail' : 'list'}
-        aria-busy={refreshing || undefined}
+        // Busy during a refetch AND on first load. `refreshing` is only set
+        // once data exists (`initialLoading: prev.data === null` in the hook),
+        // so the original expression left `aria-busy` off for the one state
+        // where the whole list is a skeleton.
+        aria-busy={refreshing || initialLoading || undefined}
       >
         {/* ----- 64px classification rail ----- */}
         <nav className="ews__rail" aria-label="Notices by classification">
@@ -280,7 +284,7 @@ export function EmailNotices() {
         </nav>
 
         {/* ----- notice list ----- */}
-        <section className="ews__list" aria-label="Notice list" aria-busy={refreshing || undefined}>
+        <section className="ews__list" aria-label="Notice list" aria-busy={refreshing || initialLoading || undefined}>
           <div className="ews__list-head">
             <SearchField
               value={searchInput}
