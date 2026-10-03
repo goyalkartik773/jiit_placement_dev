@@ -10,6 +10,8 @@ interface PaginationProps {
   totalCount: number;
   itemCount: number;
   disabled?: boolean;
+  /** Noun for the summary line — the control is shared, the items are not. */
+  noun?: string;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }
@@ -27,6 +29,7 @@ export function Pagination({
   totalCount,
   itemCount,
   disabled = false,
+  noun = 'job',
   onPageChange,
   onPageSizeChange,
 }: PaginationProps) {
@@ -37,14 +40,15 @@ export function Pagination({
   const canNext = page < totalPages && !disabled;
 
   return (
-    <nav className="pagination" aria-label="Job list pagination">
+    <nav className="pagination" aria-label={`${noun} list pagination`}>
       <p className="pagination__summary">
         {totalCount > 0 ? (
           <>
-            Showing <strong>{from}–{to}</strong> of <strong>{totalCount}</strong> job{totalCount === 1 ? '' : 's'}
+            Showing <strong>{from}–{to}</strong> of <strong>{totalCount}</strong> {noun}
+            {totalCount === 1 ? '' : 's'}
           </>
         ) : (
-          'No jobs to show'
+          `No ${noun}s to show`
         )}
       </p>
 

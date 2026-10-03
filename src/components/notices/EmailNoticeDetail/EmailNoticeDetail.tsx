@@ -1,5 +1,6 @@
-import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../../common/Icon/Icon';
+import { Avatar } from '../../ui/Avatar/Avatar';
 import { Prose } from '../../common/Prose/Prose';
 import { SearchField } from '../../common/SearchField/SearchField';
 import { Button } from '../../common/Button/Button';
@@ -9,24 +10,22 @@ import type {
   NoticeRoundDetail,
   NoticeStudent,
 } from '../../../types/dashboard.types';
-import { deadlineInfo, formatBytes, formatDate, formatDateTime } from '../../../utils/format';
+import type { NoticeMarks } from '../NoticeRow/NoticeRow';
+import { classificationLabelOf } from '../NoticeRow/NoticeRow';
+import {
+  deadlineInfo,
+  fileIconKind,
+  formatBytes,
+  formatDate,
+  formatDateTime,
+  fileTypeLabel,
+} from '../../../utils/format';
 import { stripEmphasis } from '../../../utils/highlight';
 import './EmailNoticeDetail.scss';
 
 // --------------------------------------------------------------------------- #
-// Key details
+// Small text helpers
 // --------------------------------------------------------------------------- #
-
-interface Fact {
-  key: string;
-  label: string;
-  value: ReactNode;
-  title?: string;
-  /** Red value + calendar tint (a deadline that is close or gone). */
-  urgent?: boolean;
-  /** Spans the whole grid row (long provenance sentences, notes). */
-  wide?: boolean;
-}
 
 /** "llm" -> "LLM", "rule_based" -> "Rule based". */
 function methodLabel(method: string | null): string | null {
@@ -53,215 +52,290 @@ function humanizeRound(name: string): string {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : 'Round';
 }
 
-function FactsSection({ detail }: { detail: EmailNoticeDetail }) {
-  const headingId = useId();
-  const facts: Fact[] = [];
+// --------------------------------------------------------------------------- #
+// Action bar
+// --------------------------------------------------------------------------- #
 
-  if (detail.sender || detail.senderemail) {
-    facts.push({
-      key: 'from',
-      label: 'From',
-      value: (
-        <>
-          <span className="notice-detail__strong">{detail.sender}</span>
-          {detail.senderemail && detail.senderemail !== detail.sender ? (
-            <span className="notice-detail__sub">{detail.senderemail}</span>
-          ) : null}
-        </>
-      ),
-      title: `${detail.sender ?? ''} <${detail.senderemail ?? ''}>`,
-    });
-  }
-  if (detail.recipient) {
-    facts.push({ key: 'to', label: 'To', value: detail.recipient, title: detail.recipient });
-  }
-  if (detail.cc) {
-    facts.push({ key: 'cc', label: 'Cc', value: detail.cc, title: detail.cc });
-  }
-  if (detail.receivedat) {
-    facts.push({
-      key: 'received',
-      label: 'Received',
-      value: <span className="notice-detail__num">{formatDateTime(detail.receivedat)}</span>,
-    });
-  }
+interface ActionBarProps {
+  detail: EmailNoticeDetail;
+  marks: NoticeMarks;
+  onBack: () => void;
+  onToggleStar: () => void;
+  onToggleArchive: () => void;
+  onToggleUnread: () => void;
+}
 
-  const conf = confidenceLabel(detail.confidence, detail.method);
-  facts.push({
-    key: 'type',
-    label: 'Type',
-    value: (
-      <>
-        <span className="notice-detail__strong">{detail.classificationlabel}</span>
-        {conf ? <span className="notice-detail__sub">{conf}</span> : null}
-      </>
-    ),
-    title: detail.classification,
-  });
+/**
+ * Back / Archive / Mark unread / Star / More, as icons.
+ *
+ * The bar is sticky inside the reading pane so it never scrolls out of reach
+ * — a pane that is its own scroll context is exactly why it has to be. Back
+ * is the only control with a label: it is the one whose icon alone is
+ * ambiguous at this size, and at narrow widths it is the only way out of the
+ * detail, so it earns the word.
+ *
+ * Triage does nothing behind the user's back: Archiving removes the notice
+ * from the default list, and the list header carries an "Archived (n)" chip
+ * with a one-click restore from the moment anything lands there.
+ */
+function ActionBar({ detail, marks, onBack, onToggleStar, onToggleArchive, onToggleUnread }: ActionBarProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  if (detail.company) {
-    facts.push({ key: 'company', label: 'Company', value: detail.company });
-  }
-  if (detail.headline) {
-    facts.push({
-      key: 'headline',
-      label: 'Headline',
-      value: detail.headline,
-      title:
-        detail.stageraw && detail.stageraw !== detail.headline
-          ? `As worded in the email: ${detail.stageraw}`
-          : undefined,
-    });
-  }
+  // Close on outside click or Escape, the two ways a popover is expected to
+  // dismiss itself. Registered only while open, so there is no listener cost
+  // for the common case.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
-  const deadline = deadlineInfo(detail.deadline);
-  if (deadline || detail.deadline) {
-    facts.push({
-      key: 'deadline',
-      label: 'Deadline',
-      value: (
-        <span className="notice-detail__num">{deadline ? deadline.text : formatDate(detail.deadline)}</span>
-      ),
-      title: detail.deadline ?? undefined,
-      urgent: deadline?.urgent ?? false,
-    });
-  }
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
 
-  const interviewDates = Array.isArray(detail.interviewdates) ? detail.interviewdates : [];
-  if (interviewDates.length > 0) {
-    facts.push({
-      key: 'interviews',
-      label: interviewDates.length === 1 ? 'Interview date' : 'Interview dates',
-      value: (
-        <span className="notice-detail__chips">
-          {interviewDates.map((value, index) => (
-            <span key={index} className="notice-detail__chip" title={value}>
-              <Icon name="calendar" size={13} />
-              {formatDate(value)}
-            </span>
-          ))}
-        </span>
-      ),
-    });
-  }
-
-  if (detail.stages && detail.stages.length > 0) {
-    facts.push({
-      key: 'stages',
-      label: 'Rounds',
-      value: (
-        <span className="notice-detail__chips">
-          {detail.stages.map((value, index) => (
-            <span key={index} className="notice-detail__chip">
-              {value}
-            </span>
-          ))}
-        </span>
-      ),
-    });
-  }
-
-  if (detail.eligibility && detail.eligibility.length > 0) {
-    facts.push({
-      key: 'eligibility',
-      label: 'Eligibility',
-      value: (
-        <span className="notice-detail__chips">
-          {detail.eligibility.map((value, index) => (
-            <span key={index} className="notice-detail__chip">
-              {value}
-            </span>
-          ))}
-        </span>
-      ),
-      wide: true,
-    });
-  }
-
-  if (detail.link) {
-    facts.push({
-      key: 'link',
-      label: 'Registration',
-      value: (
-        <a
-          className="notice-detail__link"
-          href={detail.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={detail.link}
-        >
-          Open registration link
-          <Icon name="external-link" size={13} />
-        </a>
-      ),
-    });
-  }
-
-  const attachments = Array.isArray(detail.attachments) ? detail.attachments : [];
-  if (attachments.length > 0) {
-    facts.push({
-      key: 'attachments',
-      label: attachments.length === 1 ? 'Attachment' : 'Attachments',
-      value: (
-        <span className="notice-detail__chips">
-          {attachments.map((file, index) => (
-            <span
-              key={index}
-              className="notice-detail__chip"
-              title={file.mimetype ? `${file.filename ?? 'Attachment'} · ${file.mimetype}` : undefined}
-            >
-              <Icon name="file" size={13} />
-              {file.filename ?? 'Unnamed attachment'}
-              {file.filesize ? <span className="notice-detail__chip-meta">{formatBytes(file.filesize)}</span> : null}
-            </span>
-          ))}
-        </span>
-      ),
-      wide: true,
-    });
-  }
-
-  if (detail.careernote) {
-    facts.push({
-      key: 'careernote',
-      label: 'Note',
-      value: detail.careernote,
-      wide: true,
-    });
-  }
-  if (detail.evidence) {
-    facts.push({
-      key: 'evidence',
-      label: 'Parsed from',
-      value: detail.evidence,
-      wide: true,
-    });
-  }
-
-  if (facts.length === 0) return null;
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setMenuOpen(false);
+    } catch {
+      // Clipboard permissions vary by browser; failing silently is better
+      // than claiming a copy that did not happen.
+      setMenuOpen(false);
+    }
+  };
 
   return (
-    <section className="notice-detail__section" aria-labelledby={headingId}>
-      <h4 className="notice-detail__heading" id={headingId}>
-        <Icon name="info" size={14} />
-        Key details
-      </h4>
-      <dl className="notice-detail__facts">
-        {facts.map((fact) => (
-          <div
-            key={fact.key}
-            className={[
-              'notice-detail__fact',
-              fact.wide ? ' notice-detail__fact--wide' : '',
-              fact.urgent ? ' notice-detail__fact--urgent' : '',
-            ].join('')}
-            title={fact.title}
+    <div className="nd__bar">
+      <button type="button" className="nd__back" onClick={onBack}>
+        <Icon name="arrow-left" size={16} />
+        <span>Back</span>
+      </button>
+
+      <div className="nd__actions">
+        <button
+          type="button"
+          className="nd__icon-btn"
+          aria-pressed={marks.archived}
+          title={marks.archived ? 'Restore from archive' : 'Archive this notice'}
+          onClick={onToggleArchive}
+        >
+          <Icon name="archive" size={17} />
+          <span className="sr-only">{marks.archived ? 'Restore from archive' : 'Archive'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="nd__icon-btn"
+          aria-pressed={marks.unread}
+          title={marks.unread ? 'Mark as read' : 'Mark as unread'}
+          onClick={onToggleUnread}
+        >
+          <Icon name="mail" size={17} />
+          <span className="sr-only">{marks.unread ? 'Mark as read' : 'Mark as unread'}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`nd__icon-btn${marks.starred ? ' is-on' : ''}`}
+          aria-pressed={marks.starred}
+          title={marks.starred ? 'Remove star' : 'Star this notice'}
+          onClick={onToggleStar}
+        >
+          <Icon name="star" size={17} />
+          <span className="sr-only">{marks.starred ? 'Remove star' : 'Star'}</span>
+        </button>
+
+        <div className="nd__more" ref={menuRef}>
+          <button
+            type="button"
+            className={`nd__icon-btn${menuOpen ? ' is-on' : ''}`}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            title="More actions"
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            <dt className="notice-detail__label">{fact.label}</dt>
-            <dd className="notice-detail__value">{fact.value}</dd>
-          </div>
-        ))}
-      </dl>
+            <Icon name="more-horizontal" size={17} />
+            <span className="sr-only">More actions</span>
+          </button>
+
+          {menuOpen ? (
+            <div className="nd__menu" role="menu">
+              <button type="button" role="menuitem" className="nd__menu-item" onClick={() => void copyLink()}>
+                <Icon name="file" size={15} />
+                {copied ? 'Link copied' : 'Copy link to this notice'}
+              </button>
+              {detail.link ? (
+                <a
+                  role="menuitem"
+                  className="nd__menu-item"
+                  href={detail.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon name="external-link" size={15} />
+                  Open registration link
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------- #
+// Compact header — this replaces the old "Key details" grid of cards
+// --------------------------------------------------------------------------- #
+
+function Chip({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    <span className="nd__chip" title={title}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * The whole header is one block of text, not a grid of boxed facts: a
+ * classification line, the subject, then who it came from and when.
+ *
+ * Everything the old grid carried is still here — sender, recipient, cc,
+ * received, type, confidence, company, headline, deadline — it is just
+ * expressed as an address block instead of eight bordered tiles, which is
+ * how a reader recognises an email in the first place.
+ */
+function HeaderSection({ detail }: { detail: EmailNoticeDetail }) {
+  const conf = confidenceLabel(detail.confidence, detail.method);
+  const deadline = deadlineInfo(detail.deadline);
+  const label = (detail.classificationlabel ?? '').trim() || classificationLabelOf(detail.classification);
+  const interviewDates = Array.isArray(detail.interviewdates) ? detail.interviewdates : [];
+  const stages = detail.stages ?? [];
+  const eligibility = detail.eligibility ?? [];
+  const hasChips = interviewDates.length > 0 || stages.length > 0 || eligibility.length > 0;
+
+  return (
+    <header className="nd__head">
+      <div className="nd__eyebrow">
+        <span className="nd__class">{label}</span>
+        {conf ? <span className="nd__conf">{conf}</span> : null}
+        {detail.company ? <span className="nd__company">{detail.company}</span> : null}
+        {deadline ? (
+          <span className={`nd__deadline${deadline.urgent ? ' is-urgent' : ''}`} title={detail.deadline ?? undefined}>
+            <Icon name="calendar" size={12} />
+            {deadline.text}
+          </span>
+        ) : null}
+      </div>
+
+      <h2 className="nd__subject">{detail.subject}</h2>
+
+      <div className="nd__address">
+        <Avatar name={detail.sender || detail.senderemail} size={34} radius={9} />
+        <span className="nd__who">
+          <span className="nd__sender">{detail.sender || detail.senderemail}</span>
+          {detail.senderemail && detail.senderemail !== detail.sender ? (
+            <span className="nd__email">{detail.senderemail}</span>
+          ) : null}
+          <span className="nd__to">
+            {detail.recipient ? `to ${detail.recipient}` : null}
+            {detail.cc ? ` · cc ${detail.cc}` : null}
+          </span>
+        </span>
+        <time className="nd__when" dateTime={detail.receivedat ?? undefined}>
+          {formatDateTime(detail.receivedat)}
+        </time>
+      </div>
+
+      {detail.headline ? (
+        <p className="nd__headline" title={detail.stageraw && detail.stageraw !== detail.headline ? `As worded in the email: ${detail.stageraw}` : undefined}>
+          {detail.headline}
+        </p>
+      ) : null}
+
+      {hasChips ? (
+        <div className="nd__chips">
+          {interviewDates.map((value, index) => (
+            <Chip key={`iv-${index}`} title={value}>
+              <Icon name="calendar" size={13} />
+              {formatDate(value)}
+            </Chip>
+          ))}
+          {stages.map((value, index) => (
+            <Chip key={`st-${index}`}>{value}</Chip>
+          ))}
+          {eligibility.map((value, index) => (
+            <Chip key={`el-${index}`}>{value}</Chip>
+          ))}
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+// --------------------------------------------------------------------------- #
+// Attachments
+// --------------------------------------------------------------------------- #
+
+/**
+ * Metadata-only tiles.
+ *
+ * `NoticeAttachment` carries filename, mimetype and size and nothing else —
+ * the API has no download route (see the type's own comment), so these are
+ * deliberately NOT links: a tile that looked openable and was not would be
+ * worse than one that plainly is not. The type badge and the size are the
+ * whole of what the feed actually knows, and that is what is printed.
+ */
+function AttachmentStrip({ attachments }: { attachments: NonNullable<EmailNoticeDetail['attachments']> }) {
+  if (attachments.length === 0) return null;
+
+  return (
+    <section className="nd__attachments" aria-label={`Attachments (${attachments.length})`}>
+      <h3 className="nd__section-title">
+        <Icon name="paperclip" size={14} />
+        {attachments.length === 1 ? 'Attachment' : 'Attachments'}
+      </h3>
+      <ul className="nd__files">
+        {attachments.map((file, index) => {
+          const kind = fileIconKind(file.mimetype);
+          const typeLabel = fileTypeLabel(file.mimetype);
+          const size = formatBytes(file.filesize);
+          return (
+            <li
+              key={`${file.filename ?? 'attachment'}-${index}`}
+              className={`nd__file nd__file--${kind}`}
+              title={
+                file.mimetype
+                  ? `${file.filename ?? 'Attachment'} · ${file.mimetype}${size ? ` · ${size}` : ''}`
+                  : file.filename ?? 'Attachment'
+              }
+            >
+              <span className="nd__file-tile" aria-hidden="true">
+                <Icon name={kind === 'archive' ? 'archive' : 'file'} size={19} />
+                <span className="nd__file-kind">{typeLabel}</span>
+              </span>
+              <span className="nd__file-name">{file.filename ?? 'Unnamed attachment'}</span>
+              {size ? <span className="nd__file-size">{size}</span> : null}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -276,25 +350,28 @@ function FunnelSection({ rounds }: { rounds: NoticeRoundDetail[] }) {
   if (rounds.length === 0 || max <= 0) return null;
 
   return (
-    <section className="notice-detail__section" aria-labelledby={headingId}>
-      <h4 className="notice-detail__heading" id={headingId}>
+    <section className="nd__section" aria-labelledby={headingId}>
+      <h3 className="nd__section-title" id={headingId}>
         <Icon name="chart" size={14} />
         Selection funnel
-      </h4>
-      <ul className="notice-detail__rounds">
+      </h3>
+      <ul className="nd__rounds">
         {rounds.map((round, index) => {
           const percent = Math.max(4, Math.round(((round.count || 0) / max) * 100));
           return (
-            <li key={`${round.round}-${index}`} className="notice-detail__round">
-              <div className="notice-detail__round-head">
-                <span className="notice-detail__round-name">{humanizeRound(round.round)}</span>
-                <span className="notice-detail__round-count">{(round.count || 0).toLocaleString('en-IN')}</span>
+            <li key={`${round.round}-${index}`} className="nd__round">
+              <div className="nd__round-head">
+                <span className="nd__round-name">{humanizeRound(round.round)}</span>
+                <span className="nd__round-count">{(round.count || 0).toLocaleString('en-IN')}</span>
               </div>
-              <div className="notice-detail__track" aria-hidden="true">
-                <div className="notice-detail__bar" style={{ width: `${percent}%` }} />
+              <div className="nd__track" aria-hidden="true">
+                {/* `__fill`, not `__bar`: `__bar` is the action bar at the
+                    top of this component, and the two have nothing in
+                    common but the name. */}
+                <div className="nd__fill" style={{ width: `${percent}%` }} />
               </div>
               {round.evidence ? (
-                <p className="notice-detail__evidence" title={round.evidence}>
+                <p className="nd__evidence" title={round.evidence}>
                   {round.evidence}
                 </p>
               ) : null}
@@ -370,17 +447,17 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
   const remaining = filtered.length - shown.length;
 
   return (
-    <section className="notice-detail__section" aria-labelledby={headingId}>
-      <div className="notice-detail__section-head">
-        <h4 className="notice-detail__heading" id={headingId}>
+    <section className="nd__section" aria-labelledby={headingId}>
+      <div className="nd__section-head">
+        <h3 className="nd__section-title" id={headingId}>
           <Icon name="users" size={14} />
           Students in this email
-        </h4>
+        </h3>
         <Pill tone="accent">{students.length.toLocaleString('en-IN')} total</Pill>
-        {constantMeta ? <span className="notice-detail__meta">{constantMeta}</span> : null}
+        {constantMeta ? <span className="nd__meta">{constantMeta}</span> : null}
       </div>
 
-      <div className="notice-detail__student-tools">
+      <div className="nd__student-tools">
         <SearchField
           id={searchId}
           value={query}
@@ -389,10 +466,10 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
           placeholder="Search roll no, name, branch..."
         />
         {statuses.length >= 2 ? (
-          <div className="notice-detail__statuses" role="group" aria-label="Filter students by status">
+          <div className="nd__statuses" role="group" aria-label="Filter students by status">
             <button
               type="button"
-              className={`notice-detail__status${status === '' ? ' is-on' : ''}`}
+              className={`nd__status${status === '' ? ' is-on' : ''}`}
               aria-pressed={status === ''}
               onClick={() => setStatus('')}
             >
@@ -402,7 +479,7 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
               <button
                 key={value}
                 type="button"
-                className={`notice-detail__status${status === value ? ' is-on' : ''}`}
+                className={`nd__status${status === value ? ' is-on' : ''}`}
                 aria-pressed={status === value}
                 onClick={() => setStatus((current) => (current === value ? '' : value))}
               >
@@ -413,48 +490,32 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
         ) : null}
       </div>
 
-      <div className="notice-detail__table-wrap">
-        <table className="notice-detail__table">
+      <div className="nd__table-wrap">
+        <table className="nd__table">
           <caption className="sr-only">
             Students named in this email, {filtered.length} matching
           </caption>
           <thead>
+            {/* The `*-col` classes sit on the HEADER cells, not the data
+                cells: `table-layout: fixed` measures the header row, and the
+                `:has()` floor below is written against them. Dropping them
+                silently collapses every optional column to its content. */}
             <tr>
-              <th scope="col" className="notice-detail__num-col">
-                #
-              </th>
-              <th scope="col" className="notice-detail__roll-col">
-                Roll no
-              </th>
-              <th scope="col" className="notice-detail__name-col">
-                Name
-              </th>
-              <th scope="col" className="notice-detail__branch-col">
-                Branch
-              </th>
-              {showProgram ? (
-                <th scope="col" className="notice-detail__program-col">
-                  Program
-                </th>
-              ) : null}
-              {showCollege ? (
-                <th scope="col" className="notice-detail__college-col">
-                  College
-                </th>
-              ) : null}
-              {hasAnyStatus ? (
-                <th scope="col" className="notice-detail__status-col">
-                  Status
-                </th>
-              ) : null}
+              <th scope="col" className="nd__num-col">#</th>
+              <th scope="col" className="nd__roll-col">Roll no</th>
+              <th scope="col" className="nd__name-col">Name</th>
+              <th scope="col" className="nd__branch-col">Branch</th>
+              {showProgram ? <th scope="col" className="nd__program-col">Program</th> : null}
+              {showCollege ? <th scope="col" className="nd__college-col">College</th> : null}
+              {hasAnyStatus ? <th scope="col" className="nd__status-col">Status</th> : null}
             </tr>
           </thead>
           <tbody>
             {shown.map(({ student, index }) => (
               <tr key={`${student.rollno ?? 'x'}-${index}`}>
-                <td className="notice-detail__num-col">{index + 1}</td>
-                <td className="notice-detail__roll">{student.rollno || '—'}</td>
-                <td className="notice-detail__name">{student.name || '—'}</td>
+                <td className="nd__num-col">{index + 1}</td>
+                <td className="nd__roll">{student.rollno || '—'}</td>
+                <td className="nd__name">{student.name || '—'}</td>
                 <td>{student.branch || '—'}</td>
                 {showProgram ? <td>{student.program || '—'}</td> : null}
                 {showCollege ? <td>{student.college || '—'}</td> : null}
@@ -463,7 +524,7 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
                     {student.status?.trim() ? (
                       <Pill tone={statusTone(student.status)}>{student.status}</Pill>
                     ) : (
-                      <span className="notice-detail__dash">—</span>
+                      <span className="nd__dash">—</span>
                     )}
                   </td>
                 ) : null}
@@ -472,7 +533,7 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
             {shown.length === 0 ? (
               <tr>
                 <td
-                  className="notice-detail__empty-row"
+                  className="nd__empty-row"
                   colSpan={4 + (showProgram ? 1 : 0) + (showCollege ? 1 : 0) + (hasAnyStatus ? 1 : 0)}
                 >
                   No student matches {query.trim() ? `"${query.trim()}"` : 'this filter'}
@@ -484,8 +545,8 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
         </table>
       </div>
 
-      <div className="notice-detail__student-foot">
-        <span className="notice-detail__showing">
+      <div className="nd__student-foot">
+        <span className="nd__showing">
           Showing {shown.length.toLocaleString('en-IN')} of {filtered.length.toLocaleString('en-IN')}
         </span>
         {remaining > 0 ? (
@@ -507,6 +568,17 @@ function StudentSection({ students }: { students: NoticeStudent[] }) {
 // Body
 // --------------------------------------------------------------------------- #
 
+/**
+ * The raw email body, printed straight into the pane.
+ *
+ * No card and — this is the point — no inner scroll box. The old markup put
+ * the body in a `__body-scroll` div with its own overflow, which meant the
+ * pane had one scrollbar and the paragraph inside it had a second: you could
+ * read a body half a screen tall with three-quarters of the pane empty, and
+ * a wheel event over the text did nothing. The body is now ordinary content
+ * in the pane's single scroll context, capped at the reading width below so
+ * a long line cannot run the full column.
+ */
 function BodySection({ detail }: { detail: EmailNoticeDetail }) {
   const headingId = useId();
   const body = useMemo(() => stripEmphasis(detail.body ?? ''), [detail.body]);
@@ -514,14 +586,14 @@ function BodySection({ detail }: { detail: EmailNoticeDetail }) {
   const truncated = (detail.bodylength ?? 0) > (detail.body ?? '').length;
 
   return (
-    <section className="notice-detail__section" aria-labelledby={headingId}>
-      <div className="notice-detail__section-head">
-        <h4 className="notice-detail__heading" id={headingId}>
+    <section className="nd__body" aria-labelledby={headingId}>
+      <div className="nd__section-head">
+        <h3 className="nd__section-title" id={headingId}>
           <Icon name="book" size={14} />
           Email body
-        </h4>
+        </h3>
         {truncated ? (
-          <span className="notice-detail__meta">
+          <span className="nd__meta">
             Showing the first {(detail.body ?? '').length.toLocaleString('en-IN')} of{' '}
             {detail.bodylength.toLocaleString('en-IN')} characters
           </span>
@@ -529,11 +601,11 @@ function BodySection({ detail }: { detail: EmailNoticeDetail }) {
       </div>
 
       {hasBody ? (
-        <div className="notice-detail__body-scroll">
-          <Prose content={body} highlight className="notice-detail__body" />
+        <div className="nd__prose">
+          <Prose content={body} highlight />
         </div>
       ) : (
-        <p className="notice-detail__empty">This email has no readable body text.</p>
+        <p className="nd__empty">This email has no readable body text.</p>
       )}
     </section>
   );
@@ -545,26 +617,60 @@ function BodySection({ detail }: { detail: EmailNoticeDetail }) {
 
 interface EmailNoticeDetailProps {
   detail: EmailNoticeDetail;
+  /** Clears the selection — the action bar's Back. */
+  onBack: () => void;
+  marks: NoticeMarks;
+  onToggleStar: () => void;
+  onToggleArchive: () => void;
+  onToggleUnread: () => void;
 }
 
 /**
- * The expanded "Read more" panel of one email notice: structured data first
- * (key details, funnel bars, the student table), the raw email body last -
- * highlighted so money, dates and action words read at a glance.
+ * The reading pane for one notice: action bar, then the address block, then
+ * the email itself — with the structured data (funnel, student table) below
+ * it rather than above, because the thing a person opens an email to read is
+ * the email.
  *
  * Every section only renders when it has data, so a plain webinar and a
- * 1,250-student shortlist share the same layout without empty scaffolding.
+ * 1,250-student shortlist share one layout without empty scaffolding.
  */
-export function EmailNoticeDetail({ detail }: EmailNoticeDetailProps) {
+export function EmailNoticeDetail({
+  detail,
+  onBack,
+  marks,
+  onToggleStar,
+  onToggleArchive,
+  onToggleUnread,
+}: EmailNoticeDetailProps) {
   const rounds = detail.rounds ?? [];
   const students = detail.students ?? [];
+  const attachments = detail.attachments ?? [];
+  const provenance = [detail.evidence ? `Parsed from: ${detail.evidence}` : null, detail.careernote ?? null]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <div className="notice-detail">
-      <FactsSection detail={detail} />
-      <FunnelSection rounds={rounds} />
-      {students.length > 0 ? <StudentSection students={students} /> : null}
+    <article className="nd">
+      <ActionBar
+        detail={detail}
+        marks={marks}
+        onBack={onBack}
+        onToggleStar={onToggleStar}
+        onToggleArchive={onToggleArchive}
+        onToggleUnread={onToggleUnread}
+      />
+
+      <HeaderSection detail={detail} />
+
+      <AttachmentStrip attachments={attachments} />
+
       <BodySection detail={detail} />
-    </div>
+
+      <FunnelSection rounds={rounds} />
+
+      {students.length > 0 ? <StudentSection students={students} /> : null}
+
+      {provenance ? <p className="nd__provenance">{provenance}</p> : null}
+    </article>
   );
 }

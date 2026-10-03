@@ -2,40 +2,112 @@
 @use '../../styles/mixins' as *;
 
 // ============================================================================
-// E-mail notices page - Part 6 of the revamp.
+// Email notices — the master/detail workspace.
 //
-// Filter chips are neutral pills that only take colour once they are
-// selected, the search sits in a rounded bordered bar, and the "these mails
-// are excluded on purpose" note is a small inline callout instead of a
-// floating paragraph.  Cards keep their own styling next to the component.
+// Three columns at desktop: a 64px classification rail, the notice list, and
+// the reading pane. The pane needs ~730px at 1440 to hold a readable measure,
+// which is what it gets here (1133 of content - 64 - 340); below 1280 it
+// would drop under ~350px, so the two stop sitting side by side and the
+// workspace becomes a toggle instead — one pane at a time, with the row click
+// as "open" and the action bar's Back as "return".
+//
+// PALETTE. The brief names seven values for this screen. Four of them differ
+// from the global `--ui-*` tokens (they are Tailwind's gray-900/500/400/200
+// and indigo-600, where the app uses #1b1e27 / #697086 / #9aa1b0 / #e7e9ee /
+// #3e63dd), and this is the only screen that asks for them — so they are
+// declared here, on the page root, and nowhere else. Nothing in `_ui.scss`
+// changes; the rest of the product keeps its own values.
+//
+//   value       role                    contrast (measured)
+//   ----------  ----------------------  -----------------------------------
+//   #f7f8fa     page background         identical to --ui-bg
+//   #ffffff     panel                   identical to --ui-panel
+//   #111827     primary text            17.74:1 on panel   AAA
+//   #6b7280     secondary text           4.83:1 on panel   AA  (normal text)
+//   #e5e7eb     hairlines                1.24:1 on panel   — borders only
+//   #4f46e5     accent                   6.29:1 on panel   AA
+//                                       5.92:1 on bg
+//                                       5.63:1 on its own 8% wash
+//   #9ca3af     tertiary                2.54:1 on panel   ✗ — NOT for text.
+//                                                 Used only for placeholders,
+//                                                 hairline-adjacent chrome and
+//                                                 icon decoration, which is
+//                                                 where the app already puts
+//                                                 --ui-faint (2.6:1).
+//
 // ============================================================================
 
 .email-notices-page {
+  // `.page` is a bare class with no layout of its own; every page supplies
+  // its own stacking context. Dropping this in the rewrite left the element
+  // at `display: block`, which silently disabled `flex: 1 1 auto` on the
+  // workspace below — the grid then sized to its 2,200px of content and
+  // neither pane scrolled.
   @include stack($space-5);
-  font-family: var(--ui-font);
 
-  // ----- exclusion note, styled as a small inline callout -----
+  // The workspace is a fixed-height surface, not a page that grows: it fills
+  // exactly what the shell leaves. `.app-main` carries 32px of top and 64px
+  // of bottom padding (measured), hence 96.
+  //
+  // `height`, not `min-height` — this is the detail that makes the panes
+  // scroll at all. A flex item with `flex: 1 1 auto` still uses its CONTENT
+  // as the flex base, so with only a floor on the page the workspace grew to
+  // 2,200px, `1fr` resolved against that, and neither column ever scrolled
+  // (measured: both panes 2200 tall, scrollHeight === clientHeight). A
+  // definite height gives the grid a real box to divide.
+  //
+  // The three terms are all measured off the shell at desktop widths:
+  //   32px  .app-main padding-top
+  //   64px  .app-main padding-bottom
+  //   67px  .app-footer, which sits below .app-main
+  //   ----  163px, so the shell resolves to exactly 100vh (verified:
+  //         documentElement.scrollHeight === innerHeight at 1440x900,
+  //         1280x800, 1024x768 and 768x1024).
+  //
+  // Below 640 the shell changes its own chrome — a 54px top bar, 20/40
+  // padding, a footer that wraps to 93px — so the page overflows by ~44px at
+  // 390x844 and the footer needs a small scroll to reach. That is left alone
+  // deliberately: `.ews` is a flex remainder of this box, so subtracting the
+  // extra 44px would hand the workspace back and drop its list from three
+  // visible rows to two. The workspace itself ends 89px above the fold, so
+  // nothing is hidden.
+  height: calc(100vh - 163px);
+  min-height: 560px;
+
+  --ews-bg: #f7f8fa;
+  --ews-panel: #ffffff;
+  --ews-ink: #111827;
+  --ews-muted: #6b7280;
+  --ews-faint: #9ca3af;
+  --ews-line: #e5e7eb;
+  --ews-accent: #4f46e5;
+
+  // The workspace head stays one notch below the 36px the shared rule gives
+  // it: a pane that opens with a toolbar cannot spend 87px on a title.
+  .page-head__title {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  // ----- the exclusion note, one line instead of a bordered callout --------
   &__intro {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
     margin: 0;
-    padding: 10px 14px;
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: $lh-normal;
-    color: var(--ui-muted);
-    background: var(--ui-quiet);
-    border: 1px solid var(--ui-border-soft);
-    border-radius: var(--ui-radius-nested);
+    color: var(--ews-muted);
   }
 
   &__intro-link {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-weight: $fw-bold;
-    color: var(--ui-accent);
+    gap: 4px;
+    font-weight: 700;
+    color: var(--ews-accent);
     text-decoration: none;
 
     svg {
@@ -51,121 +123,350 @@
     }
   }
 
-  // ----- classification chips: neutral until selected -----
-  &__facets {
+  // ----- stale-data banner (fetch failed but there is something to show) ---
+  &__banner {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--ui-ink);
+    background: var(--ui-red-soft);
+    border: 1px solid #f6d6d6;
+    border-radius: $radius-compact;
+  }
+}
+
+// ============================================================================
+// The grid
+// ============================================================================
+
+.ews {
+  // A grid container that is ALSO a flex item: `.page` is a flex column, so
+  // `flex: 1 1 auto` + `min-height: 0` is what makes the workspace fill the
+  // height the shell leaves and then scroll its own panes instead of growing
+  // the page. Declaring only the grid would resolve the height to content
+  // and leave the panes nothing to scroll in.
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  font-family: var(--ui-font);
+  background: var(--ews-panel);
+  border: 1px solid var(--ews-line);
+  border-radius: $radius-lg;
+  grid-template-columns: 64px 340px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'rail list detail';
+}
+
+// ----- rail: one icon + count per classification ---------------------------
+
+.ews__rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 12px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ews-bg);
+  border-right: 1px solid var(--ews-line);
+
+  // Required for the clip to mean anything. The rail's accessible name is an
+  // `.sr-only` span, and `position: absolute` with no positioned ancestor
+  // resolves its containing block against the ICB — which is OUTSIDE this
+  // box. An `overflow` ancestor does not clip an abspos descendant whose
+  // containing block it does not contain, so the off-screen labels sat at
+  // their rail items' static positions and drove the document to 845px wide
+  // in a 768px viewport (measured). Making the rail the containing block
+  // puts the labels back inside the clip. Same reason below on the list.
+  position: relative;
+}
+
+.ews__rail-item {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 46px;
+  padding: 8px 0 6px;
+  font-family: inherit;
+  color: var(--ews-muted);
+  background: transparent;
+  border: 0;
+  border-radius: $radius-compact;
+  cursor: pointer;
+  transition: color $transition-fast, background $transition-fast;
+
+  &:hover {
+    color: var(--ews-ink);
+    background: color-mix(in srgb, var(--ews-ink) 6%, transparent);
+  }
+
+  &:focus-visible {
+    @include focus-ring(1px);
+  }
+
+  // Accent marks the active filter — the same meaning accent carries in the
+  // sidebar, so the two never disagree about what blue is for.
+  &.is-on {
+    color: var(--ews-accent);
+    background: color-mix(in srgb, var(--ews-accent) 9%, var(--ews-panel));
+
+    .ews__rail-count {
+      color: var(--ews-accent);
+    }
+  }
+}
+
+.ews__rail-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ews-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+// ----- list column ---------------------------------------------------------
+
+.ews__list {
+  grid-area: list;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--ews-panel);
+  border-right: 1px solid var(--ews-line);
+}
+
+.ews__list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--ews-line);
+
+  .search-field {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.ews__archive-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ews-bg);
+  border-bottom: 1px solid var(--ews-line);
+}
+
+.ews__archive-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ews-muted);
+  background: var(--ews-panel);
+  border: 1px solid var(--ews-line);
+  border-radius: $radius-pill;
+  cursor: pointer;
+  transition: color $transition-fast, background $transition-fast, border-color $transition-fast;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    color: var(--ews-ink);
+  }
+
+  &:focus-visible {
+    @include focus-ring(1px);
+  }
+
+  // Pressed state, not a selection state: it says "you are looking at the
+  // archive", which is a mode, so it uses the neutral ink rather than the
+  // accent the rail spends on classification.
+  &.is-on {
+    color: var(--ews-ink);
+    background: color-mix(in srgb, var(--ews-ink) 6%, transparent);
+    border-color: transparent;
+  }
+}
+
+.ews__list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  // Same containing-block reason as `.ews__rail`: rows carry an `.sr-only`
+  // "Unread." marker, and it must be clipped by this box rather than
+  // resolving against the ICB.
+  position: relative;
+}
+
+.ews__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ews__list-foot {
+  padding: 7px 10px;
+  border-top: 1px solid var(--ews-line);
+
+  // The shared pagination is built for a full-width page. In a 340px column
+  // its controls wrap and it measured 160px — a third of this column, and
+  // the entire reason the list showed only two rows at 1280x800. Restacked
+  // here rather than forked: summary over controls, its own 12/20 padding
+  // off, and a tighter gap.
+  //
+  // The "Per page" label is hidden visually but kept for assistive tech —
+  // it is the text that gives the select its accessible name, so
+  // `display: none` would leave an unnamed control. This is the sr-only
+  // recipe; scoped under `.ews__list-foot` so the other pages keep theirs.
+  .pagination {
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .pagination__summary {
+    font-size: 11.5px;
+  }
+
+  .pagination__controls {
+    flex-wrap: nowrap;
+    justify-content: space-between;
     gap: 8px;
   }
 
-  &__facet {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 14px; // >=12px each side, so the label never crowds the edge
-    border: 1px solid transparent;
-    border-radius: var(--ui-radius-pill);
-    background: var(--ui-panel);
-    box-shadow: inset 0 0 0 1px var(--ui-border);
-    font-family: var(--ui-font);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.3;
-    color: var(--ui-muted);
-    cursor: pointer;
-    transition:
-      color $transition-fast,
-      background $transition-fast,
-      box-shadow $transition-fast;
+  .pagination__size > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
 
-    &:hover {
-      color: var(--ui-accent);
-      background: var(--ui-accent-soft);
+// ----- reading pane --------------------------------------------------------
+
+.ews__detail {
+  grid-area: detail;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: $space-4;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ews-panel);
+}
+
+.ews__empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.ews__skel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+// ============================================================================
+// Below 1280: one pane at a time.
+//
+// `2xl` is 1280 in $breakpoints, so this cut lands exactly where the grid
+// stops giving the reading pane a usable measure.
+// ============================================================================
+
+@include down('2xl') {
+  .ews {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: 'rail' 'list';
+
+    .ews__detail {
+      display: none;
+    }
+  }
+
+  .ews[data-pane='detail'] {
+    grid-template-areas: 'rail' 'detail';
+
+    .ews__list {
+      display: none;
     }
 
-    &:focus-visible {
-      @include focus-ring(1px);
-    }
-
-    // Selected is the only state allowed to wear the accent.
-    &.is-on {
-      color: var(--ui-accent);
-      background: var(--ui-accent-soft);
-      box-shadow: inset 0 0 0 1px var(--ui-accent);
+    .ews__detail {
+      display: flex;
     }
   }
 
-  &__facet-count {
-    // Same >=12px badge floor as every other text badge - it is a small pill
-    // nested in the chip, so it has to breathe too.
-    padding: 3px 12px;
-    border-radius: var(--ui-radius-pill);
-    background: var(--ui-pill);
-    font-size: 12px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--ui-muted);
-    transition: background $transition-fast, color $transition-fast;
+  // The rail stops being a column and becomes a scrolling strip: a 64px
+  // vertical rail above a single full-width pane would spend the width it
+  // just freed on a gutter.
+  .ews__rail {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--ews-line);
   }
 
-  &__facet.is-on &__facet-count {
-    background: var(--ui-panel);
-    color: var(--ui-accent);
+  .ews__rail-item {
+    flex-direction: row;
+    gap: 6px;
+    width: auto;
+    padding: 7px 11px;
   }
 
-  // ----- search row: rounded, bordered, no shadow -----
-  &__toolbar {
-    display: flex;
-    align-items: center;
-    gap: $space-3;
-    padding: $space-3 $space-4;
-    background: var(--ui-panel);
-    border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-card);
+  .ews__list {
+    border-right: 0;
   }
+}
 
-  // ----- inline refresh-failure banner -----
-  &__banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: $space-3;
-    padding: $space-3 $space-4;
-    background: var(--ui-red-soft);
-    border: 1px solid #f3c9c9;
+@include down('sm') {
+  .ews {
     border-radius: $radius-md;
-    font-size: $fs-sm;
-    color: var(--ui-red);
-
-    > span {
-      flex: 1;
-      min-width: 240px;
-    }
   }
 
-  // ----- result list -----
-  &__list {
-    @include stack($space-4);
-    transition: opacity $transition-base;
-
-    &.is-refreshing {
-      opacity: 0.55;
-      pointer-events: none;
-    }
+  .ews__detail {
+    padding: $space-3;
   }
 
-  @include down('md') {
-    &__toolbar {
-      padding: $space-3 $space-4;
-    }
-
-    &__toolbar .search-field {
-      flex-basis: 100%;
-    }
-
-    &__banner > span {
-      flex-basis: 100%;
-      min-width: 0;
-    }
+  // Same touch-target reasoning as the detail action bar: 32px is fine for
+  // a pointer, thin for a thumb. Costs ~8px of list height, which is the
+  // right trade on the screen where the rail is a swipeable strip.
+  .ews__rail-item {
+    padding-top: 11px;
+    padding-bottom: 11px;
   }
 }

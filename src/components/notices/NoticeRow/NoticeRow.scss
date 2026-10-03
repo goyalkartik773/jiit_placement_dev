@@ -1,0 +1,191 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+// ============================================================================
+// NoticeRow — one parsed placement email as a LIST ROW.
+//
+// The workspace palette lives on `.email-notices-page` (see EmailNotices.scss)
+// and is read from here rather than re-declared: this component is only ever
+// rendered inside that workspace, so there is one definition of the seven
+// values and not two to keep in step.
+// ============================================================================
+
+.nrow-item {
+  min-width: 0;
+  list-style: none;
+}
+
+.nrow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  overflow: hidden;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: $radius-md;
+  font-family: var(--ui-font);
+  cursor: pointer;
+  transition: background $transition-fast;
+
+  // The 3px selection rail. Transparent when idle so the padding box never
+  // shifts by 3px on selection — the row changes colour, not geometry.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+    transition: background $transition-fast;
+  }
+
+  &:hover {
+    background: color-mix(in srgb, var(--ews-ink) 4%, transparent);
+  }
+
+  &:focus-visible {
+    @include focus-ring(1px);
+  }
+
+  // aria-current is the selection — the same signal a nav rail uses, so a
+  // screen reader hears "current" rather than inferring it from a colour.
+  &[aria-current='true'] {
+    background: color-mix(in srgb, var(--ews-accent) 8%, var(--ews-panel));
+
+    &::before {
+      background: var(--ews-accent);
+    }
+
+    .nrow__subject {
+      color: var(--ews-ink);
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  // Uppercase classification, deliberately small and muted: the rail already
+  // groups by it, so repeating it loudly on every row would out-shout the
+  // subject — the one thing this column exists to scan.
+  &__class {
+    overflow: hidden;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--ews-muted);
+  }
+
+  &__deadline {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: $radius-pill;
+    background: color-mix(in srgb, var(--ews-ink) 5%, transparent);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ews-muted);
+
+    &.is-urgent {
+      background: color-mix(in srgb, #d4483f 12%, var(--ews-panel));
+      color: #b3372f;
+    }
+  }
+
+  &__when {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ews-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__subject {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13.5px;
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+    color: var(--ews-ink);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  &__line {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ews-muted);
+    white-space: nowrap;
+  }
+
+  &__company {
+    flex-shrink: 0;
+    font-weight: 650;
+    color: var(--ews-ink);
+  }
+
+  &__snippet {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__flags {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    padding-top: 2px;
+    color: var(--ews-faint);
+  }
+
+  // A star is only decoration until it is filled — which is exactly when the
+  // user asked for one. The path is shared with the outline state; the CSS
+  // does the switching (see Icon.tsx).
+  &__flag--star {
+    color: var(--ews-accent);
+    fill: currentColor;
+  }
+
+  &__revised {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid var(--ews-line);
+    border-radius: $radius-xs;
+    font-size: 9.5px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--ews-muted);
+  }
+}
