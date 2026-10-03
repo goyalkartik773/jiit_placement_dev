@@ -10,6 +10,220 @@
   @include stack($space-6);
 }
 
+// ============================================================================
+// THE BANNER — the page's one dark surface, and therefore its focal point.
+//
+// Everything else here is a light card sitting on `--ui-bg`. This is the only
+// thing that is dark, which is what makes it the thing you look at first. It
+// carries no figures of its own: the headline is the product identity and the
+// sentence under it is the thesis. The numbers start with the strip below.
+//
+// SIX COLOURS, NONE FROM THE TOKEN SET. `--ui-*` is a light-surface system —
+// white panels, grey ink — and would be meaningless on #080d19, so the banner
+// declares its own palette inline rather than half-extending the token file.
+// Each value with the contrast it measured against the #080d19 background:
+//
+//   #080d19  background          base, under the glow
+//   #8fa8ff  eyebrow             8.51:1    11.5px / 700
+//   #ffffff  headline           19.40:1    up to 50px / 800
+//   #5b7cff  "Unfiltered."       5.33:1    up to 50px / 800
+//   #aab4c8  subtitle            9.31:1    17.5px / 400
+//   #cbd5e1  "Data live"        13.07:1    11.5px / 700
+//   #8b95a9  feed line           6.44:1    12.5px / 400
+//   #22c55e  live dot            8.52:1    8px, non-text
+//
+// All clear AA (4.5:1) at their size and the two large ones clear AAA. The
+// radial glow is a single low-alpha accent wash in the top-right corner and
+// never sits behind text — every string is on the left, where it ends.
+//
+// Radius is `$radius-xl` (20px), a step above the 16px cards below it: this
+// is a large section, not a card, and the size difference is part of how it
+// reads as the page's header rather than as its content.
+// ============================================================================
+.dash-banner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: $space-2;
+  min-height: 250px;
+  padding: $space-7;
+  overflow: hidden;
+  border-radius: $radius-xl;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(62, 99, 221, 0.2), transparent 45%),
+    #080d19;
+  color: #fff;
+  font-family: var(--ui-font);
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    margin: 0;
+    // Reserves the status indicator's column whenever it is pinned absolute,
+    // so the two can never run into each other at an awkward viewport. The
+    // eyebrow wraps instead of colliding; the headline below is untouched and
+    // still gets the full width it needs.
+    max-width: calc(100% - 240px);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8fa8ff;
+  }
+
+  // `clamp` rather than a fixed 50px: below ~920px the content column is too
+  // narrow for a 50px word, and 32px is the size the spec asks for on a phone.
+  // Natural case in the markup, uppercased here, so a screen reader still
+  // hears "JIIT Placements, Unfiltered" rather than a run of capitals.
+  &__title {
+    margin: $space-3 0 0;
+    color: #fff;
+    font-size: clamp(32px, 5vw, 50px);
+    font-weight: 800;
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+  }
+
+  // The one word allowed to carry colour inside the headline.
+  &__accent {
+    color: #5b7cff;
+  }
+
+  &__sub {
+    max-width: 560px;
+    margin: $space-3 0 0;
+    color: #aab4c8;
+    font-size: 17.5px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  // Pinned to the top-right at desktop width, level with the eyebrow, so the
+  // two share one line and the status costs the banner no height — it was
+  // adding 62px of its own (a 38px block plus the flex gap) in flow, which
+  // pushed the banner to 314px against a 240-270 target. Below xl it drops
+  // back into flow, bottom-right of the subtitle.
+  &__live {
+    position: absolute;
+    top: $space-7;
+    right: $space-7;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    text-align: right;
+  }
+
+  &__live-dot {
+    width: 8px;
+    height: 8px;
+    margin-top: 5px; // optically level with the 11.5px label beside it
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  &__live-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__live-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #cbd5e1;
+  }
+
+  &__live-sub {
+    font-size: 12.5px;
+    color: #8b95a9;
+  }
+
+  // Below lg the banner is too narrow for the eyebrow and the status to sit
+  // on one line without crowding, so the status returns to flow. It is the
+  // last element in the DOM for exactly this reason: in flow it lands below
+  // the subtitle, which is where it belongs on a small screen.
+  @include down('lg') {
+    &__live {
+      position: static;
+      align-self: flex-end;
+    }
+  }
+
+  @include down('md') {
+    min-height: 0;
+    padding: $space-6;
+
+    &__title {
+      font-size: 32px;
+    }
+
+    &__sub {
+      font-size: 16px;
+    }
+
+    &__live {
+      align-self: flex-start;
+      text-align: left;
+    }
+  }
+}
+
+// ============================================================================
+// THE SUPPORTING STRIP — the two-figure sentence that used to be the page
+// header's summary.
+//
+// Demoted on purpose. It states real numbers, but it is not the point of the
+// page, so it sits UNDER the banner as a 52px bar instead of above it as a
+// card. Full 11px radius rather than the accent-bar treatment it had in the
+// header, so it reads as a caption printed on the page rather than as one
+// more surface. Figures stay accent ink at 15.5px — the only emphasis on the
+// line — and `--ui-ink` on `--ui-accent-soft` is comfortably past AA, where
+// the muted grey this replaces measured 4.37:1.
+// ============================================================================
+.dash-announce {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-height: 52px;
+  padding: $space-3 $space-5;
+  border-radius: 11px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-ink);
+  font-size: 13.5px;
+  line-height: 1.5;
+
+  &__icon {
+    flex-shrink: 0;
+    margin-right: 3px;
+    color: var(--ui-accent);
+  }
+
+  // The sentence itself. Kept as one text run so it reads as prose — the
+  // figures are emphasis inside it, not separate flex items.
+  &__text {
+    margin: 0;
+  }
+
+  strong {
+    font-size: 15.5px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ui-accent);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 // ----- The anchor: two cards, side by side -----
 // Each hero is a single-zone `HeroStat` (`ui-hero--single`), so the pair reads
 // as two statements rather than one card split by a hairline: the headline

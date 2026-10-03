@@ -134,7 +134,7 @@ export function Dashboard() {
       <div className="page dashboard">
         {/* Same `PageHeader` as the populated view — the empty state used to
             hand-roll a second header block whose CSS no longer exists. */}
-        <PageHeader eyebrow={SESSION_EYEBROW} title="Dashboard" />
+        <PageHeader eyebrow={SESSION_EYEBROW} title="Placement Dashboard" />
         <EmptyState
           title="No placements recorded yet"
           description="The dashboard lights up as soon as the first offer is matched to a student."
@@ -160,31 +160,65 @@ export function Dashboard() {
 
   return (
     <div className="page dashboard">
-      {/* The one sentence that answers "how are we doing" — promoted from a
-          muted sub-line to a stated summary. Same two figures, same feed;
-          nothing here is computed or rounded differently. Rendered by the
-          shared `PageHeader`, so Analytics prints an identical block. */}
-      <PageHeader
-        eyebrow={SESSION_EYEBROW}
-        title="Dashboard"
-        summary={
-          <>
-            <Icon name="info" size={17} className="page-header__summary-icon" />
-            <strong>{summary.studentsPlaced.toLocaleString()}</strong>
-            <span>students have accepted offers from</span>
-            <strong>{summary.companiesPlacing.toLocaleString()}</strong>
-            <span>companies so far.</span>
-          </>
-        }
-        tagline={
-          <>
-            <Icon name="eye" size={16} className="page-header__tagline-icon" />
-            <span>
-              JIIT Placements, <strong>Unfiltered.</strong> See What They Don&rsquo;t Want You Seeing.
-            </span>
-          </>
-        }
-      />
+      {/* Named, not sized: the header says which screen this is and stops
+          there. The banner underneath is the focal point of this page, and
+          letting the title stay plain is what allows it to be one. */}
+      <PageHeader eyebrow={SESSION_EYEBROW} title="Placement Dashboard" />
+
+      {/* ---------------------------------------------------------------- */}
+      {/* THE FOCAL POINT. The product identity, promoted from a muted line  */}
+      {/* under the title to a hero in its own right — it used to compete     */}
+      {/* with a summary card and a tinted tile row for attention, and lost.  */}
+      {/*                                                                    */}
+      {/* Nothing here is derived. The headline is the tagline, the sub is a  */}
+      {/* sentence, and the only figures on this block live in the strip      */}
+      {/* below it. The six dark-palette colours are listed with their        */}
+      {/* measured contrast in Dashboard.scss; they are deliberately not      */}
+      {/* added to the `--ui-*` light-surface token set.                      */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="dash-banner" aria-labelledby="dash-banner-title">
+        <div className="dash-banner__body">
+          <p className="dash-banner__eyebrow">Placement Intelligence · Session 2026–27</p>
+          <h2 className="dash-banner__title" id="dash-banner-title">
+            JIIT Placements
+            <br />
+            <span className="dash-banner__accent">Unfiltered.</span>
+          </h2>
+          <p className="dash-banner__sub">The numbers. The companies. The placement picture — in one place.</p>
+        </div>
+
+        {/* `usePlacementSummary` returns no timestamp, so there is no
+            "last updated" this component could print honestly. The
+            indicator states that the source is a live feed instead — a
+            fact about the app rather than a freshness claim. */}
+        <p className="dash-banner__live">
+          <span className="dash-banner__live-dot" aria-hidden="true" />
+          <span className="dash-banner__live-text">
+            <span className="dash-banner__live-label">Data live</span>
+            <span className="dash-banner__live-sub">Company-wise placement feed</span>
+          </span>
+        </p>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* The standing sentence, demoted from the page header to a strip      */}
+      {/* beneath the banner. Same two figures, same feed, same wording — it  */}
+      {/* now supports the hero instead of rivaling it, which is the         */}
+      {/* whole point of moving it down here.                                */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="dash-announce">
+        <Icon name="info" size={17} className="dash-announce__icon" />
+        {/* One flowing sentence, not four flex children: JSX strips the
+            newline between elements, so the spans used to run together as
+            "420students ... from46companies" in the accessibility tree. The
+            spaces are explicit here; the flex gap only handles the icon. */}
+        <p className="dash-announce__text">
+          <strong>{summary.studentsPlaced.toLocaleString()}</strong>
+          {' '}students have accepted offers from{' '}
+          <strong>{summary.companiesPlacing.toLocaleString()}</strong>
+          {' '}companies so far.
+        </p>
+      </div>
 
       {/* ---------------------------------------------------------------- */}
       {/* THE ANCHOR, split into two cards. The headline figure and the one  */}

@@ -21,13 +21,6 @@ interface PageHeaderProps {
    */
   summary?: ReactNode;
   /**
-   * The product signature — one line under the summary. Not a second
-   * summary: it says what the screen is *for*, not what the numbers are,
-   * so it is set apart by weight and colour rather than by another box.
-   * Omit it on report-style pages, which open on data instead of a slogan.
-   */
-  tagline?: ReactNode;
-  /**
    * The summary's framing — the second axis the two pages differ on:
    *
    *  'card'  — the bordered accent card (Dashboard). Reads as the page's
@@ -50,7 +43,6 @@ export function PageHeader({
   eyebrow,
   title,
   summary,
-  tagline,
   variant = 'card',
   className = '',
 }: PageHeaderProps) {
@@ -71,7 +63,6 @@ export function PageHeader({
           {summary}
         </p>
       ) : null}
-      {tagline ? <p className="page-header__tagline">{tagline}</p> : null}
     </header>
   );
 }

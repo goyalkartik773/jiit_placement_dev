@@ -9,11 +9,11 @@
 // `$fs-2xs` / `$fw-bold` / `$tracking-caps` / `$lh-tight` / `$space-*` from
 // `styles/_variables.scss`.
 //
-// TWO FRAMINGS, ONE BLOCK. The title is FIXED at 26px / 800 /
-// `var(--ui-font)` — the same numbers the `.page-head__title` overrides use on
-// Jobs, Placements, Admin and both notice screens, so this header joins that
-// family rather than inventing a third heading style. Only the summary
-// framing moves between pages, and it moves through a prop, never a fork:
+// TWO FRAMINGS, ONE BLOCK. The title is FIXED at 30px / 700 /
+// `var(--ui-font)`, deliberately held well under the dashboard hero's 50px
+// headline so the banner stays the screen's focal point and the title only
+// has to name the page. Only the summary framing moves between pages, and it
+// moves through a prop, never a fork:
 //
 //   variant 'card'   — the bordered accent card, reading as the page's
 //                      thesis. Dashboard.
@@ -34,10 +34,10 @@
   &__title {
     margin: 0;
     font-family: var(--ui-font);
-    font-size: 26px;
-    font-weight: 800;
+    font-size: 30px;
+    font-weight: 700;
     line-height: $lh-tight;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
     color: var(--ui-ink);
   }
 
@@ -92,31 +92,6 @@
     color: var(--ui-accent);
   }
 
-  // The product signature line. It hangs off the same left edge as the
-  // title and the summary's accent bar, so it reads as the header's closing
-  // sentence rather than as a stray caption. `--ui-muted` measures 4.94:1 on
-  // the page and `--ui-accent` 4.62:1, so both clear AA at 13px.
-  &__tagline {
-    display: flex;
-    align-items: center;
-    gap: $space-2;
-    margin: $space-1 0 0;
-    font-size: $fs-sm;
-    font-weight: $fw-semibold;
-    line-height: $lh-snug;
-    color: var(--ui-muted);
-
-    strong {
-      color: var(--ui-accent);
-      font-weight: $fw-bold;
-    }
-  }
-
-  &__tagline-icon {
-    flex-shrink: 0;
-    color: var(--ui-accent);
-  }
-
   // ----- variant: 'report' (Analytics) -------------------------------------
   // The whole header closes on a hairline, the way a report sheet's masthead
   // does. Dashboard headers stop after the summary instead.
@@ -147,6 +122,6 @@
 
 @include down('sm') {
   .page-header__title {
-    font-size: 23px;
+    font-size: 26px;
   }
 }
