@@ -39,6 +39,10 @@ export type IconName =
   | 'menu'
   | 'award'
   | 'flag'
+  | 'star'
+  | 'archive'
+  | 'mail'
+  | 'more-horizontal'
   | 'chart';
 
 const paths: Record<IconName, JSX.Element> = {
@@ -234,6 +238,34 @@ const paths: Record<IconName, JSX.Element> = {
     <>
       <path d="M5 21V4" />
       <path d="M5 5h11.5l-1.6 3.5L16.5 12H5" />
+    </>
+  ),
+  // Five-point star. Stroked by default like every other icon here; the
+  // filled state is a `fill: currentColor` on the <svg> from CSS, so one
+  // path serves both states instead of shipping two icons.
+  star: (
+    <polygon points="12 2.6 15.1 8.9 22 9.9 17 14.8 18.2 21.7 12 18.4 5.8 21.7 7 14.8 2 9.9 8.9 8.9" />
+  ),
+  archive: (
+    <>
+      <rect x="2" y="3" width="20" height="5" rx="1" />
+      <path d="M4.5 8v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8" />
+      <path d="M10 12h4" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="2" y="4.5" width="20" height="15" rx="2" />
+      <path d="m2.6 6.4 8.7 5.9a1.2 1.2 0 0 0 1.4 0l8.7-5.9" />
+    </>
+  ),
+  // Three dots. Explicit fill/stroke so they read as solid dots: the <svg>
+  // sets fill="none" and a stroked r=1.5 circle would render as a ring.
+  'more-horizontal': (
+    <>
+      <circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
     </>
   ),
 };
