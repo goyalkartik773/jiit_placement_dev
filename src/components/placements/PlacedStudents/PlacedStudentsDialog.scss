@@ -53,18 +53,27 @@
   // ----- panel -------------------------------------------------------------
   &__panel {
     position: fixed;
-    // clamp() keeps a margin of the page visible on a desktop so the dialog
-    // still reads as an overlay, and goes edge-to-edge on a phone.
-    inset: clamp(0px, 3.5vh, 34px) clamp(0px, 2.4vw, 44px);
+    // A right-side sheet rather than a centred modal. Flush to the right
+    // edge and full height, so the page you opened it from stays readable
+    // down the left — that is the point of a drawer: you can still see
+    // what you were doing. `width` replaces the old clamp() + max-width +
+    // margin:auto triple, capping the sheet at 1280px while always leaving
+    // at least 44px of backdrop showing. Below 768px it goes edge to edge.
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(1280px, calc(100vw - 44px));
     display: flex;
     flex-direction: column;
     min-width: 0;
-    max-width: 1280px;
-    margin: auto;
     overflow: hidden;
     background: var(--ui-panel);
     border: 1px solid var(--ui-border);
-    border-radius: $radius-xl;
+    // Radius on the leading edge only: the trailing edge meets the
+    // viewport, and a rounded corner there would let the scrim through
+    // the last 20px of the sheet.
+    border-radius: $radius-xl 0 0 $radius-xl;
     box-shadow: $shadow-lg;
 
     // Focused programmatically on open (to announce the dialog's name); the
@@ -827,7 +836,9 @@
 @media (max-width: 768px) {
   .placed-students__panel {
     inset: 0;
-    max-width: none;
+    // The sheet's width is set explicitly now, so it has to be released
+    // here too — `inset: 0` alone would leave `min(1280px, ...)` capping it.
+    width: 100%;
     border-radius: 0;
     border-width: 0;
   }
