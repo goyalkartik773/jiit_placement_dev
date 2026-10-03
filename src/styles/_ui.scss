@@ -60,6 +60,12 @@
   --ui-tint-green-ink: #0f7a56;
   --ui-tint-amber-bg: var(--ui-amber-soft);
   --ui-tint-amber-ink: #8a5a08;
+  // Red had no checked ink: --ui-red on --ui-red-soft measures 3.84:1, under
+  // the 4.5:1 an 11px badge label needs. #a33125 is $danger-hover — a value
+  // the system already shipped as a hover shade — now exported so the pair
+  // ships together like the others. 6.17:1 on --ui-red-soft.
+  --ui-tint-red-bg: var(--ui-red-soft);
+  --ui-tint-red-ink: #a33125;
   --ui-tint-neutral-bg: var(--ui-pill);
   --ui-tint-neutral-ink: var(--ui-ink);
   // Label/hint ink that sits on ANY tint above: 4.84-5.06:1 across all six

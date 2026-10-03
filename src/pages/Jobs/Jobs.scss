@@ -33,9 +33,12 @@
     letter-spacing: 0.06em;
   }
 
+  // Spec: 28–32px / 650. The legacy rule was 26px/800 — oversized and over-
+  // weighted for a title that sits above a dense grid, and 650 lets the
+  // letterforms keep their shape at -0.015em tracking without shouting.
   .page-head__title {
-    font-size: 26px;
-    font-weight: 800;
+    font-size: 30px;
+    font-weight: 650;
     letter-spacing: -0.015em;
     line-height: 1.2;
   }
@@ -68,16 +71,16 @@
 }
 
 // ============================================================================
-// Single white filter panel: search row → filter groups → legend → hint.
-// The panel owns the surface (14px radius, 1px border); JobsToolbar and
-// TierLegend own their rows inside it.
+// Filter panel: ONE toolbar row → legend → hint. The panel owns the surface
+// (9px radius — the jobs screen's whole radius scale is 6–9px, see the note
+// at the bottom of this file); JobsToolbar and TierLegend own their rows.
 // ============================================================================
 .jobs-filter-panel {
   display: flex;
   flex-direction: column;
   background: var(--ui-panel);
   border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-panel);
+  border-radius: $radius-compact;
   font-family: var(--ui-font);
 }
 
@@ -85,7 +88,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 20px 16px;
+  padding: 8px 16px 12px;
   border-top: 1px solid var(--ui-border-soft);
   color: var(--ui-muted);
   font-size: 11.5px;
@@ -105,7 +108,7 @@
   padding: $space-3 $space-4;
   background: var(--ui-red-soft);
   border: 1px solid rgba(213, 72, 75, 0.35);
-  border-radius: var(--ui-radius-panel);
+  border-radius: $radius-compact;
   color: var(--ui-red);
   font-size: $fs-sm;
   font-weight: 600;
@@ -119,5 +122,35 @@
   .job-list {
     flex-basis: 100%;
     margin-top: $space-3;
+  }
+}
+
+// ============================================================================
+// Radius system — 6 to 9px everywhere on this screen.
+// `--ui-radius-card` (16px) / `--ui-radius-panel` (14px) are the shared calm-
+// system defaults and still govern Placements, Analytics and Email Notices;
+// the jobs screens tighten to a 6–9px scale so a grid of nine cards reads as
+// one surface rather than a stack of pillows. Scoped to `.jobs-page` rather
+// than changed globally, so this is a jobs decision and not a silent edit to
+// every other screen.
+//   9px  cards, panel, banner   ($radius-compact)
+//   8px  fields, inner blocks   ($radius-tab)
+//   6px  chips, badges          ($radius-sm)
+//   pill dots, pills            (unchanged — a pill is not a radius choice)
+// ============================================================================
+.jobs-page {
+  .pagination {
+    border-radius: $radius-compact;
+  }
+
+  // Micro-interactions: everything that reacts does it in 140ms. The shared
+  // $transition-base is 200ms, which reads as lag on a hover that only moves
+  // 2px — 120–180ms is the window where the response feels simultaneous with
+  // the pointer without being abrupt.
+  .job-card,
+  .job-list,
+  .jobs-toolbar select,
+  .jobs-toolbar input {
+    transition-duration: 140ms;
   }
 }

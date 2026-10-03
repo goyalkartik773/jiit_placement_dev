@@ -12,28 +12,29 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 20px;
-  padding: 14px 20px;
+  gap: 7px 16px;
+  padding: 8px 16px;
   border-top: 1px solid var(--ui-border);
   background: transparent;
   font-family: var(--ui-font);
 
   // Last row of the panel carries the closing padding
   &:last-child {
-    padding-bottom: 18px;
+    padding-bottom: 11px;
   }
 
   &__group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     min-width: 0;
   }
 
   &__label {
     color: var(--ui-muted);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
   }
@@ -41,28 +42,28 @@
   &__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
 
   // Same 1px × 20px divider used between the filter groups
   &__divider {
     width: 1px;
-    height: 20px;
+    height: 18px;
     background: var(--ui-border);
   }
 
   &__chip {
     display: inline-flex;
     align-items: center;
-    padding: 3px 12px;
+    padding: 1px 9px;
     border: 0;
-    border-radius: var(--ui-radius-pill);
+    border-radius: $radius-sm; // 6px — inside the 6–9px jobs scale
     background: var(--ui-pill);
     color: var(--ui-muted);
     font-family: var(--ui-font);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
-    line-height: 1.5;
+    line-height: 1.55;
     white-space: nowrap;
 
     // Meaning-based: relaxed/moderate thresholds are the eligible cases…

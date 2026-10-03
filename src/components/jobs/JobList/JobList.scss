@@ -6,7 +6,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: $space-4;
-  transition: opacity $transition-base;
+  transition: opacity 140ms ease;
 
   &.is-refreshing {
     opacity: 0.55;
@@ -27,12 +27,56 @@
 }
 
 // Skeleton variant shares the grid + card geometry (it is not a Card, so it
-// carries the same white surface here)
+// carries the same white surface here). The radius tracks the real card's
+// 9px override — a placeholder that is rounder than the thing it stands in
+// for gives the layout away the moment the data lands.
 .job-card--skeleton {
   background: var(--ui-panel);
   border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-card);
+  border-radius: $radius-compact;
   pointer-events: none;
+
+  // Skeleton's width scale is a PERCENTAGE of the parent, which is wrong for
+  // the two slots the real card sizes absolutely. The avatar slot resolved to
+  // 55% (181px) against a real 42px Avatar; the package column is shrink-to-
+  // fit, so a percentage inside it is circular and collapsed to 0. Both are
+  // pinned so the placeholder has the geometry it stands in for — otherwise
+  // the whole grid shifts the moment real data lands.
+  .job-card__avatar-skel {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 8px; // matches Avatar's radius
+  }
+
+  .job-card__package {
+    width: 90px;
+
+    .skeleton {
+      width: 100%;
+    }
+  }
+
+  // Carries the real eligibility pill's padding, radius and accent tint so
+  // the criteria block measures like the one it replaces (27px vs 28px).
+  .job-card__eligibility--skel {
+    display: inline-flex;
+    align-items: center;
+    width: 140px;
+    background: var(--ui-tint-accent-bg);
+
+    .skeleton {
+      width: 100%;
+    }
+  }
+
+  // Same circular-percentage trap as the package column: two %-width bars in
+  // a shrink-to-fit wrapper resolve to 0, leaving a 6px sliver. Pinned to the
+  // real block's 226px so the two bars still wrap onto separate lines the way
+  // posted + apply-by do.
+  .job-card__dates {
+    width: 210px;
+  }
 }
 
 // The excerpt placeholder stacks three bars instead of clamping text
@@ -40,4 +84,6 @@
   display: flex;
   flex-direction: column;
   gap: $space-2;
+  max-height: none;
+  overflow: visible;
 }

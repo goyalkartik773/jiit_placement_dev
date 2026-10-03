@@ -2,27 +2,34 @@
 @use '../../../styles/mixins' as *;
 
 // ============================================================================
-// Calm job card — the Card component owns the white surface (1px border,
-// 16px radius); this file owns padding (20px) and the 14px section rhythm:
-// status row → avatar/company + role → green package strip → location and
-// deadline → one accent eligibility pill → quiet dashed excerpt → footer
-// behind a hairline. Plus Jakarta Sans everywhere; no monospace on this card.
+// Job card — five blocks in scanning order:
+//   status/deadline line → identity + package → criteria → excerpt → footer
+// The Card component owns the white surface; this file owns the 9px radius
+// override, the 18px padding and the 12px rhythm between those blocks.
 // ============================================================================
+.ui-card.job-card {
+  // The shared surface ships 16px (var(--ui-radius-card)). Jobs tightens to
+  // the 6–9px scale — see the radius note at the foot of Jobs.scss. Scoped
+  // with both classes so it outranks .ui-card regardless of stylesheet order.
+  border-radius: $radius-compact;
+}
+
 .job-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 20px;
+  gap: 12px;
+  padding: 18px;
   font-family: var(--ui-font);
-  transition: box-shadow $transition-base, transform $transition-base;
+  transition: box-shadow 140ms ease, border-color 140ms ease, transform 140ms ease;
 
   &:hover {
+    border-color: #d3d7de;
     box-shadow: $shadow-card-hover;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
-  // ----- 01 · status indicator + one neutral category tag + attachments -----
+  // ----- 01 · status left · deadline state + attachments right -----
   &__top {
     display: flex;
     align-items: center;
@@ -36,10 +43,13 @@
     align-items: center;
     gap: 7px;
     flex-shrink: 0;
+    min-width: 0;
     color: var(--ui-muted);
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     &--active {
       color: var(--ui-green);
@@ -58,28 +68,44 @@
     }
   }
 
-  &__tags {
+  &__top-right {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
+    flex-shrink: 0;
     min-width: 0;
   }
 
-  // The single category tag keeps the neutral pill look of an unselected filter
-  // (12px each side: it carries a word, so it obeys the >=12px badge floor).
-  & .job-card__category {
-    display: block;
-    min-width: 0;
-    max-width: 100%;
-    padding: $space-1 $space-3;
-    overflow: hidden;
-    color: var(--ui-muted);
-    font-size: 12.5px;
-    font-weight: 600;
-    line-height: 1.35;
+  // ----- deadline state — OPEN / CLOSING SOON / CLOSED -----
+  // Tint + matching ink, both from the checked --ui-tint-* pairs: the ink is
+  // never the raw --ui-green / --ui-amber / --ui-red, which measure 2.98 /
+  // 3.40 / 3.84 on their own soft backgrounds.
+  &__deadline-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: $radius-sm;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    line-height: 1.6;
     white-space: nowrap;
-    text-overflow: ellipsis;
+
+    &--open {
+      background: var(--ui-tint-green-bg);
+      color: var(--ui-tint-green-ink);
+    }
+
+    &--closing {
+      background: var(--ui-tint-amber-bg);
+      color: var(--ui-tint-amber-ink);
+    }
+
+    &--closed {
+      background: var(--ui-tint-red-bg);
+      color: var(--ui-tint-red-ink);
+    }
   }
 
   &__doc-count {
@@ -96,7 +122,7 @@
     }
   }
 
-  // ----- 02 · company avatar + name, role beneath -----
+  // ----- 02 · identity left, the package figure right -----
   &__hero {
     display: flex;
     align-items: center;
@@ -106,11 +132,13 @@
 
   &__hero-text {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 3px;
     min-width: 0;
   }
 
+  // Three levels under the avatar: company → role → placement facts.
   &__company-name {
     min-width: 0;
     font-family: var(--ui-font);
@@ -131,117 +159,79 @@
 
   &__role {
     min-width: 0;
-    color: var(--ui-muted);
-    font-size: 13.5px;
-    font-weight: 500;
+    color: var(--ui-ink);
+    font-size: 14px;
+    font-weight: 600;
     line-height: 1.35;
     @include truncate;
   }
 
-  &__type {
-    max-width: 100%;
-    overflow: hidden;
+  &__meta {
+    min-width: 0;
     color: var(--ui-muted);
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    line-height: 1.4;
+    @include truncate;
   }
 
-  // ----- 03 · package strip — green means money, never "not disclosed" -----
+  // Green still means money — but as the figure itself, not a coloured box
+  // nested inside a card. A tinted strip was the loudest element on the card
+  // while carrying less information than the number beside it.
   &__package {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 11px 14px;
-    background: var(--ui-green-soft);
-    border-radius: var(--ui-radius-field); // 11px
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 45%;
+    text-align: right;
   }
 
   &__package-label {
-    flex-shrink: 0;
     color: var(--ui-muted);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
+    line-height: 1.4;
   }
 
   &__package-value {
     min-width: 0;
+    max-width: 150px;
     color: var(--ui-green);
     font-family: var(--ui-font);
     font-size: 19px;
     font-weight: 800;
     line-height: 1.2;
+    letter-spacing: -0.02em;
     text-align: right;
     @include truncate;
 
     // Tier modifiers keep the same green; only an undisclosed value is muted.
     &--undisclosed {
       color: var(--ui-muted);
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
-      font-style: normal;
+      letter-spacing: 0;
     }
   }
 
-  // ----- 04 · location left / deadline right (plain text, no badge) -----
-  &__facts {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-width: 0;
-    font-size: 13px;
-  }
-
-  &__facts .job-card__location {
-    flex: 1 1 auto;
-    color: var(--ui-muted);
-    font-weight: 600;
-
-    > svg {
-      width: 14px;
-      height: 14px;
-      color: var(--ui-muted);
-    }
-
-    .icon-label__text {
-      @include truncate;
-    }
-  }
-
-  &__facts .job-card__deadline {
-    flex-shrink: 0;
-    color: var(--ui-muted);
-    font-weight: 600;
-    white-space: nowrap;
-
-    // Plain coloured text only — no icon, no box
-    > svg {
-      display: none;
-    }
-
-    &.icon-label--danger {
-      color: var(--ui-red);
-      font-weight: 700;
-    }
-  }
-
-  // ----- 05 · one accent pill holding every eligibility mark -----
+  // ----- 03 · one accent pill holding every eligibility mark -----
   &__criteria {
     display: flex;
     min-width: 0;
   }
 
-  & .job-card__eligibility {
+  &__eligibility {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 10px;
     max-width: 100%;
-    padding: 6px 12px;
+    padding: 5px 11px;
+    border-radius: $radius-sm; // 6px — a tag, not a pill
     font-size: 12.5px;
     font-weight: 600;
     line-height: 1.5;
@@ -276,33 +266,35 @@
     white-space: nowrap;
   }
 
-  // ----- 06 · quiet dashed description preview -----
+  // ----- 04 · description preview — plain text, no box -----
+  // It used to sit in a dashed quiet-background panel: a box inside a box
+  // inside a grid of boxes. As running text it reads as what it is — a
+  // paragraph of the job description — and costs 24px of card height.
   &__excerpt {
-    padding: 11px 13px;
-    background: var(--ui-quiet);
-    border: 1px dashed var(--ui-border);
-    border-radius: 10px;
+    min-width: 0;
+    margin: 0;
     color: var(--ui-muted);
     font-size: 13px;
     font-weight: 400;
     line-height: 1.55;
-    @include line-clamp(3); // clean 3-line clip with an ellipsis…
-    // …even if clamp is unsupported (3 lines + 11px padding + 1px border)
-    max-height: calc(3 * 13px * 1.55 + 24px);
+    @include line-clamp(3);
+    // Fallback where clamp is unsupported (3 lines exactly)
+    max-height: calc(3 * 13px * 1.55);
+    overflow: hidden;
 
     &--muted {
-      color: var(--ui-muted);
+      color: var(--ui-faint);
       font-style: italic;
     }
   }
 
-  // ----- 07 · footer: posted date + text-only View details link -----
+  // ----- 05 · footer: posted + apply-by dates, and the way in -----
   &__footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding-top: 14px;
+    gap: 10px;
+    padding-top: 12px;
     border-top: 1px solid var(--ui-border-soft);
     color: var(--ui-muted);
     font-size: 12.5px;
@@ -325,6 +317,23 @@
     }
   }
 
+  &__dates {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    min-width: 0;
+  }
+
+  &__date-sep {
+    color: var(--ui-faint);
+  }
+
+  &__apply-by {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
   &__cta {
     display: inline-flex;
     align-items: center;
@@ -335,7 +344,7 @@
     font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
-    transition: gap $transition-fast;
+    transition: gap 140ms ease;
 
     &:hover {
       gap: 5px;

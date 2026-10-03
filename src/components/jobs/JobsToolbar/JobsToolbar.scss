@@ -2,37 +2,35 @@
 @use '../../../styles/mixins' as *;
 
 // ============================================================================
-// Filter bar — rows live INSIDE the shared white panel (.jobs-filter-panel in
-// Jobs.scss), so this file owns no surface: only the search row and the
-// labelled filter groups. Every control shares ONE neutral pill look; colour
-// appears only on the selected state, driven by meaning (see JobsToolbar.tsx).
+// Filter bar — ONE row: search → location → status → category → sort → Clear.
+// Rows live inside the shared white panel (.jobs-filter-panel in Jobs.scss),
+// so this file owns no surface, only the controls. Every group is a select;
+// colour appears only on the selected state, driven by meaning
+// (see JobsToolbar.tsx).
 // ============================================================================
 .jobs-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px 20px;
+  flex-wrap: wrap;
+  align-items: center;
+  // 10px column gap, not 12: five gaps at 12px spent 60px of a 1131px row on
+  // nothing, which is what pushed Sort onto a second line.
+  gap: 9px 10px;
+  padding: 12px 16px;
   font-family: var(--ui-font);
 
-  // ----- Search row: bordered field + the existing Clear action -----
-  &__search {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
+  // ----- Search: the row's flexible first item -----
   &__field {
     position: relative;
     display: flex;
-    flex: 1 1 auto;
+    flex: 1 1 200px;
     align-items: center;
-    min-width: 0;
+    min-width: 170px;
 
     input {
       width: 100%;
-      padding: 10px 38px;
+      padding: 9px 36px;
       border: 1px solid var(--ui-border);
-      border-radius: var(--ui-radius-field); // 11px
+      border-radius: $radius-tab; // 8px — inside the 6–9px jobs scale
       background: var(--ui-panel);
       color: var(--ui-ink);
       font-family: var(--ui-font);
@@ -55,7 +53,7 @@
 
   &__search-icon {
     position: absolute;
-    left: 13px;
+    left: 12px;
     display: flex;
     color: var(--ui-muted);
     pointer-events: none;
@@ -64,7 +62,7 @@
   &__clear {
     @include flex-center;
     position: absolute;
-    right: 8px;
+    right: 7px;
     width: 26px;
     height: 26px;
     border: 0;
@@ -83,106 +81,21 @@
     flex-shrink: 0;
   }
 
-  // ----- Filter groups row (wraps on narrow screens) -----
-  &__filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 12px;
-  }
-
-  &__filters-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding-right: 4px;
-    color: var(--ui-muted);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
+  // ----- One icon-led group per control, no captions and no dividers: the
+  // select's own option text says which dimension it is ("All locations"),
+  // so a caption beside it was ~60px of chrome saying the same thing twice.
+  // A hairline between groups next to that reads as noise too. -----
   &__group {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
-
-    // Hairline divider between distinct groups inside the same bar
-    + .jobs-toolbar__group {
-      position: relative;
-      padding-left: 16px;
-    }
-
-    + .jobs-toolbar__group::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 1px;
-      height: 20px;
-      background: var(--ui-border);
-      transform: translateY(-50%);
-    }
-  }
-
-  &__group-label {
-    display: inline-flex;
-    align-items: center;
     gap: 5px;
-    color: var(--ui-muted);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    white-space: nowrap;
+    min-width: 0;
   }
 
-  &__pills {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-  }
-
-  // ----- The one shared pill look (pills AND the select trigger) -----
-  &__pill {
-    padding: 6px 12px;
-    border: 0;
-    border-radius: var(--ui-radius-pill);
-    background: var(--ui-pill);
-    color: var(--ui-muted);
-    font-family: var(--ui-font);
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.3;
-    white-space: nowrap;
-    transition: background $transition-fast, color $transition-fast;
-
-    &:hover:not(:disabled):not(&--selected) {
-      background: var(--ui-track);
-      color: var(--ui-ink);
-    }
-
-    &:disabled {
-      opacity: 0.5;
-    }
-
-    // Selected state — meaning-based colour, never one colour per option
-    &--accent {
-      background: var(--ui-accent-soft);
-      color: var(--ui-accent);
-    }
-
-    &--green {
-      background: var(--ui-green-soft);
-      color: var(--ui-green);
-    }
-
-    &--red {
-      background: var(--ui-red-soft);
-      color: var(--ui-red);
-    }
+  &__group-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--ui-faint);
   }
 
   &__select {
@@ -194,13 +107,17 @@
     select {
       appearance: none;
       -webkit-appearance: none;
-      max-width: 230px;
-      padding: 6px 32px 6px 12px;
+      // 160px, not 220: two groups were spending 220px on their select alone,
+      // so four of them plus search came to 1338px in a 1131px row. A native
+      // select clips rather than ellipsises a long option, and the group's
+      // `title` carries the full value on hover.
+      max-width: 160px;
+      padding: 7px 30px 7px 11px;
       border: 0;
-      border-radius: var(--ui-radius-pill);
+      border-radius: $radius-tab; // 8px
       background: var(--ui-pill)
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1b0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-        no-repeat right 12px center;
+        no-repeat right 10px center;
       color: var(--ui-muted);
       font-family: var(--ui-font);
       font-size: 13px;
@@ -238,31 +155,14 @@
 }
 
 // ----- Responsive -----
-@include down('lg') {
-  // Dividers only read correctly while the groups sit on one line
-  .jobs-toolbar__group + .jobs-toolbar__group {
-    padding-left: 0;
-  }
-
-  .jobs-toolbar__group + .jobs-toolbar__group::before {
-    display: none;
-  }
-}
-
 @include down('md') {
   .jobs-toolbar {
-    padding: 14px 16px;
+    padding: 10px 14px;
+    gap: 9px 10px;
 
-    &__search {
-      flex-wrap: wrap;
-    }
-
+    // Search takes the line; the four groups follow beneath it.
     &__field {
       flex-basis: 100%;
-    }
-
-    &__filters {
-      gap: 10px;
     }
 
     &__group {
@@ -271,6 +171,6 @@
   }
 
   .jobs-toolbar__select select {
-    max-width: 190px;
+    max-width: 155px;
   }
 }
