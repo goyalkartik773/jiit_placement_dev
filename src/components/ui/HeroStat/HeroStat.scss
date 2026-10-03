@@ -10,11 +10,13 @@
 // boxes without introducing a second visual language.
 //
 // COLOURS — tokens only, none invented here:
-//   --ui-tint-<tint>-bg/-ink   the `card` wash, rail, bar and icon (>= 4.85:1)
-//   --ui-panel / --ui-border   the `report` frame
+//   --ui-tint-<tint>-ink       the `card` rail, bar and icon (>= 4.85:1)
+//   --ui-panel / --ui-border   the surface, and the `report` frame
 //   --ui-accent                the `report` bar and icon
 //   --ui-ink                   BOTH figures (identical on every hero)
-//   --ui-tint-label            label + sublabel (4.84–5.06:1 on these washes)
+//   --ui-tint-label            label + sublabel — 5.56:1 on the white surface
+//                              it sits on now; it was 4.84–5.06:1 against the
+//                              wash it used to carry.
 //
 // RULES CARRIED OVER FROM StatCard.scss — same three defects, same guards:
 //   1. `overflow-wrap: normal` — labels break at spaces only.
@@ -24,7 +26,6 @@
 // ============================================================================
 .ui-hero {
   --tile-ink: var(--ui-tint-accent-ink);
-  --tile-bg: var(--ui-tint-accent-bg);
   // Resolved against the tile's own ink, so one declaration serves all seven
   // tints AND the accent-only report frame.
   --hero-line: color-mix(in srgb, var(--tile-ink) 20%, transparent);
@@ -36,8 +37,12 @@
   gap: $space-6;
   min-width: 0;
   padding: $space-6 $space-7 $space-5;
-  background: var(--tile-bg);
-  border: 1px solid color-mix(in srgb, var(--tile-ink) 22%, var(--ui-panel));
+  // The `card` surface is neutral for the same reason StatCard's is: a white
+  // field with one standard hairline, and the tint living on the 4px rail
+  // above it. The wash used to fill this box, which made the two anchor tiles
+  // the loudest thing on a page that is supposed to be led by its headline.
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-card);
   box-shadow: $shadow-xs;
   font-family: var(--ui-font);
@@ -157,31 +162,24 @@
   // ----- Tints: same seven as StatCard, same pairing -----------------------
   &--accent {
     --tile-ink: var(--ui-tint-accent-ink);
-    --tile-bg: var(--ui-tint-accent-bg);
   }
   &--indigo {
     --tile-ink: var(--ui-tint-indigo-ink);
-    --tile-bg: var(--ui-tint-indigo-bg);
   }
   &--violet {
     --tile-ink: var(--ui-tint-violet-ink);
-    --tile-bg: var(--ui-tint-violet-bg);
   }
   &--teal {
     --tile-ink: var(--ui-tint-teal-ink);
-    --tile-bg: var(--ui-tint-teal-bg);
   }
   &--green {
     --tile-ink: var(--ui-tint-green-ink);
-    --tile-bg: var(--ui-tint-green-bg);
   }
   &--amber {
     --tile-ink: var(--ui-tint-amber-ink);
-    --tile-bg: var(--ui-tint-amber-bg);
   }
   &--neutral {
     --tile-ink: var(--ui-tint-neutral-ink);
-    --tile-bg: var(--ui-tint-neutral-bg);
   }
 
   // ----- Variant 2 of 2: the report frame (Analytics) -----------------------

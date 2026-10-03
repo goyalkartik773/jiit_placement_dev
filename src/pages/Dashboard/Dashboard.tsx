@@ -254,15 +254,14 @@ export function Dashboard() {
       </div>
 
       {/* ---------------------------------------------------------------- */}
-      {/* The four supporting figures, still the loose tinted tiles that     */}
-      {/* are this page's identity. Four, not six — the hero carries the     */}
-      {/* other two, so the grid is stamped with its count and never strands */}
-      {/* a tile on a row of its own.                                        */}
+      {/* ROW 2 — SCOPE: how much of the institute this picture covers.      */}
+      {/* Two across, and quieter than the hero above it on purpose — these   */}
+      {/* are context for the headline figures, not two more of them.         */}
       {/* ---------------------------------------------------------------- */}
-      <section className="ui-stat-card-row" data-cells={4} aria-label="Placement highlights">
-        {/* None of these four is an X / Y: this feed states no denominator
-            for a stream, a campus or a package — see
-            components/ui/StatCard/metricKind.ts for the rule. */}
+      <section className="ui-stat-card-row" data-cells={2} aria-label="Placement coverage">
+        {/* Neither is an X / Y: this feed states no denominator for a stream
+            or a campus — see components/ui/StatCard/metricKind.ts for the
+            rule. */}
         <StatCard
           label="Streams covered"
           value={summary.streamsCovered.toLocaleString()}
@@ -279,7 +278,19 @@ export function Dashboard() {
           icon="pin"
           tint="teal"
         />
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* ROW 3 — THE MONEY, one step stronger than the scope row. Package   */}
+      {/* figures are what a placement user reads for, so these take          */}
+      {/* `size="lg"` (34px against 28px) rather than a different surface:     */}
+      {/* emphasis by type, never by colour. Split from row 2 so each pair     */}
+      {/* gets its own two-column row instead of four tiles being stranded    */}
+      {/* behind a hero that already took two.                                */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="ui-stat-card-row" data-cells={2} aria-label="Package highlights">
         <StatCard
+          size="lg"
           label="Highest package"
           /* `lpaFigure` splits the number off `formatLpa` so "LPA" can print
              as its own muted span and "56 LPA" can never wrap mid-figure. */
@@ -290,6 +301,7 @@ export function Dashboard() {
           tint="green"
         />
         <StatCard
+          size="lg"
           label="Average package"
           value={averageLpa ?? '—'}
           unit={averageLpa ? 'LPA' : undefined}

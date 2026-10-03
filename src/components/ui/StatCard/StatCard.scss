@@ -1,23 +1,24 @@
 @use '../../../styles/variables' as *;
 
 // ============================================================================
-// StatCard — one KPI tile: a soft tinted fill, a 3px tint rail, a neutral
+// StatCard — one KPI tile: a white surface, a 3px tint rail, a neutral
 // number.
 //
-// THE FILL. Every tile carries its own light `--ui-tint-<tint>-bg` wash, so
-// the six metrics are tellable apart at a glance — but the wash is LIGHT by
-// design (those tokens were authored as card backgrounds), which is what lets
-// the number stay `--ui-ink` on all six. Colour identifies; type carries the
-// hierarchy. One surface treatment, one border recipe, one shadow, one type
-// scale: only the tint differs between tiles.
+// THE SURFACE IS THE SAME FOR ALL SEVEN — white on the page grey, one standard
+// hairline, `$shadow-xs`. What differs is the tint, and only where the tint is
+// doing work: the rail across the top edge, the icon, the progress fill. Seven
+// tinted washes made a row of these read as an admin template, and they cost
+// the figures their authority, because the eye was busy with the backgrounds.
+// Colour appears where it identifies; type still carries the hierarchy.
 //
 // COLOURS — every value from `styles/_ui.scss`, none invented here:
-//   --ui-tint-<tint>-bg         the fill (paired with its ink, same token set)
-//   --ui-panel                  mixed into the hairline border
-//   --ui-ink                    the number (identical on all six tiles)
-//   --ui-tint-label             label, unit, sublabel — the only ink measured
-//                               against these washes (4.84–5.06:1); the stock
-//                               --ui-muted would fall to 4.3 here
+//   --ui-panel                  the surface
+//   --ui-border                 the hairline
+//   --ui-ink                    the number (identical on all seven tiles)
+//   --ui-tint-label             label, unit, sublabel — 5.56:1 on the white
+//                               surface. It used to be measured against the
+//                               washes (4.84–5.06:1), so neutralising the
+//                               background only improved it.
 //   --ui-tint-<tint>-ink        rail, icon, progress fill (>= 4.85:1)
 //
 // THREE RULES THE LAYOUT ENFORCES — each one fixes a shipped defect:
@@ -30,7 +31,6 @@
 // ============================================================================
 .ui-stat-card {
   --tile-ink: var(--ui-tint-neutral-ink);
-  --tile-bg: var(--ui-tint-neutral-bg);
 
   position: relative;
   display: flex;
@@ -38,11 +38,15 @@
   gap: 8px;
   min-width: 0;
   padding: 16px 16px 14px;
-  background: var(--tile-bg);
-  // The wash is so light that a stock grey border would vanish into it, so
-  // the hairline is mixed FROM the tile's own ink over its own panel white —
-  // one recipe that lands on the right weight for all seven tints.
-  border: 1px solid color-mix(in srgb, var(--tile-ink) 22%, var(--ui-panel));
+  // THE SURFACE IS NEUTRAL — white on the page grey, one standard hairline.
+  // What tells one tile from another is its rail, its icon and its bar, never
+  // a pastel flood. A row of six tinted cards reads as an admin template, and
+  // the colour costs something measurable: the eye spends its budget on the
+  // fills instead of on the figures, so the numbers get harder to compare.
+  // `--tile-ink` still owns the rail, the icon and the progress fill — that
+  // is where a tint earns its keep, and it keeps it.
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-card);
   box-shadow: $shadow-xs;
   font-family: var(--ui-font);
@@ -151,32 +155,39 @@
   }
 
   // ----- The seven identities ---------------------------------------------
-  // Each sets ONLY the ink/bg pair from `_ui.scss`: same border recipe, same
-  // shadow, same type. Nothing else changes between tints, so the row stays
-  // one row.
+  // Each sets ONLY the ink from `_ui.scss`. Same white surface, same border
+  // recipe, same shadow, same type — nothing else changes between tints, so
+  // the row stays one row and the tile's colour is a rail, not a fill.
   &--accent {
     --tile-ink: var(--ui-tint-accent-ink);
-    --tile-bg: var(--ui-tint-accent-bg);
   }
   &--indigo {
     --tile-ink: var(--ui-tint-indigo-ink);
-    --tile-bg: var(--ui-tint-indigo-bg);
   }
   &--violet {
     --tile-ink: var(--ui-tint-violet-ink);
-    --tile-bg: var(--ui-tint-violet-bg);
   }
   &--teal {
     --tile-ink: var(--ui-tint-teal-ink);
-    --tile-bg: var(--ui-tint-teal-bg);
   }
   &--green {
     --tile-ink: var(--ui-tint-green-ink);
-    --tile-bg: var(--ui-tint-green-bg);
   }
   &--amber {
     --tile-ink: var(--ui-tint-amber-ink);
-    --tile-bg: var(--ui-tint-amber-bg);
+  }
+
+  // One step up in figure size — see `size` in StatCard.tsx. Everything else
+  // about the tile is unchanged, so a row of `--lg` sits on the same baseline
+  // and shares the same frame as a row of `--md`.
+  //
+  // On `__value`, not `__figure`: that is the element every size rule in this
+  // file is written against, so the step tracks them instead of quietly
+  // diverging from them. The narrow-screen companion is in the 700px block
+  // below and keeps the same ~20% step, so the emphasis does not widen on a
+  // phone where the base has already dropped to 25px.
+  &--lg &__value {
+    font-size: 34px;
   }
 }
 
@@ -215,6 +226,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  // Two tiles (the Dashboard's KPI rows 2 and 3, once the hero took row 1).
+  // Two across at every width except a phone, where one is the only honest
+  // answer — the `data-cells` counts above would strand a pair on a 3- or
+  // 6-column row.
+  &[data-cells='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    @media (max-width: 460px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   // Four tiles (the Dashboard's supporting figures, once the hero took two).
   // Two across by default so each keeps ~278px — four-across at 572px would
   // squeeze them back to 136px, which is the crowding the hero exists to fix.
@@ -239,6 +262,13 @@
 
   .ui-stat-card__value {
     font-size: 25px;
+  }
+
+  // The `size="lg"` step, kept proportional: 30 against 25 is the same ~20%
+  // the row holds at desktop widths, so a package figure is a shade stronger
+  // than a scope figure everywhere rather than a different type size here.
+  .ui-stat-card--lg .ui-stat-card__value {
+    font-size: 30px;
   }
 
   .ui-stat-card:not(.ui-stat-card--strip) .ui-stat-card__head {

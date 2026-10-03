@@ -57,18 +57,25 @@ interface StatCardProps {
    *            3px rail on the LEFT edge instead.
    */
   variant?: 'card' | 'strip';
+  /**
+   * Figure scale. `lg` is one step up, for a row that should carry a little
+   * more weight than the one above it — the package figures on the dashboard,
+   * which is what placement users actually read for. It is a step, not a
+   * second component: same surface, same rail, same type, one size larger.
+   */
+  size?: 'md' | 'lg';
   className?: string;
 }
 
 /**
- * One KPI tile: a soft tinted fill, a 3px tint rail, a neutral number.
+ * One KPI tile: a white surface, a 3px tint rail, a neutral number.
  *
- * The fill is the light `--ui-tint-<tint>-bg` wash — enough colour for the six
- * metrics to be told apart at a glance, light enough that the number can stay
- * `--ui-ink` on every tile. So the six read as one system (same surface, same
- * border, same shadow, same type) rather than six different widgets, and the
- * label/sublabel use `--ui-tint-label`, the ink that was measured against
- * these washes (4.84–5.06:1) where the stock `--ui-muted` would drop to 4.3.
+ * The surface is the same on every tile — white, one hairline, one shadow — so
+ * a row of them reads as one system rather than six widgets, and so nothing
+ * on the tile competes with the figure. What tells them apart is the tint,
+ * which owns the rail, the icon and the progress fill and nothing else.
+ * Labels use `--ui-tint-label`, which measures 5.56:1 here where the stock
+ * `--ui-muted` would sit at 4.93.
  *
  * It prints what it is handed: it never derives, rounds or invents a value,
  * so every tile stays traceable to the feed it came from.
@@ -83,12 +90,14 @@ export function StatCard({
   progress,
   ariaBusy,
   variant = 'card',
+  size = 'md',
   className = '',
 }: StatCardProps) {
   const classes = [
     'ui-stat-card',
     `ui-stat-card--${tint}`,
     variant === 'strip' ? 'ui-stat-card--strip' : '',
+    size === 'lg' ? 'ui-stat-card--lg' : '',
     className,
   ]
     .filter(Boolean)
