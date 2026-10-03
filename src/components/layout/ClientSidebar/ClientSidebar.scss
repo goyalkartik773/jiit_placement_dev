@@ -8,7 +8,7 @@
 //   768–1023 icon-only (labels collapse to a title tooltip)
 //   <768px   fixed off-canvas drawer, opened by the hamburger in the bar
 //
-// Three labelled groups — Overview / Opportunities / Alerts — so six links
+// Three labelled groups — Overview / Opportunities / Signals — so six links
 // read as three decisions rather than a flat list. The labels are structural,
 // not decorative: each one owns the nested list beneath it (aria-labelledby),
 // and they drop out with the item labels on the icon rail.
@@ -134,7 +134,9 @@
     gap: 10px; // icon + label: comfortably inside the 8px minimum
     min-height: 34px;
     padding: 7px 11px;
-    border-radius: 8px;
+    // 10px, not 8: the active state's soft accent fill reads as a rounded
+    // chip, and at 8px the corner was tighter than the 3px bar that marks it.
+    border-radius: 10px;
     color: var(--ui-muted);
     font-size: 13.5px;
     font-weight: 600;

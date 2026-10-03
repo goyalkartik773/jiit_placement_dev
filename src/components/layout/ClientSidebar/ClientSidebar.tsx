@@ -20,11 +20,11 @@ interface NavGroup {
 /**
  * Client navigation, in product order, grouped by what the reader is doing
  * with it: reading the market (Overview), acting on openings (Opportunities),
- * reacting to what landed in the mailbox (Alerts).
+ * reacting to what landed in the mailbox (Signals).
  *
  * The groups are presentational — every route, label and icon is unchanged,
  * and each group owns a labelled nested list so assistive tech announces
- * "Alerts, list, 2 items" before the item itself.
+ * "Signals, list, 2 items" before the item itself.
  */
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -42,7 +42,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: 'Alerts',
+    label: 'Signals',
     items: [
       { to: '/email-notices', label: 'Email Notices', icon: 'inbox' },
       { to: '/superset-notices', label: 'Superset Notices', icon: 'bell' },
