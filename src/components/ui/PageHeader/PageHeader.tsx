@@ -8,9 +8,13 @@ import './PageHeader.scss';
 export const SESSION_EYEBROW = 'Placement Cell · Session 2026–27';
 
 interface PageHeaderProps {
-  /** Small uppercase label above the title. Use `SESSION_EYEBROW` unless the
-   *  screen genuinely measures something else. */
-  eyebrow: ReactNode;
+  /**
+   * Small uppercase label above the title. Use `SESSION_EYEBROW` unless the
+   * screen genuinely measures something else — or its own hero already states
+   * the session, in which case omit it: the label is a fact, not a refrain,
+   * and printing it twice two lines apart reads as a stutter.
+   */
+  eyebrow?: ReactNode;
   /** The page's single `<h1>`. */
   title: string;
   /**
@@ -52,7 +56,7 @@ export function PageHeader({
 
   return (
     <header className={classes}>
-      <p className="page-header__eyebrow">{eyebrow}</p>
+      {eyebrow ? <p className="page-header__eyebrow">{eyebrow}</p> : null}
       <h1 className="page-header__title">{title}</h1>
       {summary ? (
         <p

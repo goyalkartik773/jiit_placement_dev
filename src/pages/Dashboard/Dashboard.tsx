@@ -7,7 +7,7 @@ import { Avatar } from '../../components/ui/Avatar/Avatar';
 import { CalloutBanner } from '../../components/ui/CalloutBanner/CalloutBanner';
 import { Card } from '../../components/ui/Card/Card';
 import { DonutChart } from '../../components/ui/DonutChart/DonutChart';
-import { PageHeader, SESSION_EYEBROW } from '../../components/ui/PageHeader/PageHeader';
+import { PageHeader } from '../../components/ui/PageHeader/PageHeader';
 import { HeroStat } from '../../components/ui/HeroStat/HeroStat';
 import { Pill } from '../../components/ui/Pill/Pill';
 import { StatCard } from '../../components/ui/StatCard/StatCard';
@@ -133,8 +133,10 @@ export function Dashboard() {
     return (
       <div className="page dashboard">
         {/* Same `PageHeader` as the populated view — the empty state used to
-            hand-roll a second header block whose CSS no longer exists. */}
-        <PageHeader eyebrow={SESSION_EYEBROW} title="Placement Dashboard" />
+            hand-roll a second header block whose CSS no longer exists. No
+            eyebrow: the populated view's hero carries the session label, and
+            the two views must not disagree about what sits above the title. */}
+        <PageHeader title="Placement Dashboard" />
         <EmptyState
           title="No placements recorded yet"
           description="The dashboard lights up as soon as the first offer is matched to a student."
@@ -167,8 +169,9 @@ export function Dashboard() {
     <div className="page dashboard">
       {/* Named, not sized: the header says which screen this is and stops
           there. The banner underneath is the focal point of this page, and
-          letting the title stay plain is what allows it to be one. */}
-      <PageHeader eyebrow={SESSION_EYEBROW} title="Placement Dashboard" />
+          letting the title stay plain is what allows it to be one. The
+          session label lives in the banner, so it is stated once. */}
+      <PageHeader title="Placement Dashboard" />
 
       {/* ---------------------------------------------------------------- */}
       {/* THE FOCAL POINT. The product identity, promoted from a muted line  */}
@@ -183,7 +186,12 @@ export function Dashboard() {
       {/* ---------------------------------------------------------------- */}
       <section className="dash-banner" aria-labelledby="dash-banner-title">
         <div className="dash-banner__body">
-          <p className="dash-banner__eyebrow">Placement Intelligence · Session 2026–27</p>
+          <p className="dash-banner__eyebrow">Placement Cell · Session 2026–27</p>
+          {/* A hairline that a soft highlight travels along on a slow loop.
+              It states nothing and claims no timestamp — it exists purely so
+              the block reads as a surface something is arriving on, rather
+              than as a poster that was printed once. */}
+          <span className="dash-banner__feed" aria-hidden="true" />
           <h2 className="dash-banner__title" id="dash-banner-title">
             JIIT Placements
             <br />
@@ -193,14 +201,15 @@ export function Dashboard() {
         </div>
 
         {/* `usePlacementSummary` returns no timestamp, so there is no
-            "last updated" this component could print honestly. The
-            indicator states that the source is a live feed instead — a
-            fact about the app rather than a freshness claim. */}
+            "last updated" this component could print honestly — and a
+            fabricated one would be the one thing on this page that lies.
+            The indicator instead says what is true and shows it: the dot
+            pings, the rail sweeps, and the source is named. */}
         <p className="dash-banner__live">
           <span className="dash-banner__live-dot" aria-hidden="true" />
           <span className="dash-banner__live-text">
-            <span className="dash-banner__live-label">Data live</span>
-            <span className="dash-banner__live-sub">Company-wise placement feed</span>
+            <span className="dash-banner__live-label">Live feed</span>
+            <span className="dash-banner__live-sub">Pulling new placements</span>
           </span>
         </p>
       </section>

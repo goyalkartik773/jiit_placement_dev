@@ -25,12 +25,17 @@
 //
 //   #080d19  background          base, under the glow
 //   #8fa8ff  eyebrow             8.51:1    11.5px / 700
-//   #ffffff  headline           19.40:1    up to 50px / 800
-//   #5b7cff  "Unfiltered."       5.33:1    up to 50px / 800
-//   #aab4c8  subtitle            9.31:1    17.5px / 400
-//   #cbd5e1  "Data live"        13.07:1    11.5px / 700
-//   #8b95a9  feed line           6.44:1    12.5px / 400
+//   #ffffff  headline           19.40:1    up to 38px / 700
+//   #5b7cff  "Unfiltered."       5.33:1    up to 38px / 700
+//   #aab4c8  subtitle            9.75:1    16.5px / 400
+//   #cbd5e1  "Live feed"        13.07:1    11.5px / 700
+//   #8b95a9  "Pulling new…"      6.44:1    12.5px / 400
 //   #22c55e  live dot            8.52:1    8px, non-text
+//
+// The headline used to be 50px / 800 / uppercase / -0.04em — the corner of
+// the scale where a title stops being a title and starts being a poster, and
+// it read as one. 38px / 700 / natural case / -0.02em keeps it the largest
+// thing on the page without being the loudest idea on it.
 //
 // All clear AA (4.5:1) at their size and the two large ones clear AAA. The
 // radial glow is a single low-alpha accent wash in the top-right corner and
@@ -46,12 +51,18 @@
   flex-direction: column;
   justify-content: space-between;
   gap: $space-2;
-  min-height: 250px;
+  // Was 250px. The headline lost 12px of size and a weight step, so the block
+  // no longer needs the height to look composed — and a shorter hero is a
+  // quieter one, which is the whole brief.
+  min-height: 216px;
   padding: $space-7;
   overflow: hidden;
   border-radius: $radius-xl;
+  // The wash was 0.20 at 85% 20%, which put a visible blue bloom behind the
+  // type — the tell-tale "gradient hero". Pulled out to the corner and down
+  // to 0.11 so it reads as light entering the panel rather than as an effect.
   background:
-    radial-gradient(circle at 85% 20%, rgba(62, 99, 221, 0.2), transparent 45%),
+    radial-gradient(circle at 96% 8%, rgba(62, 99, 221, 0.11), transparent 42%),
     #080d19;
   color: #fff;
   font-family: var(--ui-font);
@@ -76,18 +87,41 @@
     color: #8fa8ff;
   }
 
-  // `clamp` rather than a fixed 50px: below ~920px the content column is too
-  // narrow for a 50px word, and 32px is the size the spec asks for on a phone.
-  // Natural case in the markup, uppercased here, so a screen reader still
-  // hears "JIIT Placements, Unfiltered" rather than a run of capitals.
+  // A 1px track with a soft highlight travelling along it. Not a progress
+  // bar — there is no percentage to show and inventing one would be the only
+  // dishonest number on the page. It is a pulse: the panel is a surface that
+  // something arrives on, and the light is that arrival, on a 3.4s loop that
+  // is slow enough to sit at the edge of attention.
+  &__feed {
+    position: relative;
+    display: block;
+    width: min(320px, 62%);
+    height: 1px;
+    margin-top: 14px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.09);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 34%;
+      background: linear-gradient(90deg, transparent, rgba(143, 168, 255, 0.95), transparent);
+      animation: dash-feed-sweep 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+  }
+
+  // `clamp` rather than a fixed 38px: below ~920px the content column is too
+  // narrow for a large word, and 27px is the size the spec asks for on a
+  // phone. Natural case in the markup AND here — uppercasing a headline this
+  // size is what made it read as a poster instead of as a page.
   &__title {
     margin: $space-3 0 0;
     color: #fff;
-    font-size: clamp(32px, 5vw, 50px);
-    font-weight: 800;
-    line-height: 0.96;
-    letter-spacing: -0.04em;
-    text-transform: uppercase;
+    font-size: clamp(27px, 3.6vw, 38px);
+    font-weight: 700;
+    line-height: 1.06;
+    letter-spacing: -0.02em;
   }
 
   // The one word allowed to carry colour inside the headline.
@@ -99,7 +133,7 @@
     max-width: 560px;
     margin: $space-3 0 0;
     color: #aab4c8;
-    font-size: 17.5px;
+    font-size: 16.5px;
     font-weight: 400;
     line-height: 1.5;
   }
@@ -121,12 +155,25 @@
   }
 
   &__live-dot {
+    position: relative;
     width: 8px;
     height: 8px;
     margin-top: 5px; // optically level with the 11.5px label beside it
     flex-shrink: 0;
     border-radius: 50%;
     background: #22c55e;
+
+    // A radar ping. One ring leaves the dot every 2s and dissolves before the
+    // next — the whole difference between a label that SAYS live and a thing
+    // that looks alive. No layout, no text, and still no freshness claim.
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border: 1px solid #22c55e;
+      border-radius: 50%;
+      animation: dash-live-ping 2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+    }
   }
 
   &__live-text {
@@ -164,7 +211,7 @@
     padding: $space-6;
 
     &__title {
-      font-size: 32px;
+      font-size: 27px;
     }
 
     &__sub {
@@ -175,6 +222,51 @@
       align-self: flex-start;
       text-align: left;
     }
+  }
+}
+
+// ============================================================================
+// The two motions. Kept at file scope so Sass does not nest them under
+// `.dash-banner` — @keyframes names are global either way, and a reader
+// looking for "what moves on this page" finds them next to what they move.
+//
+// Both are `infinite`, because the claim they support ("this is live") has no
+// end state. Both are opacity + transform only, so neither triggers layout.
+// ============================================================================
+@keyframes dash-live-ping {
+  0% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@keyframes dash-feed-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+// Motion is decoration here; nothing is communicated by it alone (the label
+// says "Live feed" in text), so turning it off costs no information.
+@media (prefers-reduced-motion: reduce) {
+  .dash-banner__live-dot::after,
+  .dash-banner__feed::after {
+    animation: none;
+  }
+
+  .dash-banner__feed::after {
+    opacity: 0.5;
+    transform: none;
   }
 }
 
