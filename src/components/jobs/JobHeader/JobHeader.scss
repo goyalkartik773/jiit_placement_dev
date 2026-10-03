@@ -53,9 +53,11 @@
     white-space: nowrap;
   }
 
+  // No colour of its own: it inherits $text-muted from __posted above.
+  // It used to step down to $text-faint, which is 2.58:1 on this white bar
+  // for text that needs 4.5:1 — the same defect the rest of the shell had.
   &__posted-rel {
     font-weight: $fw-regular;
-    color: $text-faint;
   }
 
   // ----- Hero surface with ambient blobs -----

@@ -87,7 +87,7 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-size: 12.5px;
     font-weight: 600;
 
@@ -141,7 +141,7 @@
   &__type {
     max-width: 100%;
     overflow: hidden;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
@@ -204,7 +204,7 @@
     > svg {
       width: 14px;
       height: 14px;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
     }
 
     .icon-label__text {
@@ -291,7 +291,7 @@
     max-height: calc(3 * 13px * 1.55 + 24px);
 
     &--muted {
-      color: var(--ui-faint);
+      color: var(--ui-muted);
       font-style: italic;
     }
   }
@@ -304,19 +304,19 @@
     gap: 12px;
     padding-top: 14px;
     border-top: 1px solid var(--ui-border-soft);
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-size: 12.5px;
 
     .icon-label {
       min-width: 0;
-      color: var(--ui-faint);
+      color: var(--ui-muted);
       font-size: 12.5px;
       font-weight: 500;
 
       > svg {
         width: 14px;
         height: 14px;
-        color: var(--ui-faint);
+        color: var(--ui-muted);
       }
 
       .icon-label__text {

@@ -41,7 +41,7 @@
       transition: border-color $transition-fast, box-shadow $transition-fast;
 
       &::placeholder {
-        color: var(--ui-faint);
+        color: var(--ui-muted);
         font-weight: 400;
       }
 
@@ -57,7 +57,7 @@
     position: absolute;
     left: 13px;
     display: flex;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     pointer-events: none;
   }
 
@@ -70,7 +70,7 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     transition: background $transition-fast, color $transition-fast;
 
     &:hover {
@@ -131,7 +131,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: var(--ui-faint);
+    color: var(--ui-muted);
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;

@@ -74,7 +74,9 @@
     transition: border-color $transition-fast, box-shadow $transition-fast;
 
     &::placeholder {
-      color: $text-faint;
+      // $text-muted (4.86:1), not $text-faint (2.6:1) — the placeholder is
+      // the only thing telling a user what this field wants.
+      color: $text-muted;
     }
 
     &:focus {

@@ -13,7 +13,9 @@
     max-width: $content-max;
     margin: 0 auto;
     padding: $space-6;
-    color: $text-faint;
+    // $text-muted (4.86:1 on the app background), not $text-faint (2.6:1):
+    // this is real copy at 12px, not decoration.
+    color: $text-muted;
     font-size: $fs-xs;
     text-align: center;
   }
